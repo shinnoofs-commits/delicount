@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter, usePathname } from 'next/navigation';
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 
 import {
@@ -118,6 +118,21 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
       router.replace('/login');
     }
   }, [user, loading, router]);
+  
+  const breadcrumbItems = useMemo(() => {
+    const pathParts = pathname.split('/').filter(part => part);
+    const items = pathParts.map((part, index) => {
+      const href = '/' + pathParts.slice(0, index + 1).join('/');
+      const navItem = navItems.find(item => item.href === href);
+      const label = navItem?.label || part.charAt(0).toUpperCase() + part.slice(1);
+      return {
+        href,
+        label,
+        isPage: index === pathParts.length - 1,
+      };
+    });
+    return [{ href: '/', label: 'SwiftPOS' }, ...items];
+  }, [pathname]);
 
   if (loading || !user) {
     return (
@@ -127,10 +142,9 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     );
   }
 
-  // Ensure admins can see everything, but employees might be restricted
   const currentNavItem = navItems.find(item => pathname.startsWith(item.href));
   if (currentNavItem?.adminOnly && user.role !== 'admin') {
-     router.replace('/pos'); // Or a dedicated 'unauthorized' page
+     router.replace('/pos');
      return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -138,8 +152,6 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
         </div>
      );
   }
-  
-  const pageTitle = currentNavItem?.label || 'ページ';
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
@@ -148,15 +160,20 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
           <MainNav userRole={user.role} />
           <Breadcrumb className="hidden md:flex">
             <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink asChild>
-                  <Link href="/pos">SwiftPOS</Link>
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>{pageTitle}</BreadcrumbPage>
-              </BreadcrumbItem>
+              {breadcrumbItems.map((item, index) => (
+                <React.Fragment key={item.href}>
+                  <BreadcrumbItem>
+                    {item.isPage ? (
+                      <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                    ) : (
+                      <BreadcrumbLink asChild>
+                        <Link href={item.href}>{item.label}</Link>
+                      </BreadcrumbLink>
+                    )}
+                  </BreadcrumbItem>
+                  {index < breadcrumbItems.length - 1 && <BreadcrumbSeparator />}
+                </React.Fragment>
+              ))}
             </BreadcrumbList>
           </Breadcrumb>
           <div className="relative ml-auto flex-1 md:grow-0">
