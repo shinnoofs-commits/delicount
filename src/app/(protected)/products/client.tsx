@@ -194,7 +194,7 @@ export default function ProductsClient({ initialProducts }: { initialProducts: P
             <AlertDialogTitle>よろしいですか？</AlertDialogTitle>
             <AlertDialogDescription>
               この操作は元に戻せません。商品「{selectedProduct?.name}」を完全に削除します。
-            </CRLF>
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>キャンセル</AlertDialogCancel>
