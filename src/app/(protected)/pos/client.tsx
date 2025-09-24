@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import Image from 'next/image';
-import { Search, X, Plus, Minus, Percent, Tag, Yen } from 'lucide-react';
+import { Search, X, Plus, Minus, Percent, Tag, CreditCard } from 'lucide-react';
 import { products as allProducts } from '@/lib/data';
 import type { Product, CartItem } from '@/lib/types';
 import { Input } from '@/components/ui/input';
@@ -196,7 +196,7 @@ export default function PosClient() {
                     <Percent className="h-4 w-4"/>
                   </Button>
                   <Button variant={discount.type === 'amount' ? 'secondary' : 'outline'} size="icon" className="h-8 w-8" onClick={() => setDiscount({ type: 'amount', value: discount.value })}>
-                    <Yen className="h-4 w-4"/>
+                    <CreditCard className="h-4 w-4"/>
                   </Button>
                 </div>
             </div>
