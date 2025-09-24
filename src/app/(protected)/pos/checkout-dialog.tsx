@@ -45,7 +45,7 @@ export function CheckoutDialog({ isOpen, onClose, onConfirm, total }: CheckoutDi
         <DialogHeader>
           <DialogTitle>支払いを完了</DialogTitle>
           <DialogDescription>
-            お支払い総額は <strong>${total.toFixed(2)}</strong> です。
+            お支払い総額は <strong>¥{total.toLocaleString()}</strong> です。
           </DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-4">

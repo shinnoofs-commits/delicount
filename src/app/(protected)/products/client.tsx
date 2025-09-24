@@ -116,12 +116,8 @@ export default function ProductsClient({ initialProducts }: { initialProducts: P
                 <TableHead>名前</TableHead>
                 <TableHead>SKU</TableHead>
                 <TableHead className="hidden md:table-cell">カテゴリ</TableHead>
-                <TableHead>
-                  <span className="sr-only">価格</span>
-                </TableHead>
-                <TableHead>
-                  <span className="sr-only">在庫</span>
-                </TableHead>
+                <TableHead className="text-right">価格</TableHead>
+                <TableHead className="text-right">在庫</TableHead>
                 <TableHead>
                   <span className="sr-only">アクション</span>
                 </TableHead>
@@ -143,7 +139,7 @@ export default function ProductsClient({ initialProducts }: { initialProducts: P
                   <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell>{product.sku}</TableCell>
                   <TableCell className="hidden md:table-cell">{product.category}</TableCell>
-                  <TableCell className="text-right font-medium">${product.price.toFixed(2)}</TableCell>
+                  <TableCell className="text-right font-medium">¥{product.price.toLocaleString()}</TableCell>
                   <TableCell className="text-right">{product.stock}</TableCell>
                   <TableCell>
                     <DropdownMenu>
