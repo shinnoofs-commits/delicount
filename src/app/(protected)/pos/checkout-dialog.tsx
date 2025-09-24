@@ -21,11 +21,11 @@ import {
 import type { CartItem } from '@/lib/types'
 
 const paymentMethods = [
-  { value: 'Cash', label: 'Cash', icon: Banknote },
-  { value: 'Credit Card', label: 'Credit Card', icon: CreditCard },
-  { value: 'E-Money', label: 'E-Money', icon: Smartphone },
-  { value: 'QR Code', label: 'QR Code', icon: QrCode },
-  { value: 'Points', label: 'Points', icon: Coins },
+  { value: 'Cash', label: '現金', icon: Banknote },
+  { value: 'Credit Card', label: 'クレジットカード', icon: CreditCard },
+  { value: 'E-Money', label: '電子マネー', icon: Smartphone },
+  { value: 'QR Code', label: 'QRコード', icon: QrCode },
+  { value: 'Points', label: 'ポイント', icon: Coins },
 ]
 
 interface CheckoutDialogProps {
@@ -43,16 +43,16 @@ export function CheckoutDialog({ isOpen, onClose, onConfirm, total }: CheckoutDi
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Complete Payment</DialogTitle>
+          <DialogTitle>支払いを完了</DialogTitle>
           <DialogDescription>
-            Total amount to be paid is <strong>${total.toFixed(2)}</strong>.
+            お支払い総額は <strong>${total.toFixed(2)}</strong> です。
           </DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-4">
-          <label htmlFor="payment-method" className="text-sm font-medium">Payment Method</label>
+          <label htmlFor="payment-method" className="text-sm font-medium">お支払い方法</label>
           <Select value={paymentMethod} onValueChange={setPaymentMethod}>
             <SelectTrigger id="payment-method" className="w-full">
-              <SelectValue placeholder="Select a payment method" />
+              <SelectValue placeholder="お支払い方法を選択" />
             </SelectTrigger>
             <SelectContent>
               {paymentMethods.map(method => (
@@ -68,10 +68,10 @@ export function CheckoutDialog({ isOpen, onClose, onConfirm, total }: CheckoutDi
         </div>
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
+            キャンセル
           </Button>
           <Button type="button" onClick={onConfirm} className="bg-accent hover:bg-accent/90 text-accent-foreground">
-            Confirm Payment
+            支払いを確定
           </Button>
         </DialogFooter>
       </DialogContent>

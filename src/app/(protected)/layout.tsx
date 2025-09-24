@@ -32,8 +32,8 @@ import { Loader2 } from 'lucide-react';
 
 const navItems = [
   { href: '/pos', icon: ShoppingCart, label: 'POS', adminOnly: false },
-  { href: '/dashboard', icon: LineChart, label: 'Dashboard', adminOnly: true },
-  { href: '/products', icon: Package, label: 'Products', adminOnly: true },
+  { href: '/dashboard', icon: LineChart, label: 'ダッシュボード', adminOnly: true },
+  { href: '/products', icon: Package, label: '商品', adminOnly: true },
 ];
 
 function MainNav({ userRole }: { userRole: 'admin' | 'employee' }) {
@@ -76,7 +76,7 @@ function MainNav({ userRole }: { userRole: 'admin' | 'employee' }) {
         <SheetTrigger asChild>
           <Button size="icon" variant="outline" className="sm:hidden">
             <PanelLeft className="h-5 w-5" />
-            <span className="sr-only">Toggle Menu</span>
+            <span className="sr-only">メニューを開閉</span>
           </Button>
         </SheetTrigger>
         <SheetContent side="left" className="sm:max-w-xs">
@@ -134,12 +134,12 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
      return (
         <div className="flex h-screen w-full items-center justify-center bg-background">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <p className="ml-4">Redirecting...</p>
+            <p className="ml-4">リダイレクト中...</p>
         </div>
      );
   }
   
-  const pageTitle = currentNavItem?.label || 'Page';
+  const pageTitle = currentNavItem?.label || 'ページ';
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">

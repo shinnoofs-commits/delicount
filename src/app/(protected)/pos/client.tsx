@@ -15,11 +15,11 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CheckoutDialog } from './checkout-dialog';
 import { useToast } from '@/hooks/use-toast';
 
-const categories = ['All', ...Array.from(new Set(allProducts.map(p => p.category)))];
+const categories = ['すべて', ...Array.from(new Set(allProducts.map(p => p.category)))];
 
 export default function PosClient() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedCategory, setSelectedCategory] = useState('すべて');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [discount, setDiscount] = useState({ type: 'percentage', value: 0 });
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -27,7 +27,7 @@ export default function PosClient() {
 
   const filteredProducts = useMemo(() => {
     return allProducts.filter(product => {
-      const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
+      const matchesCategory = selectedCategory === 'すべて' || product.category === selectedCategory;
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             product.sku.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesCategory && matchesSearch;
@@ -45,8 +45,8 @@ export default function PosClient() {
       return [...prevCart, { product, quantity: 1 }];
     });
     toast({
-      title: "Added to cart",
-      description: `${product.name} has been added to your cart.`,
+      title: "カートに追加しました",
+      description: `${product.name} をカートに追加しました。`,
     })
   }, [toast]);
 
@@ -89,7 +89,7 @@ export default function PosClient() {
                 <div className="flex items-center gap-4">
                     <Search className="h-5 w-5 text-muted-foreground" />
                     <Input
-                        placeholder="Search products by name or SKU..."
+                        placeholder="商品名またはSKUで検索..."
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
                         className="w-full"
@@ -139,10 +139,10 @@ export default function PosClient() {
       <Card className="flex flex-col h-full">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            Cart
+            カート
             <Button variant="ghost" size="icon" onClick={clearCart} disabled={cart.length === 0}>
                 <X className="h-4 w-4" />
-                <span className="sr-only">Clear cart</span>
+                <span className="sr-only">カートを空にする</span>
             </Button>
           </CardTitle>
         </CardHeader>
@@ -150,8 +150,8 @@ export default function PosClient() {
           <CardContent>
             {cart.length === 0 ? (
               <div className="text-center text-muted-foreground py-10">
-                <p>Your cart is empty.</p>
-                <p className="text-sm">Add products to get started.</p>
+                <p>カートは空です。</p>
+                <p className="text-sm">商品を追加してください。</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -181,11 +181,11 @@ export default function PosClient() {
         <CardFooter className="flex flex-col gap-4 mt-auto !p-6 bg-muted/50">
           <div className="w-full space-y-2 text-sm">
              <div className="flex justify-between">
-                <span>Subtotal</span>
+                <span>小計</span>
                 <span>${subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between items-center">
-                <span>Discount</span>
+                <span>割引</span>
                 <div className="flex items-center gap-2 w-32">
                   <Input type="number" 
                     className="h-8 text-right" 
@@ -205,17 +205,17 @@ export default function PosClient() {
                 <span>-${discountAmount.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-                <span>Tax (10%)</span>
+                <span>税 (10%)</span>
                 <span>${taxAmount.toFixed(2)}</span>
             </div>
             <Separator />
             <div className="flex justify-between font-bold text-lg">
-                <span>Total</span>
+                <span>合計</span>
                 <span>${total.toFixed(2)}</span>
             </div>
           </div>
           <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" size="lg" disabled={cart.length === 0} onClick={() => setIsCheckoutOpen(true)}>
-             <Tag className="mr-2 h-5 w-5"/> Complete Sale
+             <Tag className="mr-2 h-5 w-5"/> 販売を完了
           </Button>
         </CardFooter>
       </Card>
@@ -225,7 +225,7 @@ export default function PosClient() {
             onClose={() => setIsCheckoutOpen(false)}
             onConfirm={() => {
                 setIsCheckoutOpen(false);
-                toast({ title: 'Sale Completed!', description: `Transaction recorded for $${total.toFixed(2)}` });
+                toast({ title: '販売完了！', description: `取引額 $${total.toFixed(2)} が記録されました` });
                 clearCart();
             }}
             total={total}

@@ -100,30 +100,30 @@ export default function ProductsClient({ initialProducts }: { initialProducts: P
       <div className="flex items-center justify-end gap-2">
         <Button size="sm" onClick={handleAdd}>
           <PlusCircle className="h-4 w-4 mr-2" />
-          Add Product
+          商品を追加
         </Button>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Products</CardTitle>
-          <CardDescription>Manage your products and view their inventory.</CardDescription>
+          <CardTitle>商品</CardTitle>
+          <CardDescription>商品の管理と在庫の確認ができます。</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="hidden w-[100px] sm:table-cell">Image</TableHead>
-                <TableHead>Name</TableHead>
+                <TableHead className="hidden w-[100px] sm:table-cell">画像</TableHead>
+                <TableHead>名前</TableHead>
                 <TableHead>SKU</TableHead>
-                <TableHead className="hidden md:table-cell">Category</TableHead>
+                <TableHead className="hidden md:table-cell">カテゴリ</TableHead>
                 <TableHead>
-                  <span className="sr-only">Price</span>
+                  <span className="sr-only">価格</span>
                 </TableHead>
                 <TableHead>
-                  <span className="sr-only">Stock</span>
+                  <span className="sr-only">在庫</span>
                 </TableHead>
                 <TableHead>
-                  <span className="sr-only">Actions</span>
+                  <span className="sr-only">アクション</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -150,17 +150,17 @@ export default function ProductsClient({ initialProducts }: { initialProducts: P
                       <DropdownMenuTrigger asChild>
                         <Button aria-haspopup="true" size="icon" variant="ghost">
                           <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Toggle menu</span>
+                          <span className="sr-only">メニューを開閉</span>
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => handleEdit(product)}>Edit</DropdownMenuItem>
+                        <DropdownMenuLabel>アクション</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => handleEdit(product)}>編集</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleCheckStock(product)}>
-                          Check Stock Alert
+                          在庫アラートを確認
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleDelete(product)} className="text-destructive">
-                          Delete
+                          削除
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -175,9 +175,9 @@ export default function ProductsClient({ initialProducts }: { initialProducts: P
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>{selectedProduct ? 'Edit Product' : 'Add Product'}</DialogTitle>
+            <DialogTitle>{selectedProduct ? '商品を編集' : '商品を追加'}</DialogTitle>
             <DialogDescription>
-              {selectedProduct ? 'Update the details of your product.' : 'Add a new product to your inventory.'}
+              {selectedProduct ? '商品の詳細を更新します。' : '新しい商品を在庫に追加します。'}
             </DialogDescription>
           </DialogHeader>
           <ProductForm product={selectedProduct} onSubmit={handleFormSubmit} onCancel={() => setIsFormOpen(false)} />
@@ -191,16 +191,15 @@ export default function ProductsClient({ initialProducts }: { initialProducts: P
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>よろしいですか？</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the product
-              "{selectedProduct?.name}".
-            </AlertDialogDescription>
+              この操作は元に戻せません。商品「{selectedProduct?.name}」を完全に削除します。
+            </CRLF>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>キャンセル</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">
-              Delete
+              削除
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

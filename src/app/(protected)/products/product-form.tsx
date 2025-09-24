@@ -11,12 +11,12 @@ import { Input } from '@/components/ui/input'
 
 const formSchema = z.object({
   id: z.string(),
-  name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
-  sku: z.string().min(2, { message: 'SKU must be at least 2 characters.' }),
-  price: z.coerce.number().min(0, { message: 'Price must be a positive number.' }),
-  stock: z.coerce.number().int().min(0, { message: 'Stock must be a positive integer.' }),
-  category: z.string().min(1, { message: 'Category is required.' }),
-  imageUrl: z.string().url({ message: "Please enter a valid URL." }),
+  name: z.string().min(2, { message: '名前は2文字以上である必要があります。' }),
+  sku: z.string().min(2, { message: 'SKUは2文字以上である必要があります。' }),
+  price: z.coerce.number().min(0, { message: '価格は正の数でなければなりません。' }),
+  stock: z.coerce.number().int().min(0, { message: '在庫は正の整数でなければなりません。' }),
+  category: z.string().min(1, { message: 'カテゴリは必須です。' }),
+  imageUrl: z.string().url({ message: "有効なURLを入力してください。" }),
   imageHint: z.string(),
 })
 
@@ -49,9 +49,9 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Product Name</FormLabel>
+              <FormLabel>商品名</FormLabel>
               <FormControl>
-                <Input placeholder="e.g. Coffee Beans" {...field} />
+                <Input placeholder="例：コーヒー豆" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -63,7 +63,7 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
             name="price"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Price</FormLabel>
+                <FormLabel>価格</FormLabel>
                 <FormControl>
                   <Input type="number" placeholder="0.00" {...field} />
                 </FormControl>
@@ -76,7 +76,7 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
             name="stock"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Stock</FormLabel>
+                <FormLabel>在庫</FormLabel>
                 <FormControl>
                   <Input type="number" placeholder="0" {...field} />
                 </FormControl>
@@ -104,9 +104,9 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
             name="category"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Category</FormLabel>
+                <FormLabel>カテゴリ</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g. Consumables" {...field} />
+                  <Input placeholder="例：消耗品" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -115,9 +115,9 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
         </div>
         <div className="flex justify-end gap-2 pt-4">
           <Button type="button" variant="outline" onClick={onCancel}>
-            Cancel
+            キャンセル
           </Button>
-          <Button type="submit">Save Product</Button>
+          <Button type="submit">商品を保存</Button>
         </div>
       </form>
     </Form>

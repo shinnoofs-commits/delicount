@@ -22,6 +22,11 @@ export default function LoginPage() {
       router.push('/pos');
     }
   };
+  
+  const roleToJapanese = (role: 'admin' | 'employee') => {
+    return role === 'admin' ? '管理者' : '従業員';
+  }
+
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -30,28 +35,28 @@ export default function LoginPage() {
           <div className="mx-auto mb-4">
             <Icons.logo className="h-12 w-12 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-headline">Welcome to SwiftPOS</CardTitle>
-          <CardDescription>Select a user to sign in</CardDescription>
+          <CardTitle className="text-2xl font-headline">SwiftPOSへようこそ</CardTitle>
+          <CardDescription>サインインするユーザーを選択してください</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="user">User Role</Label>
+              <Label htmlFor="user">ユーザー</Label>
               <Select onValueChange={setSelectedUserId}>
                 <SelectTrigger id="user">
-                  <SelectValue placeholder="Select a user" />
+                  <SelectValue placeholder="ユーザーを選択" />
                 </SelectTrigger>
                 <SelectContent>
                   {users.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
-                      {user.name} ({user.role})
+                      {user.name} ({roleToJapanese(user.role)})
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <Button onClick={handleLogin} disabled={!selectedUserId} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-              Sign In
+              サインイン
             </Button>
           </div>
         </CardContent>

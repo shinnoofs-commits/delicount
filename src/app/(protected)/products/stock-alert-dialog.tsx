@@ -44,7 +44,7 @@ export function StockAlertDialog({ open, onOpenChange, product }: StockAlertDial
           });
           setResult(response);
         } catch (e) {
-          setError('Failed to generate recommendation. Please try again.');
+          setError('推奨を生成できませんでした。もう一度お試しください。');
           console.error(e);
         } finally {
           setLoading(false);
@@ -58,30 +58,30 @@ export function StockAlertDialog({ open, onOpenChange, product }: StockAlertDial
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>AI Stock Level Recommendation</DialogTitle>
+          <DialogTitle>AI在庫レベル推奨</DialogTitle>
           <DialogDescription>
-            For product: <strong>{product.name}</strong> (Current Stock: {product.stock})
+            商品: <strong>{product.name}</strong> (現在の在庫: {product.stock})
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">
           {loading && (
             <div className="flex items-center justify-center gap-2 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin" />
-              <span>Generating recommendation...</span>
+              <span>推奨を生成中...</span>
             </div>
           )}
           {error && (
              <Alert variant="destructive">
-                <AlertTitle>Error</AlertTitle>
+                <AlertTitle>エラー</AlertTitle>
                 <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
           {result && (
             <Alert>
               <Lightbulb className="h-4 w-4" />
-              <AlertTitle>Optimal Stock Threshold: {result.optimalThreshold} units</AlertTitle>
+              <AlertTitle>最適在庫しきい値: {result.optimalThreshold} ユニット</AlertTitle>
               <AlertDescription>
-                <strong>Reasoning:</strong> {result.reasoning}
+                <strong>理由:</strong> {result.reasoning}
               </AlertDescription>
             </Alert>
           )}

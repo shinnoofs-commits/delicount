@@ -5,7 +5,7 @@ export type User = {
   role: 'admin' | 'employee';
 };
 
-export type Category = 'Equipment' | 'Consumables' | 'Accessories' | 'Pastries';
+export type Category = '機器' | '消耗品' | 'アクセサリ' | 'ペイストリー';
 
 export type Product = {
   id: string;

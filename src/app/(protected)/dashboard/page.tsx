@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/table"
 import { transactions } from "@/lib/data"
 import { format, subDays } from "date-fns"
+import { ja } from "date-fns/locale"
 import { DollarSign } from "lucide-react"
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
 
@@ -27,7 +28,7 @@ const todaysRevenue = todaysTransactions.reduce((acc, t) => acc + t.finalAmount,
 
 const salesData = Array.from({ length: 7 }, (_, i) => {
   const date = subDays(today, i);
-  const dayName = format(date, "eee");
+  const dayName = format(date, "eee", { locale: ja });
 
   const dailySales = transactions
     .filter(t => format(new Date(t.date), "yyyy-MM-dd") === format(date, "yyyy-MM-dd"))
@@ -45,30 +46,30 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+            <CardTitle className="text-sm font-medium">総収益</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">${totalRevenue.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">All-time sales</p>
+            <p className="text-xs text-muted-foreground">全期間の売上</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today's Revenue</CardTitle>
+            <CardTitle className="text-sm font-medium">今日の収益</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">${todaysRevenue.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">{todaysTransactions.length} transactions today</p>
+            <p className="text-xs text-muted-foreground">今日の取引 {todaysTransactions.length}件</p>
           </CardContent>
         </Card>
       </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-7">
         <Card className="lg:col-span-4">
           <CardHeader>
-            <CardTitle>Sales Overview</CardTitle>
-            <CardDescription>Sales revenue for the last 7 days.</CardDescription>
+            <CardTitle>売上概要</CardTitle>
+            <CardDescription>過去7日間の売上収益です。</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -102,17 +103,17 @@ export default function DashboardPage() {
         </Card>
         <Card className="lg:col-span-3">
           <CardHeader>
-            <CardTitle>Recent Transactions</CardTitle>
+            <CardTitle>最近の取引</CardTitle>
             <CardDescription>
-              A list of the most recent sales.
+              直近の売上一覧です。
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
                 <TableHeader>
                     <TableRow>
-                    <TableHead>Details</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>詳細</TableHead>
+                    <TableHead className="text-right">金額</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -120,7 +121,7 @@ export default function DashboardPage() {
                     <TableRow key={transaction.id}>
                         <TableCell>
                         <div className="font-medium">{transaction.items[0].name}{transaction.items.length > 1 ? ` +${transaction.items.length - 1}`: ''}</div>
-                        <div className="text-sm text-muted-foreground">{format(new Date(transaction.date), "PP")}</div>
+                        <div className="text-sm text-muted-foreground">{format(new Date(transaction.date), "PP", { locale: ja })}</div>
                         </TableCell>
                         <TableCell className="text-right">${transaction.finalAmount.toFixed(2)}</TableCell>
                     </TableRow>
