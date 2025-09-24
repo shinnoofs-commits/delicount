@@ -24,6 +24,8 @@ export async function generateImage(input: GenerateImageInput): Promise<Generate
   return generateImageFlow(input);
 }
 
+// This flow is a temporary workaround to avoid billing errors with Imagen.
+// It generates a placeholder image from picsum.photos based on the prompt.
 const generateImageFlow = ai.defineFlow(
   {
     name: 'generateImageFlow',
@@ -31,16 +33,14 @@ const generateImageFlow = ai.defineFlow(
     outputSchema: GenerateImageOutputSchema,
   },
   async (input) => {
-    const { media } = await ai.generate({
-      model: 'googleai/imagen-4.0-fast-generate-001',
-      prompt: input.prompt,
-    });
+    // Create a seed from the prompt to get a consistent image for the same prompt
+    const seed = input.prompt.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const imageUrl = `https://picsum.photos/seed/${seed}/400/400`;
     
-    const imageUrl = media.url;
-    if (!imageUrl) {
-        throw new Error('Image generation failed to return a URL.');
-    }
-
+    // Although picsum.photos returns a redirect to an image, 
+    // many clients (including browsers) can handle this directly in an <img> src.
+    // For a more robust solution, you might fetch the image and convert it to a data URI,
+    // but this is simpler and avoids server-side fetching.
     return { imageUrl };
   }
 );
