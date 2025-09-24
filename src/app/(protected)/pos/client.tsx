@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import Image from 'next/image';
-import { Search, X, Plus, Minus, Percent, Tag, CreditCard } from 'lucide-react';
+import { Search, X, Plus, Minus, Percent, Tag, Ticket } from 'lucide-react';
 import { products as allProducts } from '@/lib/data';
 import type { Product, CartItem } from '@/lib/types';
 import { Input } from '@/components/ui/input';
@@ -21,7 +21,7 @@ export default function PosClient() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('すべて');
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [discount, setDiscount] = useState({ type: 'percentage', value: 0 });
+  const [discount, setDiscount] = useState({ type: 'percentage' as 'percentage' | 'amount', value: 0 });
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const { toast } = useToast();
 
@@ -77,7 +77,7 @@ export default function PosClient() {
     return Math.min(discount.value, subtotal);
   }, [subtotal, discount]);
   
-  const taxAmount = Math.round((subtotal - discountAmount) * 0.1); // 10% tax for example
+  const taxAmount = Math.round((subtotal - discountAmount) * 0.08); // 8% tax for takeout
   const total = subtotal - discountAmount + taxAmount;
 
   return (
@@ -139,10 +139,10 @@ export default function PosClient() {
       <Card className="flex flex-col h-full">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            カート
+            会計
             <Button variant="ghost" size="icon" onClick={clearCart} disabled={cart.length === 0}>
                 <X className="h-4 w-4" />
-                <span className="sr-only">カートを空にする</span>
+                <span className="sr-only">会計をクリア</span>
             </Button>
           </CardTitle>
         </CardHeader>
@@ -185,18 +185,21 @@ export default function PosClient() {
                 <span>¥{subtotal.toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center">
-                <span>割引</span>
-                <div className="flex items-center gap-2 w-32">
+                <span className="whitespace-nowrap">{discount.type === 'percentage' ? '割引' : '値引き'}</span>
+                <div className="flex items-center gap-2 w-40">
                   <Input type="number" 
                     className="h-8 text-right" 
                     value={discount.value} 
                     onChange={e => setDiscount({ ...discount, value: parseFloat(e.target.value) || 0 })}
+                    aria-label="Discount value"
                   />
-                  <Button variant={discount.type === 'percentage' ? 'secondary' : 'outline'} size="icon" className="h-8 w-8" onClick={() => setDiscount({ type: 'percentage', value: discount.value })}>
+                  <Button variant={discount.type === 'percentage' ? 'secondary' : 'outline'} size="icon" className="h-8 w-8 flex-shrink-0" onClick={() => setDiscount({ type: 'percentage', value: discount.value })}>
                     <Percent className="h-4 w-4"/>
+                    <span className="sr-only">パーセント割引</span>
                   </Button>
-                  <Button variant={discount.type === 'amount' ? 'secondary' : 'outline'} size="icon" className="h-8 w-8" onClick={() => setDiscount({ type: 'amount', value: discount.value })}>
-                    <CreditCard className="h-4 w-4"/>
+                  <Button variant={discount.type === 'amount' ? 'secondary' : 'outline'} size="icon" className="h-8 w-8 flex-shrink-0" onClick={() => setDiscount({ type: 'amount', value: discount.value })}>
+                    <Ticket className="h-4 w-4"/>
+                    <span className="sr-only">金額値引き</span>
                   </Button>
                 </div>
             </div>
@@ -205,7 +208,7 @@ export default function PosClient() {
                 <span>-¥{discountAmount.toLocaleString()}</span>
             </div>
             <div className="flex justify-between">
-                <span>税 (10%)</span>
+                <span>税 (8%)</span>
                 <span>¥{taxAmount.toLocaleString()}</span>
             </div>
             <Separator />
@@ -215,7 +218,7 @@ export default function PosClient() {
             </div>
           </div>
           <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" size="lg" disabled={cart.length === 0} onClick={() => setIsCheckoutOpen(true)}>
-             <Tag className="mr-2 h-5 w-5"/> 販売を完了
+             <Tag className="mr-2 h-5 w-5"/> 会計に進む
           </Button>
         </CardFooter>
       </Card>
@@ -225,7 +228,7 @@ export default function PosClient() {
             onClose={() => setIsCheckoutOpen(false)}
             onConfirm={() => {
                 setIsCheckoutOpen(false);
-                toast({ title: '販売完了！', description: `取引額 ¥${total.toLocaleString()} が記録されました` });
+                toast({ title: '会計完了！', description: `取引額 ¥${total.toLocaleString()} が記録されました` });
                 clearCart();
             }}
             total={total}

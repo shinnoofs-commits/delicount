@@ -153,7 +153,7 @@ export default function ProductsClient({ initialProducts }: { initialProducts: P
                         <DropdownMenuLabel>アクション</DropdownMenuLabel>
                         <DropdownMenuItem onClick={() => handleEdit(product)}>編集</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleCheckStock(product)}>
-                          在庫アラートを確認
+                          AI在庫アラート
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleDelete(product)} className="text-destructive">
                           削除

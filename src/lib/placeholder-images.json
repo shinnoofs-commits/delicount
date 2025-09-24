@@ -1,58 +1,64 @@
 {
   "placeholderImages": [
     {
-      "id": "espresso-machine",
-      "description": "A professional espresso machine.",
-      "imageUrl": "https://images.unsplash.com/photo-1620807773206-49c1f2957417?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxlc3ByZXNzbyUyMG1hY2hpbmV8ZW58MHx8fHwxNzU4NjI1NDU0fDA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "espresso machine"
+      "id": "croquette",
+      "description": "A golden-brown potato croquette.",
+      "imageUrl": "https://images.unsplash.com/photo-1628139524458-75171e3d3e69?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxjcm9xdWV0dGV8ZW58MHx8fHwxNzU4OTEyMzQyfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "potato croquette"
     },
     {
-      "id": "coffee-beans",
-      "description": "A bag of premium coffee beans.",
-      "imageUrl": "https://images.unsplash.com/photo-1692299108834-038511803008?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxjb2ZmZWUlMjBiZWFuc3xlbnwwfHx8fDE3NTg2OTA0MTF8MA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "coffee beans"
+      "id": "karaage",
+      "description": "Japanese style fried chicken.",
+      "imageUrl": "https://images.unsplash.com/photo-1644704170914-b3491b924767?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxrYXJhYWdlfGVufDB8fHx8MTc1ODkxMjM3MXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "fried chicken"
     },
     {
-      "id": "milk-jug",
-      "description": "A stainless steel milk frothing jug.",
-      "imageUrl": "https://images.unsplash.com/photo-1711625826540-3a113ad16eb2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxtaWxrJTIwanVnfGVufDB8fHx8MTc1ODcwODYyN3ww&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "milk jug"
+      "id": "menchi-katsu",
+      "description": "A breaded and deep-fried ground meat patty.",
+      "imageUrl": "https://images.unsplash.com/photo-1628878229988-70233f2a8932?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxtZW5jaGklMjBrYXRzdXxlbnwwfHx8fDE3NTg5MTI0MDR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "fried cutlet"
     },
     {
-      "id": "latte-art-pen",
-      "description": "A pen for creating latte art.",
-      "imageUrl": "https://images.unsplash.com/photo-1593443320739-77f74939d0da?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8bGF0dGUlMjBhcnR8ZW58MHx8fHwxNzU4NjkwNzIxfDA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "latte art"
+      "id": "potato-salad",
+      "description": "Creamy potato salad with vegetables.",
+      "imageUrl": "https://images.unsplash.com/photo-1598468753364-9f797a7e8a93?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxwb3RhdG8lMjBzYWxhZHxlbnwwfHx8fDE3NTg5MTI0MzN8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "potato salad"
     },
     {
-      "id": "cup-set",
-      "description": "A set of ceramic coffee cups.",
-      "imageUrl": "https://images.unsplash.com/photo-1520227404105-5f086396b3ba?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxjb2ZmZWUlMjBjdXBzfGVufDB8fHx8MTc1ODcwODYyN3ww&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "coffee cups"
+      "id": "bento-box",
+      "description": "A traditional Japanese bento box.",
+      "imageUrl": "https://images.unsplash.com/photo-1596704018636-7d63e9e1150c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxiZW50byUyMGJveHxlbnwwfHx8fDE3NTg5MTI0NTl8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "bento box"
     },
     {
-      "id": "tamper",
-      "description": "A coffee tamper for espresso pucks.",
-      "imageUrl": "https://images.unsplash.com/photo-1548270311-23fa25d5de0e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxjb2ZmZWUlMjB0YW1wZXJ8ZW58MHx8fHwxNzU4NjMxNjY3fDA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "coffee tamper"
+      "id": "nori-bento",
+      "description": "A bento box with seaweed and other fillings.",
+      "imageUrl": "https://images.unsplash.com/photo-1604725333556-9ce28c84b162?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxiZW50b3xlbnwwfHx8fDE3NTg5MTI2MDJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "nori bento"
     },
     {
-      "id": "croissant",
-      "description": "A freshly baked croissant.",
-      "imageUrl": "https://images.unsplash.com/photo-1703016402680-d12e7dc746d9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxjcm9pc3NhbnQlMjBwYXN0cnl8ZW58MHx8fHwxNzU4NzA1MTgwfDA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "croissant pastry"
+      "id": "dashimaki-tamago",
+      "description": "Japanese rolled omelette.",
+      "imageUrl": "https://images.unsplash.com/photo-1591142562280-998a0c2e32a6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxkYXNoaW1ha2klMjB0YW1hZ298ZW58MHx8fHwxNzU4OTEyNjMwfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "rolled omelette"
     },
     {
-      "id": "muffin",
-      "description": "A delicious chocolate chip muffin.",
-      "imageUrl": "https://images.unsplash.com/photo-1734988869220-7770202e4bae?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxtdWZmaW4lMjBwYXN0cnl8ZW58MHx8fHwxNzU4NzA4NjI4fDA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "muffin pastry"
+      "id": "gomaae",
+      "description": "Spinach with sesame dressing.",
+      "imageUrl": "https://images.unsplash.com/photo-1623341215134-8c7c13401777?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxzcGluYWNoJTIwc2VzYW1lfGVufDB8fHx8MTc1ODkxMjY1OXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "spinach sesame"
     },
     {
-      "id": "cold-brew",
-      "description": "A bottle of cold brew coffee.",
-      "imageUrl": "https://images.unsplash.com/photo-1562878424-0da674456d33?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxjb2xkJTIwYnJld3xlbnwwfHx8fDE3NTg3MDUxODB8MA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "cold brew"
+      "id": "onigiri-salmon",
+      "description": "A rice ball with salmon filling.",
+      "imageUrl": "https://images.unsplash.com/photo-1623341215134-8c7c13401777?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxvmlnaXJpJTIwc2FsbW9ufGVufDB8fHx8MTc1ODkxMjY4NXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "onigiri salmon"
+    },
+    {
+      "id": "onigiri-ume",
+      "description": "A rice ball with pickled plum.",
+      "imageUrl": "https://images.unsplash.com/photo-1615383569724-41e1a5323214?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxvmlnaXJpJTIwdW1lfGVufDB8fHx8MTc1ODkxMjcyMHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "onigiri ume"
     }
   ]
 }

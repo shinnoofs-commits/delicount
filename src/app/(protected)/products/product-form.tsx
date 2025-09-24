@@ -35,7 +35,7 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
       sku: '',
       price: 0,
       stock: 0,
-      category: 'Consumables',
+      category: '揚げ物',
       imageUrl: '',
       imageHint: '',
     },
@@ -51,7 +51,7 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
             <FormItem>
               <FormLabel>商品名</FormLabel>
               <FormControl>
-                <Input placeholder="例：コーヒー豆" {...field} />
+                <Input placeholder="例：絶品コロッケ" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -65,7 +65,7 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
               <FormItem>
                 <FormLabel>価格</FormLabel>
                 <FormControl>
-                  <Input type="number" placeholder="0.00" {...field} />
+                  <Input type="number" placeholder="150" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -78,7 +78,7 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
               <FormItem>
                 <FormLabel>在庫</FormLabel>
                 <FormControl>
-                  <Input type="number" placeholder="0" {...field} />
+                  <Input type="number" placeholder="50" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -106,13 +106,26 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
               <FormItem>
                 <FormLabel>カテゴリ</FormLabel>
                 <FormControl>
-                  <Input placeholder="例：消耗品" {...field} />
+                  <Input placeholder="例：揚げ物" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
         </div>
+         <FormField
+          control={form.control}
+          name="imageUrl"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>画像URL</FormLabel>
+              <FormControl>
+                <Input placeholder="https://..." {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         <div className="flex justify-end gap-2 pt-4">
           <Button type="button" variant="outline" onClick={onCancel}>
             キャンセル

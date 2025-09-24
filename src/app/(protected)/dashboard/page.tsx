@@ -18,27 +18,52 @@ import {
 import { transactions } from "@/lib/data"
 import { format, subDays } from "date-fns"
 import { ja } from "date-fns/locale"
-import { CreditCard } from "lucide-react"
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, Legend } from "recharts"
+import { TicketPercent, TrendingDown, TrendingUp, ShoppingCart, Info } from 'lucide-react';
+import { useMemo } from "react";
+import type { Transaction, Product } from "@/lib/types";
+import { products } from "@/lib/data";
 
-const totalRevenue = transactions.reduce((acc, t) => acc + t.finalAmount, 0)
+const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"];
+
 const today = new Date();
-const todaysTransactions = transactions.filter(t => new Date(t.date).toDateString() === today.toDateString())
-const todaysRevenue = todaysTransactions.reduce((acc, t) => acc + t.finalAmount, 0)
 
-const salesData = Array.from({ length: 7 }, (_, i) => {
-  const date = subDays(today, i);
-  const dayName = format(date, "eee", { locale: ja });
+const last7DaysTransactions = transactions.filter(t => new Date(t.date) > subDays(today, 7));
 
-  const dailySales = transactions
-    .filter(t => format(new Date(t.date), "yyyy-MM-dd") === format(date, "yyyy-MM-dd"))
-    .reduce((sum, t) => sum + t.finalAmount, 0);
+const totalRevenue = last7DaysTransactions.reduce((acc, t) => acc + t.finalAmount, 0);
+const totalDiscount = last7DaysTransactions.reduce((acc, t) => {
+    if (t.discount) {
+        if (t.discount.type === 'percentage') {
+            return acc + (t.totalAmount * t.discount.value / 100);
+        }
+        return acc + t.discount.value;
+    }
+    return acc;
+}, 0);
 
-  return {
-    name: dayName,
-    total: dailySales,
-  }
-}).reverse();
+const salesByTime = Array.from({ length: 15 }, (_, i) => {
+    const hour = i + 8; // 8:00 to 22:00
+    const sales = last7DaysTransactions
+        .filter(t => new Date(t.date).getHours() >= hour && new Date(t.date).getHours() < hour + 1)
+        .reduce((sum, t) => sum + t.finalAmount, 0);
+    return { name: `${hour}:00`, '売上': sales };
+});
+
+const salesByProduct = last7DaysTransactions
+    .flatMap(t => t.items)
+    .reduce((acc, item) => {
+        const existing = acc.find(p => p.name === item.name);
+        if (existing) {
+            existing.quantity += item.quantity;
+            existing.total += item.quantity * item.unitPrice;
+        } else {
+            acc.push({ name: item.name, quantity: item.quantity, total: item.quantity * item.unitPrice });
+        }
+        return acc;
+    }, [] as { name: string; quantity: number, total: number }[])
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 5);
+
 
 export default function DashboardPage() {
   return (
@@ -46,34 +71,34 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">総収益</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">総収益 (過去7日間)</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">¥{totalRevenue.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">全期間の売上</p>
+            <p className="text-xs text-muted-foreground">過去7日間の総売上です。</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">今日の収益</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">割引/値引額合計 (過去7日間)</CardTitle>
+            <TicketPercent className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">¥{todaysRevenue.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">今日の取引 {todaysTransactions.length}件</p>
+            <div className="text-2xl font-bold">¥{Math.round(totalDiscount).toLocaleString()}</div>
+             <p className="text-xs text-muted-foreground">適用された割引・値引の合計です。</p>
           </CardContent>
         </Card>
       </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-7">
         <Card className="lg:col-span-4">
           <CardHeader>
-            <CardTitle>売上概要</CardTitle>
-            <CardDescription>過去7日間の売上収益です。</CardDescription>
+            <CardTitle>時間帯別売上概要</CardTitle>
+            <CardDescription>過去7日間の時間帯別売上です。</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={salesData}>
+                <BarChart data={salesByTime}>
                     <XAxis
                         dataKey="name"
                         stroke="hsl(var(--muted-foreground))"
@@ -86,7 +111,7 @@ export default function DashboardPage() {
                         fontSize={12}
                         tickLine={false}
                         axisLine={false}
-                        tickFormatter={(value) => `¥${value}`}
+                        tickFormatter={(value) => `¥${value.toLocaleString()}`}
                     />
                     <Tooltip
                         cursor={{fill: 'hsl(var(--muted))'}}
@@ -95,39 +120,47 @@ export default function DashboardPage() {
                             borderColor: 'hsl(var(--border))',
                             borderRadius: 'var(--radius)'
                         }}
+                         formatter={(value: number) => `¥${value.toLocaleString()}`}
                     />
-                    <Bar dataKey="total" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="売上" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                 </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
         <Card className="lg:col-span-3">
           <CardHeader>
-            <CardTitle>最近の取引</CardTitle>
+            <CardTitle>商品別売上ランキング (TOP 5)</CardTitle>
             <CardDescription>
-              直近の売上一覧です。
+              過去7日間の商品別売上トップ5です。
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                    <TableHead>詳細</TableHead>
-                    <TableHead className="text-right">金額</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {transactions.slice(0, 7).map((transaction) => (
-                    <TableRow key={transaction.id}>
-                        <TableCell>
-                        <div className="font-medium">{transaction.items[0].name}{transaction.items.length > 1 ? ` +${transaction.items.length - 1}`: ''}</div>
-                        <div className="text-sm text-muted-foreground">{format(new Date(transaction.date), "PP", { locale: ja })}</div>
-                        </TableCell>
-                        <TableCell className="text-right">¥{transaction.finalAmount.toLocaleString()}</TableCell>
-                    </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
+             <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                    <Pie
+                        data={salesByProduct}
+                        dataKey="total"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={80}
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    >
+                        {salesByProduct.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                    </Pie>
+                     <Tooltip
+                        contentStyle={{
+                            backgroundColor: 'hsl(var(--background))',
+                            borderColor: 'hsl(var(--border))',
+                            borderRadius: 'var(--radius)'
+                        }}
+                        formatter={(value: number, name) => [`¥${value.toLocaleString()}`, name]}
+                    />
+                    <Legend formatter={(value) => <span className="text-muted-foreground">{value}</span>} />
+                </PieChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
