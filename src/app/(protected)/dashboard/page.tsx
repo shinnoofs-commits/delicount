@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -21,7 +22,7 @@ import { ja } from "date-fns/locale"
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, Legend } from "recharts"
 import { TicketPercent, TrendingDown, TrendingUp, ShoppingCart, Info } from 'lucide-react';
 import { useMemo } from "react";
-import type { Transaction, Product } from "@/lib/types";
+import type { Transaction, Product, Category } from "@/lib/types";
 import { products } from "@/lib/data";
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"];
@@ -49,20 +50,33 @@ const salesByTime = Array.from({ length: 15 }, (_, i) => {
     return { name: `${hour}:00`, '売上': sales };
 });
 
-const salesByProduct = last7DaysTransactions
-    .flatMap(t => t.items)
-    .reduce((acc, item) => {
-        const existing = acc.find(p => p.name === item.name);
-        if (existing) {
-            existing.quantity += item.quantity;
-            existing.total += item.quantity * item.unitPrice;
-        } else {
-            acc.push({ name: item.name, quantity: item.quantity, total: item.quantity * item.unitPrice });
-        }
-        return acc;
-    }, [] as { name: string; quantity: number, total: number }[])
-    .sort((a, b) => b.total - a.total)
-    .slice(0, 5);
+const categories: Category[] = ['揚げ物', 'サラダ', 'お弁当', '一品料理', 'ご飯もの'];
+
+const salesByCategory = categories.map(category => {
+    const productSales = last7DaysTransactions
+        .flatMap(t => t.items)
+        .filter(item => {
+            const product = products.find(p => p.id === item.productId);
+            return product?.category === category;
+        })
+        .reduce((acc, item) => {
+            const existing = acc.find(p => p.name === item.name);
+            if (existing) {
+                existing.quantity += item.quantity;
+                existing.total += item.quantity * item.unitPrice;
+            } else {
+                acc.push({ name: item.name, quantity: item.quantity, total: item.quantity * item.unitPrice });
+            }
+            return acc;
+        }, [] as { name: string; quantity: number, total: number }[])
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 5);
+
+    return {
+        category,
+        sales: productSales
+    };
+});
 
 
 export default function DashboardPage() {
@@ -127,42 +141,45 @@ export default function DashboardPage() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <CardTitle>商品別売上ランキング (TOP 5)</CardTitle>
-            <CardDescription>
-              過去7日間の商品別売上トップ5です。
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-             <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                    <Pie
-                        data={salesByProduct}
-                        dataKey="total"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={80}
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    >
-                        {salesByProduct.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                    </Pie>
-                     <Tooltip
-                        contentStyle={{
-                            backgroundColor: 'hsl(var(--background))',
-                            borderColor: 'hsl(var(--border))',
-                            borderRadius: 'var(--radius)'
-                        }}
-                        formatter={(value: number, name) => [`¥${value.toLocaleString()}`, name]}
-                    />
-                    <Legend formatter={(value) => <span className="text-muted-foreground">{value}</span>} />
-                </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        <div className="lg:col-span-3 grid grid-cols-1 gap-4 auto-rows-min">
+            {salesByCategory.filter(cat => cat.sales.length > 0).map(({ category, sales }) => (
+            <Card key={category}>
+                <CardHeader className="pb-4">
+                    <CardTitle className="text-lg">{category} 売上 TOP5</CardTitle>
+                    <CardDescription>過去7日間の{category}カテゴリの売上トップ5です。</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <ResponsiveContainer width="100%" height={250}>
+                        <PieChart>
+                            <Pie
+                                data={sales}
+                                dataKey="total"
+                                nameKey="name"
+                                cx="50%"
+                                cy="50%"
+                                outerRadius={80}
+                                labelLine={false}
+                                label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
+                            >
+                                {sales.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                ))}
+                            </Pie>
+                            <Tooltip
+                                contentStyle={{
+                                    backgroundColor: 'hsl(var(--background))',
+                                    borderColor: 'hsl(var(--border))',
+                                    borderRadius: 'var(--radius)'
+                                }}
+                                formatter={(value: number, name) => [`¥${value.toLocaleString()}`, name]}
+                            />
+                            <Legend formatter={(value) => <span className="text-muted-foreground text-xs truncate w-32 inline-block">{value}</span>} />
+                        </PieChart>
+                    </ResponsiveContainer>
+                </CardContent>
+            </Card>
+            ))}
+        </div>
       </div>
     </div>
   )
