@@ -1,13 +1,16 @@
 'use client'
 
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { Wand2 } from 'lucide-react'
 
 import type { Product } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { ImageGenerationDialog } from './image-generation-dialog'
 
 const formSchema = z.object({
   id: z.string(),
@@ -27,6 +30,7 @@ interface ProductFormProps {
 }
 
 export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
+  const [isImageGenerationOpen, setIsImageGenerationOpen] = useState(false)
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: product || {
@@ -41,7 +45,13 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
     },
   })
 
+  const handleImageGenerated = (imageUrl: string, imageHint: string) => {
+    form.setValue('imageUrl', imageUrl, { shouldValidate: true })
+    form.setValue('imageHint', imageHint)
+  }
+
   return (
+    <>
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
@@ -119,9 +129,15 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>画像URL</FormLabel>
-              <FormControl>
-                <Input placeholder="https://..." {...field} />
-              </FormControl>
+               <div className="flex gap-2">
+                <FormControl>
+                  <Input placeholder="https://..." {...field} />
+                </FormControl>
+                <Button type="button" variant="outline" onClick={() => setIsImageGenerationOpen(true)}>
+                  <Wand2 className="h-4 w-4 mr-2" />
+                  AI画像生成
+                </Button>
+               </div>
               <FormMessage />
             </FormItem>
           )}
@@ -134,5 +150,12 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
         </div>
       </form>
     </Form>
+    <ImageGenerationDialog
+        isOpen={isImageGenerationOpen}
+        onClose={() => setIsImageGenerationOpen(false)}
+        onImageGenerated={handleImageGenerated}
+        productName={form.getValues('name')}
+      />
+    </>
   )
 }

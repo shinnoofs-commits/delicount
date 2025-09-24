@@ -84,7 +84,7 @@ export default function ProductsClient({ initialProducts }: { initialProducts: P
   }
 
   const handleFormSubmit = (productData: Product) => {
-    if (selectedProduct) {
+    if (selectedProduct && productData.id) {
       // Edit
       setProducts(products.map(p => (p.id === productData.id ? productData : p)))
     } else {
@@ -169,7 +169,7 @@ export default function ProductsClient({ initialProducts }: { initialProducts: P
       </Card>
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>{selectedProduct ? '商品を編集' : '商品を追加'}</DialogTitle>
             <DialogDescription>
