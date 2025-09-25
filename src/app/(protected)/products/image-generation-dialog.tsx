@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useState } from 'react'
@@ -39,7 +40,15 @@ export function ImageGenerationDialog({ isOpen, onClose, onImageGenerated, produ
     try {
       const result = await generateImage({ prompt });
       if (result.imageUrl) {
-        setGeneratedImageUrl(result.imageUrl)
+        // Use a proxy to fetch the image and avoid CORS issues if any, and to confirm it's a valid image
+        const response = await fetch(result.imageUrl);
+        if (!response.ok) {
+            throw new Error(`画像の取得に失敗しました: ${response.statusText}`);
+        }
+        const blob = await response.blob();
+        const objectURL = URL.createObjectURL(blob);
+        setGeneratedImageUrl(objectURL);
+
       } else {
         throw new Error('画像が生成されませんでした。')
       }
@@ -53,7 +62,7 @@ export function ImageGenerationDialog({ isOpen, onClose, onImageGenerated, produ
 
   const handleUseImage = () => {
     if (generatedImageUrl) {
-      onImageGenerated(generatedImageUrl, prompt.substring(0, 20))
+      onImageGenerated(generatedImageUrl, prompt.substring(0, 50).replace(/'/g, ''))
       toast({
         title: "画像が設定されました",
         description: "商品フォームの画像URLが更新されました。",
@@ -63,6 +72,9 @@ export function ImageGenerationDialog({ isOpen, onClose, onImageGenerated, produ
   }
   
   const handleClose = () => {
+    if (generatedImageUrl) {
+        URL.revokeObjectURL(generatedImageUrl);
+    }
     setGeneratedImageUrl(null)
     setError(null)
     setLoading(false)
@@ -114,6 +126,7 @@ export function ImageGenerationDialog({ isOpen, onClose, onImageGenerated, produ
                     src={generatedImageUrl}
                     alt="Generated product image"
                     fill
+                    sizes="400px"
                     className="object-cover rounded-md"
                     />
               </div>
