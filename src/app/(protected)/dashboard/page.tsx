@@ -184,6 +184,25 @@ export default function DashboardPage() {
     const totalWaste = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.wasteCount, 0), [wasteAnalysisData]);
     const totalSold = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.normalSales + p.discountedSales, 0), [wasteAnalysisData]);
 
+  const salesByDiscount = useMemo(() => {
+    const discountCategories = [10, 20, 30, 40];
+    const result: { name: string; '売上': number }[] = discountCategories.map(rate => ({
+      name: `${rate}%`,
+      '売上': 0,
+    }));
+
+    filteredTransactions.forEach(t => {
+      if (t.discount?.type === 'percentage' && discountCategories.includes(t.discount.value)) {
+        const index = discountCategories.indexOf(t.discount.value);
+        if (index !== -1) {
+          result[index]['売上'] += t.finalAmount;
+        }
+      }
+    });
+
+    return result.filter(r => r['売上'] > 0);
+  }, [filteredTransactions]);
+
 
   const setDatePreset = (preset: 'today' | 'this_month' | 'last_7_days') => {
     const today = new Date();
@@ -285,7 +304,45 @@ export default function DashboardPage() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
-        <div className="lg:col-span-3 grid grid-cols-1 gap-4 auto-rows-min">
+        <Card className="lg:col-span-3">
+          <CardHeader>
+            <CardTitle>割引率別売上</CardTitle>
+            <CardDescription>選択期間中の割引率ごとの売上貢献です。</CardDescription>
+          </CardHeader>
+          <CardContent>
+             <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={salesByDiscount}>
+                    <XAxis
+                        dataKey="name"
+                        stroke="hsl(var(--muted-foreground))"
+                        fontSize={12}
+                        tickLine={false}
+                        axisLine={false}
+                    />
+                    <YAxis
+                        stroke="hsl(var(--muted-foreground))"
+                        fontSize={12}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(value) => `¥${value.toLocaleString()}`}
+                    />
+                    <Tooltip
+                        cursor={{fill: 'hsl(var(--muted))'}}
+                        contentStyle={{
+                            backgroundColor: 'hsl(var(--background))',
+                            borderColor: 'hsl(var(--border))',
+                            borderRadius: 'var(--radius)'
+                        }}
+                         formatter={(value: number) => `¥${value.toLocaleString()}`}
+                    />
+                    <Bar dataKey="売上" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+      <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 gap-4 auto-rows-min lg:grid-cols-3">
             {salesByCategory.filter(cat => cat.sales.length > 0).map(({ category, sales }) => (
             <Card key={category}>
                 <CardHeader className="pb-4">

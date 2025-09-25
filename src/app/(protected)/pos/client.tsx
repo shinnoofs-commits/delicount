@@ -114,6 +114,10 @@ export default function PosClient() {
   const getCartItemProduct = (item: CartItem) => {
     return getProductById(item.product.id) || item.product;
   }
+  
+  const applyPresetDiscount = (percentage: number) => {
+    setDiscount({ type: 'percentage', value: percentage });
+  }
 
   return (
     <div className="grid flex-1 grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 h-[calc(100vh-theme(spacing.24))]">
@@ -222,24 +226,32 @@ export default function PosClient() {
                 <span>小計</span>
                 <span>¥{subtotal.toLocaleString()}</span>
             </div>
-            <div className="flex justify-between items-center">
-                <span className="whitespace-nowrap">{discount.type === 'percentage' ? '割引' : '値引き'}</span>
-                <div className="flex items-center gap-2 w-40">
+             <div className="flex justify-between items-center">
+                <span className="whitespace-nowrap flex items-center">
+                    <Button variant={discount.type === 'percentage' ? 'secondary' : 'ghost'} size="sm" className="h-7" onClick={() => setDiscount(prev => ({ ...prev, type: 'percentage' }))}>
+                        <Percent className="h-4 w-4 mr-1"/>割引
+                    </Button>
+                    <span className="mx-1">/</span>
+                    <Button variant={discount.type === 'amount' ? 'secondary' : 'ghost'} size="sm" className="h-7" onClick={() => setDiscount(prev => ({ ...prev, type: 'amount' }))}>
+                        <Ticket className="h-4 w-4 mr-1"/>値引
+                    </Button>
+                </span>
+                <div className="flex items-center gap-2 w-32">
                   <Input type="number" 
                     className="h-8 text-right" 
                     value={discount.value} 
                     onChange={e => setDiscount({ ...discount, value: parseFloat(e.target.value) || 0 })}
                     aria-label="Discount value"
                   />
-                  <Button variant={discount.type === 'percentage' ? 'secondary' : 'outline'} size="icon" className="h-8 w-8 flex-shrink-0" onClick={() => setDiscount({ type: 'percentage', value: discount.value })}>
-                    <Percent className="h-4 w-4"/>
-                    <span className="sr-only">パーセント割引</span>
-                  </Button>
-                  <Button variant={discount.type === 'amount' ? 'secondary' : 'outline'} size="icon" className="h-8 w-8 flex-shrink-0" onClick={() => setDiscount({ type: 'amount', value: discount.value })}>
-                    <Ticket className="h-4 w-4"/>
-                    <span className="sr-only">金額値引き</span>
-                  </Button>
+                  <span className="text-muted-foreground">{discount.type === 'percentage' ? '%' : '円'}</span>
                 </div>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {[10, 20, 30, 40].map(p => (
+                <Button key={p} variant="outline" size="sm" onClick={() => applyPresetDiscount(p)}>
+                  {p}%
+                </Button>
+              ))}
             </div>
              <div className="flex justify-between text-muted-foreground">
                 <span></span>
