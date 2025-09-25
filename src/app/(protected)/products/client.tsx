@@ -1,9 +1,9 @@
-
 'use client'
 
 import { useState } from "react"
 import Image from "next/image"
-import { MoreHorizontal, PlusCircle, Plus, Minus } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Plus, Minus, Upload } from "lucide-react"
+import Papa from "papaparse"
 
 import type { Product } from "@/lib/types"
 import { Button } from "@/components/ui/button"
@@ -48,12 +48,15 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useProducts } from "@/contexts/product-context"
+import { useToast } from "@/hooks/use-toast"
+import { Input } from "@/components/ui/input"
 
 export default function ProductsClient() {
-  const { products, addProduct, updateProduct, deleteProduct } = useProducts();
+  const { products, addProduct, updateProduct, deleteProduct, setProducts } = useProducts();
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const { toast } = useToast()
 
   const handleAdd = () => {
     setSelectedProduct(null)
@@ -102,9 +105,72 @@ export default function ProductsClient() {
     }
   }
 
+  const handleCsvImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          const importedProducts = results.data.map((row: any) => {
+            const existingProduct = products.find(p => p.productCode === row['商品コード']);
+            return {
+              id: existingProduct?.id || `prod-${Date.now()}-${Math.random()}`,
+              name: row['商品名'],
+              productCode: row['商品コード'],
+              price: parseFloat(row['価格']),
+              costPrice: parseFloat(row['原価額']),
+              productionQuantity: existingProduct?.productionQuantity || 0,
+              category: existingProduct?.category || '未分類',
+              imageUrl: existingProduct?.imageUrl || 'https://placehold.co/400x400/png?text=No+Image',
+              imageHint: existingProduct?.imageHint || 'product image',
+            } as Product;
+          });
+
+          const updatedProducts = [...products];
+          importedProducts.forEach(importedProduct => {
+            const index = updatedProducts.findIndex(p => p.id === importedProduct.id);
+            if (index !== -1) {
+              updatedProducts[index] = importedProduct;
+            } else {
+              updatedProducts.push(importedProduct);
+            }
+          });
+          
+          setProducts(updatedProducts);
+          toast({
+            title: "CSVインポート完了",
+            description: `${importedProducts.length}件の商品をインポートしました。`,
+          });
+        },
+        error: (error) => {
+            toast({
+                variant: 'destructive',
+                title: "CSVインポートエラー",
+                description: `ファイルの読み込みに失敗しました: ${error.message}`,
+            })
+        }
+      });
+    }
+  };
+
+
   return (
     <>
       <div className="flex items-center justify-end gap-2">
+        <Button asChild variant="outline" size="sm">
+            <label htmlFor="csv-upload" className="cursor-pointer">
+                <Upload className="h-4 w-4 mr-2" />
+                CSVで商品をインポート
+            </label>
+        </Button>
+        <Input 
+            id="csv-upload"
+            type="file"
+            accept=".csv"
+            onChange={handleCsvImport}
+            className="hidden"
+        />
         <Button size="sm" onClick={handleAdd}>
           <PlusCircle className="h-4 w-4 mr-2" />
           商品を追加
@@ -124,6 +190,7 @@ export default function ProductsClient() {
                 <TableHead>商品コード</TableHead>
                 <TableHead className="hidden md:table-cell">カテゴリ</TableHead>
                 <TableHead className="text-right">価格</TableHead>
+                 <TableHead className="text-right">原価額</TableHead>
                 <TableHead className="text-center">製造数量</TableHead>
                 <TableHead>
                   <span className="sr-only">アクション</span>
@@ -149,6 +216,7 @@ export default function ProductsClient() {
                   <TableCell>{product.productCode}</TableCell>
                   <TableCell className="hidden md:table-cell">{product.category}</TableCell>
                   <TableCell className="text-right font-medium">¥{product.price.toLocaleString()}</TableCell>
+                   <TableCell className="text-right">¥{product.costPrice.toLocaleString()}</TableCell>
                   <TableCell className="text-center">
                     <div className="flex items-center justify-center gap-2">
                         <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => adjustQuantity(product.id, -1)}>

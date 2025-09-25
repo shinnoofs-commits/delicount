@@ -1,4 +1,3 @@
-
 'use client'
 
 import { useState } from 'react'
@@ -18,6 +17,7 @@ const formSchema = z.object({
   name: z.string().min(2, { message: '名前は2文字以上である必要があります。' }),
   productCode: z.string().length(6, { message: '商品コードは6桁である必要があります。' }),
   price: z.coerce.number().min(0, { message: '価格は正の数でなければなりません。' }),
+  costPrice: z.coerce.number().min(0, { message: '原価は正の数でなければなりません。' }),
   productionQuantity: z.coerce.number().int().min(0, { message: '製造数量は正の整数でなければなりません。' }),
   category: z.string().min(1, { message: 'カテゴリは必須です。' }),
   imageUrl: z.string().url({ message: "有効なURLを入力してください。" }).or(z.literal('')),
@@ -42,6 +42,7 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
       name: '',
       productCode: '',
       price: 0,
+      costPrice: 0,
       productionQuantity: 0,
       category: '揚げ物',
       imageUrl: '',
@@ -102,6 +103,21 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
           />
           <FormField
             control={form.control}
+            name="costPrice"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>原価額</FormLabel>
+                <FormControl>
+                  <Input type="number" placeholder="80" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
             name="productionQuantity"
             render={({ field }) => (
               <FormItem>
@@ -113,9 +129,7 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
               </FormItem>
             )}
           />
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
+           <FormField
             control={form.control}
             name="productCode"
             render={({ field }) => (
@@ -128,7 +142,8 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
               </FormItem>
             )}
           />
-          <FormField
+        </div>
+         <FormField
             control={form.control}
             name="category"
             render={({ field }) => (
@@ -141,7 +156,6 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
               </FormItem>
             )}
           />
-        </div>
          <FormItem>
             <FormLabel>画像</FormLabel>
               <FormControl>

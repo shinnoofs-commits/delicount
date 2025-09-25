@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { Product } from '@/lib/types';
@@ -7,7 +6,8 @@ import React, { createContext, useState, useContext, useCallback, useMemo } from
 
 interface ProductContextType {
   products: Product[];
-  addProduct: (product: Product) => void;
+  setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
+  addProduct: (product: Omit<Product, 'id'>) => void;
   updateProduct: (product: Product) => void;
   deleteProduct: (productId: string) => void;
   getProductById: (productId: string) => Product | undefined;
@@ -18,7 +18,7 @@ export const ProductContext = createContext<ProductContextType | undefined>(unde
 export function ProductProvider({ children }: { children: React.ReactNode }) {
   const [products, setProducts] = useState<Product[]>(initialProducts);
 
-  const addProduct = useCallback((product: Product) => {
+  const addProduct = useCallback((product: Omit<Product, 'id'>) => {
     setProducts(prevProducts => [...prevProducts, { ...product, id: `prod-${Date.now()}` }]);
   }, []);
 
@@ -38,11 +38,12 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo(() => ({
     products,
+    setProducts,
     addProduct,
     updateProduct,
     deleteProduct,
     getProductById
-  }), [products, addProduct, updateProduct, deleteProduct, getProductById]);
+  }), [products, setProducts, addProduct, updateProduct, deleteProduct, getProductById]);
 
   return (
     <ProductContext.Provider value={value}>
