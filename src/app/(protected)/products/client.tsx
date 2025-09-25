@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useState } from "react"
@@ -36,7 +37,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { ProductForm } from "./product-form"
-import { StockAlertDialog } from "./stock-alert-dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,7 +51,6 @@ import {
 export default function ProductsClient({ initialProducts }: { initialProducts: Product[] }) {
   const [products, setProducts] = useState<Product[]>(initialProducts)
   const [isFormOpen, setIsFormOpen] = useState(false)
-  const [isAlertOpen, setIsAlertOpen] = useState(false)
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
 
@@ -76,11 +75,6 @@ export default function ProductsClient({ initialProducts }: { initialProducts: P
       setIsDeleteConfirmOpen(false)
       setSelectedProduct(null)
     }
-  }
-
-  const handleCheckStock = (product: Product) => {
-    setSelectedProduct(product)
-    setIsAlertOpen(true)
   }
 
   const handleFormSubmit = (productData: Product) => {
@@ -127,14 +121,16 @@ export default function ProductsClient({ initialProducts }: { initialProducts: P
               {products.map(product => (
                 <TableRow key={product.id}>
                   <TableCell className="hidden sm:table-cell">
-                    <Image
-                      alt={product.name}
-                      className="aspect-square rounded-md object-cover"
-                      height="64"
-                      src={product.imageUrl}
-                      width="64"
-                      data-ai-hint={product.imageHint}
-                    />
+                    {product.imageUrl && (
+                      <Image
+                        alt={product.name}
+                        className="aspect-square rounded-md object-cover"
+                        height="64"
+                        src={product.imageUrl}
+                        width="64"
+                        data-ai-hint={product.imageHint}
+                      />
+                    )}
                   </TableCell>
                   <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell>{product.sku}</TableCell>
@@ -152,9 +148,6 @@ export default function ProductsClient({ initialProducts }: { initialProducts: P
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>アクション</DropdownMenuLabel>
                         <DropdownMenuItem onClick={() => handleEdit(product)}>編集</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleCheckStock(product)}>
-                          AI在庫アラート
-                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleDelete(product)} className="text-destructive">
                           削除
                         </DropdownMenuItem>
@@ -179,10 +172,6 @@ export default function ProductsClient({ initialProducts }: { initialProducts: P
           <ProductForm product={selectedProduct} onSubmit={handleFormSubmit} onCancel={() => setIsFormOpen(false)} />
         </DialogContent>
       </Dialog>
-      
-      {selectedProduct && (
-        <StockAlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen} product={selectedProduct} />
-      )}
 
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
         <AlertDialogContent>

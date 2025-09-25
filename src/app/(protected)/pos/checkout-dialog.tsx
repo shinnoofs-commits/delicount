@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useState } from 'react'
@@ -18,9 +19,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { CartItem } from '@/lib/types'
+import type { Transaction } from '@/lib/types'
 
-const paymentMethods = [
+const paymentMethods: { value: Transaction['paymentMethod']; label: string; icon: React.ElementType }[] = [
   { value: 'Cash', label: '現金', icon: Banknote },
   { value: 'Credit Card', label: 'クレジットカード', icon: CreditCard },
   { value: 'E-Money', label: '電子マネー', icon: Smartphone },
@@ -31,13 +32,16 @@ const paymentMethods = [
 interface CheckoutDialogProps {
   isOpen: boolean
   onClose: () => void
-  onConfirm: () => void
+  onConfirm: (paymentMethod: Transaction['paymentMethod']) => void
   total: number
-  cartItems: CartItem[]
 }
 
 export function CheckoutDialog({ isOpen, onClose, onConfirm, total }: CheckoutDialogProps) {
-  const [paymentMethod, setPaymentMethod] = useState('Credit Card')
+  const [paymentMethod, setPaymentMethod] = useState<Transaction['paymentMethod']>('Credit Card')
+
+  const handleConfirm = () => {
+    onConfirm(paymentMethod);
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -50,7 +54,7 @@ export function CheckoutDialog({ isOpen, onClose, onConfirm, total }: CheckoutDi
         </DialogHeader>
         <div className="py-4 space-y-4">
           <label htmlFor="payment-method" className="text-sm font-medium">お支払い方法</label>
-          <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+          <Select value={paymentMethod} onValueChange={(value: Transaction['paymentMethod']) => setPaymentMethod(value)}>
             <SelectTrigger id="payment-method" className="w-full">
               <SelectValue placeholder="お支払い方法を選択" />
             </SelectTrigger>
@@ -70,7 +74,7 @@ export function CheckoutDialog({ isOpen, onClose, onConfirm, total }: CheckoutDi
           <Button type="button" variant="outline" onClick={onClose}>
             キャンセル
           </Button>
-          <Button type="button" onClick={onConfirm} className="bg-accent hover:bg-accent/90 text-accent-foreground">
+          <Button type="button" onClick={handleConfirm} className="bg-accent hover:bg-accent/90 text-accent-foreground">
             支払いを確定
           </Button>
         </DialogFooter>

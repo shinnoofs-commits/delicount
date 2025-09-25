@@ -1,16 +1,17 @@
+
 'use client'
 
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Wand2 } from 'lucide-react'
+import Image from 'next/image'
 
 import type { Product } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { ImageGenerationDialog } from './image-generation-dialog'
+import { useToast } from '@/hooks/use-toast'
 
 const formSchema = z.object({
   id: z.string(),
@@ -19,7 +20,7 @@ const formSchema = z.object({
   price: z.coerce.number().min(0, { message: '価格は正の数でなければなりません。' }),
   stock: z.coerce.number().int().min(0, { message: '在庫は正の整数でなければなりません。' }),
   category: z.string().min(1, { message: 'カテゴリは必須です。' }),
-  imageUrl: z.string().url({ message: "有効なURLを入力してください。" }),
+  imageUrl: z.string().url({ message: "有効なURLを入力してください。" }).or(z.literal('')),
   imageHint: z.string(),
 })
 
@@ -30,7 +31,8 @@ interface ProductFormProps {
 }
 
 export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
-  const [isImageGenerationOpen, setIsImageGenerationOpen] = useState(false)
+  const { toast } = useToast()
+  const [previewImage, setPreviewImage] = useState<string | null>(product?.imageUrl || null)
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: product || {
@@ -45,13 +47,30 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
     },
   })
 
-  const handleImageGenerated = (imageUrl: string, imageHint: string) => {
-    form.setValue('imageUrl', imageUrl, { shouldValidate: true })
-    form.setValue('imageHint', imageHint)
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) { // 2MB limit
+        toast({
+          variant: "destructive",
+          title: "ファイルが大きすぎます",
+          description: "2MB未満の画像ファイルを選択してください。",
+        })
+        return
+      }
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string
+        setPreviewImage(dataUrl)
+        form.setValue('imageUrl', dataUrl, { shouldValidate: true })
+        form.setValue('imageHint', file.name)
+      }
+      reader.readAsDataURL(file)
+    }
   }
 
+
   return (
-    <>
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
@@ -123,25 +142,18 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
             )}
           />
         </div>
-         <FormField
-          control={form.control}
-          name="imageUrl"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>画像URL</FormLabel>
-               <div className="flex gap-2">
-                <FormControl>
-                  <Input placeholder="https://..." {...field} />
-                </FormControl>
-                <Button type="button" variant="outline" onClick={() => setIsImageGenerationOpen(true)}>
-                  <Wand2 className="h-4 w-4 mr-2" />
-                  AI画像生成
-                </Button>
-               </div>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+         <FormItem>
+            <FormLabel>画像</FormLabel>
+              <FormControl>
+                <Input type="file" accept="image/png, image/jpeg, image/gif" onChange={handleFileChange} className="pt-1.5"/>
+              </FormControl>
+            <FormMessage />
+            {previewImage && (
+                <div className="mt-2 w-32 h-32 relative">
+                    <Image src={previewImage} alt="Preview" fill className="rounded-md object-cover" />
+                </div>
+            )}
+        </FormItem>
         <div className="flex justify-end gap-2 pt-4">
           <Button type="button" variant="outline" onClick={onCancel}>
             キャンセル
@@ -150,12 +162,5 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
         </div>
       </form>
     </Form>
-    <ImageGenerationDialog
-        isOpen={isImageGenerationOpen}
-        onClose={() => setIsImageGenerationOpen(false)}
-        onImageGenerated={handleImageGenerated}
-        productName={form.getValues('name')}
-      />
-    </>
   )
 }

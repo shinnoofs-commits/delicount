@@ -1,9 +1,11 @@
+
 'use client';
 
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter, usePathname } from 'next/navigation';
 import React, { useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils';
+import { TransactionProvider } from '@/contexts/transaction-context';
 
 import {
   Package,
@@ -108,7 +110,7 @@ function MainNav({ userRole }: { userRole: 'admin' | 'employee' }) {
   );
 }
 
-export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
+function ProtectedLayoutContent({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -187,4 +189,13 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
       </div>
     </div>
   );
+}
+
+
+export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <TransactionProvider>
+      <ProtectedLayoutContent>{children}</ProtectedLayoutContent>
+    </TransactionProvider>
+  )
 }

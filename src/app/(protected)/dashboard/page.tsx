@@ -16,13 +16,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { transactions } from "@/lib/data"
+import { useTransactions } from "@/contexts/transaction-context";
 import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid } from "date-fns"
 import { ja } from "date-fns/locale"
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, Legend } from "recharts"
-import { TicketPercent, TrendingDown, TrendingUp, ShoppingCart, Info, Calendar as CalendarIcon } from 'lucide-react';
+import { TicketPercent, TrendingUp, Calendar as CalendarIcon } from 'lucide-react';
 import { useMemo, useState } from "react";
-import type { Transaction, Product, Category } from "@/lib/types";
+import type { Category } from "@/lib/types";
 import { products } from "@/lib/data";
 import { DateRange } from "react-day-picker"
 import { Button } from "@/components/ui/button"
@@ -81,6 +81,7 @@ const DateRangePicker = ({ date, setDate }: { date: DateRange | undefined, setDa
 }
 
 export default function DashboardPage() {
+  const { transactions } = useTransactions();
   const [date, setDate] = useState<DateRange | undefined>({
     from: subDays(new Date(), 6),
     to: new Date(),
@@ -96,7 +97,7 @@ export default function DashboardPage() {
         const transactionDate = new Date(t.date);
         return isValid(transactionDate) && transactionDate >= fromDate && transactionDate <= toDate;
     });
-  }, [date]);
+  }, [date, transactions]);
 
   const totalRevenue = useMemo(() => filteredTransactions.reduce((acc, t) => acc + t.finalAmount, 0), [filteredTransactions]);
   const totalDiscount = useMemo(() => filteredTransactions.reduce((acc, t) => {

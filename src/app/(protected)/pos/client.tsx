@@ -1,10 +1,11 @@
+
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
 import Image from 'next/image';
 import { Search, X, Plus, Minus, Percent, Tag, Ticket } from 'lucide-react';
 import { products as allProducts } from '@/lib/data';
-import type { Product, CartItem } from '@/lib/types';
+import type { Product, CartItem, Transaction } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,10 +15,14 @@ import { cn } from '@/lib/utils';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CheckoutDialog } from './checkout-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { useTransactions } from '@/contexts/transaction-context';
+import { useAuth } from '@/hooks/use-auth';
 
 const categories = ['すべて', ...Array.from(new Set(allProducts.map(p => p.category)))];
 
 export default function PosClient() {
+  const { user } = useAuth();
+  const { addTransaction } = useTransactions();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('すべて');
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -79,6 +84,29 @@ export default function PosClient() {
   
   const taxAmount = Math.round((subtotal - discountAmount) * 0.08); // 8% tax for takeout
   const total = subtotal - discountAmount + taxAmount;
+
+  const handleConfirmCheckout = (paymentMethod: Transaction['paymentMethod']) => {
+    const newTransaction: Transaction = {
+      id: `txn-${Date.now()}`,
+      date: new Date(),
+      items: cart.map(item => ({
+        productId: item.product.id,
+        name: item.product.name,
+        quantity: item.quantity,
+        unitPrice: item.product.price,
+      })),
+      totalAmount: subtotal,
+      discount: discount.value > 0 ? discount : null,
+      finalAmount: total,
+      paymentMethod,
+      staffId: user?.id || 'unknown',
+    };
+
+    addTransaction(newTransaction);
+    setIsCheckoutOpen(false);
+    toast({ title: '会計完了！', description: `取引額 ¥${total.toLocaleString()} が記録されました` });
+    clearCart();
+  };
 
   return (
     <div className="grid flex-1 grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 h-[calc(100vh-theme(spacing.24))]">
@@ -226,13 +254,8 @@ export default function PosClient() {
         <CheckoutDialog 
             isOpen={isCheckoutOpen} 
             onClose={() => setIsCheckoutOpen(false)}
-            onConfirm={() => {
-                setIsCheckoutOpen(false);
-                toast({ title: '会計完了！', description: `取引額 ¥${total.toLocaleString()} が記録されました` });
-                clearCart();
-            }}
+            onConfirm={handleConfirmCheckout}
             total={total}
-            cartItems={cart}
         />
       )}
     </div>

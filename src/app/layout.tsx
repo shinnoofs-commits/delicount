@@ -1,7 +1,9 @@
+
 import type { Metadata } from 'next';
 import { AuthProvider } from '@/contexts/auth-context';
 import { Toaster } from '@/components/ui/toaster';
 import './globals.css';
+import { TransactionProvider } from '@/contexts/transaction-context';
 
 export const metadata: Metadata = {
   title: 'SwiftPOS',
@@ -25,8 +27,10 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <AuthProvider>
-          {children}
-          <Toaster />
+            <TransactionProvider>
+              {children}
+              <Toaster />
+            </TransactionProvider>
         </AuthProvider>
       </body>
     </html>
