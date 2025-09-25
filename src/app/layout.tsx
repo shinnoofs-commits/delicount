@@ -4,6 +4,7 @@ import { AuthProvider } from '@/contexts/auth-context';
 import { Toaster } from '@/components/ui/toaster';
 import './globals.css';
 import { TransactionProvider } from '@/contexts/transaction-context';
+import { ProductProvider } from '@/contexts/product-context';
 
 export const metadata: Metadata = {
   title: 'SwiftPOS',
@@ -27,10 +28,12 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <AuthProvider>
+          <ProductProvider>
             <TransactionProvider>
               {children}
               <Toaster />
             </TransactionProvider>
+          </ProductProvider>
         </AuthProvider>
       </body>
     </html>

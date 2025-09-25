@@ -23,7 +23,7 @@ import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, PieChart, Pi
 import { TicketPercent, TrendingUp, Calendar as CalendarIcon } from 'lucide-react';
 import { useMemo, useState } from "react";
 import type { Category } from "@/lib/types";
-import { products } from "@/lib/data";
+import { useProducts } from "@/contexts/product-context";
 import { DateRange } from "react-day-picker"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
@@ -35,8 +35,6 @@ import {
 import { cn } from "@/lib/utils"
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"];
-
-const categories: Category[] = ['揚げ物', 'サラダ', 'お弁当', '一品料理', 'ご飯もの'];
 
 const DateRangePicker = ({ date, setDate }: { date: DateRange | undefined, setDate: (date: DateRange | undefined) => void }) => {
   return (
@@ -82,6 +80,10 @@ const DateRangePicker = ({ date, setDate }: { date: DateRange | undefined, setDa
 
 export default function DashboardPage() {
   const { transactions } = useTransactions();
+  const { products } = useProducts();
+
+  const categories = useMemo(() => [...new Set(products.map(p => p.category))] as Category[], [products]);
+
   const [date, setDate] = useState<DateRange | undefined>({
     from: subDays(new Date(), 6),
     to: new Date(),
@@ -142,7 +144,7 @@ export default function DashboardPage() {
           category,
           sales: productSales
       };
-  }), [filteredTransactions]);
+  }), [filteredTransactions, products, categories]);
 
   const setDatePreset = (preset: 'today' | 'this_month' | 'last_7_days') => {
     const today = new Date();

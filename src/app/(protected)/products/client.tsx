@@ -47,9 +47,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { useProducts } from "@/contexts/product-context"
 
-export default function ProductsClient({ initialProducts }: { initialProducts: Product[] }) {
-  const [products, setProducts] = useState<Product[]>(initialProducts)
+export default function ProductsClient() {
+  const { products, addProduct, updateProduct, deleteProduct } = useProducts();
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
@@ -71,7 +72,7 @@ export default function ProductsClient({ initialProducts }: { initialProducts: P
 
   const confirmDelete = () => {
     if (selectedProduct) {
-      setProducts(products.filter(p => p.id !== selectedProduct.id))
+      deleteProduct(selectedProduct.id);
       setIsDeleteConfirmOpen(false)
       setSelectedProduct(null)
     }
@@ -80,10 +81,10 @@ export default function ProductsClient({ initialProducts }: { initialProducts: P
   const handleFormSubmit = (productData: Product) => {
     if (selectedProduct && productData.id) {
       // Edit
-      setProducts(products.map(p => (p.id === productData.id ? productData : p)))
+      updateProduct(productData);
     } else {
       // Add
-      setProducts([...products, { ...productData, id: `prod-${Date.now()}` }])
+      addProduct(productData);
     }
     setIsFormOpen(false)
     setSelectedProduct(null)

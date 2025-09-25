@@ -4,7 +4,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import Image from 'next/image';
 import { Search, X, Plus, Minus, Percent, Tag, Ticket } from 'lucide-react';
-import { products as allProducts } from '@/lib/data';
 import type { Product, CartItem, Transaction } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -17,18 +16,20 @@ import { CheckoutDialog } from './checkout-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useTransactions } from '@/contexts/transaction-context';
 import { useAuth } from '@/hooks/use-auth';
-
-const categories = ['すべて', ...Array.from(new Set(allProducts.map(p => p.category)))];
+import { useProducts } from '@/contexts/product-context';
 
 export default function PosClient() {
   const { user } = useAuth();
   const { addTransaction } = useTransactions();
+  const { products: allProducts, getProductById } = useProducts();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('すべて');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [discount, setDiscount] = useState({ type: 'percentage' as 'percentage' | 'amount', value: 0 });
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const { toast } = useToast();
+
+  const categories = useMemo(() => ['すべて', ...Array.from(new Set(allProducts.map(p => p.category)))], [allProducts]);
 
   const filteredProducts = useMemo(() => {
     return allProducts.filter(product => {
@@ -37,7 +38,7 @@ export default function PosClient() {
                             product.sku.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesCategory && matchesSearch;
     });
-  }, [searchTerm, selectedCategory]);
+  }, [searchTerm, selectedCategory, allProducts]);
 
   const addToCart = useCallback((product: Product) => {
     setCart(prevCart => {
@@ -107,6 +108,10 @@ export default function PosClient() {
     toast({ title: '会計完了！', description: `取引額 ¥${total.toLocaleString()} が記録されました` });
     clearCart();
   };
+  
+  const getCartItemProduct = (item: CartItem) => {
+    return getProductById(item.product.id) || item.product;
+  }
 
   return (
     <div className="grid flex-1 grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 h-[calc(100vh-theme(spacing.24))]">
@@ -183,12 +188,14 @@ export default function PosClient() {
               </div>
             ) : (
               <div className="space-y-4">
-                {cart.map(item => (
+                {cart.map(item => {
+                  const product = getCartItemProduct(item);
+                  return (
                   <div key={item.product.id} className="flex items-start gap-4">
-                    <Image src={item.product.imageUrl} alt={item.product.name} width={64} height={64} className="rounded-md object-cover aspect-square" data-ai-hint={item.product.imageHint} />
+                    <Image src={product.imageUrl} alt={product.name} width={64} height={64} className="rounded-md object-cover aspect-square" data-ai-hint={product.imageHint} />
                     <div className="flex-1">
-                      <p className="font-medium text-sm">{item.product.name}</p>
-                      <p className="text-xs text-muted-foreground">¥{item.product.price.toLocaleString()}</p>
+                      <p className="font-medium text-sm">{product.name}</p>
+                      <p className="text-xs text-muted-foreground">¥{product.price.toLocaleString()}</p>
                        <div className="flex items-center gap-2 mt-2">
                           <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.product.id, item.quantity - 1)}>
                             <Minus className="h-4 w-4" />
@@ -199,9 +206,10 @@ export default function PosClient() {
                           </Button>
                         </div>
                     </div>
-                    <p className="font-medium text-sm">¥{(item.product.price * item.quantity).toLocaleString()}</p>
+                    <p className="font-medium text-sm">¥{(product.price * item.quantity).toLocaleString()}</p>
                   </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </CardContent>
