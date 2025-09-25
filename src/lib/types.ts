@@ -5,7 +5,7 @@ export type User = {
   role: 'admin' | 'employee';
 };
 
-export type Category = '揚げ物' | 'サラダ' | 'お弁当' | '一品料理' | 'ご飯もの';
+export type Category = '弁当' | '丼' | '軽食' | 'おこわ' | '温惣菜' | '冷惣菜' | 'サラダ' | '揚げ物' | '唐揚げ';
 
 export type Product = {
   id: string;

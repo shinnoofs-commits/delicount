@@ -1,3 +1,4 @@
+
 import type { User, Product, Transaction, Category } from './types';
 import { PlaceHolderImages } from './placeholder-images';
 
@@ -17,15 +18,15 @@ export const users: User[] = [
 
 export const products: Product[] = [
   { id: 'prod-1', name: '絶品コロッケ', price: 180, costPrice: 80, productionQuantity: 50, productCode: '000001', category: '揚げ物', imageUrl: getImage('croquette').imageUrl, imageHint: getImage('croquette').imageHint },
-  { id: 'prod-2', name: 'ジューシー唐揚げ (100g)', price: 250, costPrice: 120, productionQuantity: 30, productCode: '000002', category: '揚げ物', imageUrl: getImage('karaage').imageUrl, imageHint: getImage('karaage').imageHint },
+  { id: 'prod-2', name: 'ジューシー唐揚げ (100g)', price: 250, costPrice: 120, productionQuantity: 30, productCode: '000002', category: '唐揚げ', imageUrl: getImage('karaage').imageUrl, imageHint: getImage('karaage').imageHint },
   { id: 'prod-3', name: '自家製メンチカツ', price: 220, costPrice: 100, productionQuantity: 40, productCode: '000003', category: '揚げ物', imageUrl: getImage('menchi-katsu').imageUrl, imageHint: getImage('menchi-katsu').imageHint },
   { id: 'prod-4', name: '彩り野菜のポテトサラダ', price: 320, costPrice: 150, productionQuantity: 25, productCode: '000004', category: 'サラダ', imageUrl: getImage('potato-salad').imageUrl, imageHint: getImage('potato-salad').imageHint },
-  { id: 'prod-5', name: '日替わり幕の内弁当', price: 850, costPrice: 450, productionQuantity: 20, productCode: '000005', category: 'お弁当', imageUrl: getImage('bento-box').imageUrl, imageHint: getImage('bento-box').imageHint },
-  { id: 'prod-6', name: 'のり弁当', price: 550, costPrice: 280, productionQuantity: 35, productCode: '000006', category: 'お弁当', imageUrl: getImage('nori-bento').imageUrl, imageHint: getImage('nori-bento').imageHint },
-  { id: 'prod-7', name: '特製だし巻き卵', price: 480, costPrice: 200, productionQuantity: 15, productCode: '000007', category: '一品料理', imageUrl: getImage('dashimaki-tamago').imageUrl, imageHint: getImage('dashimaki-tamago').imageHint },
-  { id: 'prod-8', name: 'ほうれん草の胡麻和え', price: 280, costPrice: 130, productionQuantity: 40, productCode: '000008', category: '一品料理', imageUrl: getImage('gomaae').imageUrl, imageHint: getImage('gomaae').imageHint },
-  { id: 'prod-9', name: 'おにぎり (鮭)', price: 180, costPrice: 70, productionQuantity: 60, productCode: '000009', category: 'ご飯もの', imageUrl: getImage('onigiri-salmon').imageUrl, imageHint: getImage('onigiri-salmon').imageHint },
-  { id: 'prod-10', name: 'おにぎり (梅)', price: 160, costPrice: 60, productionQuantity: 60, productCode: '000010', category: 'ご飯もの', imageUrl: getImage('onigiri-ume').imageUrl, imageHint: getImage('onigiri-ume').imageHint },
+  { id: 'prod-5', name: '日替わり幕の内弁当', price: 850, costPrice: 450, productionQuantity: 20, productCode: '000005', category: '弁当', imageUrl: getImage('bento-box').imageUrl, imageHint: getImage('bento-box').imageHint },
+  { id: 'prod-6', name: 'のり弁当', price: 550, costPrice: 280, productionQuantity: 35, productCode: '000006', category: '弁当', imageUrl: getImage('nori-bento').imageUrl, imageHint: getImage('nori-bento').imageHint },
+  { id: 'prod-7', name: '特製だし巻き卵', price: 480, costPrice: 200, productionQuantity: 15, productCode: '000007', category: '温惣菜', imageUrl: getImage('dashimaki-tamago').imageUrl, imageHint: getImage('dashimaki-tamago').imageHint },
+  { id: 'prod-8', name: 'ほうれん草の胡麻和え', price: 280, costPrice: 130, productionQuantity: 40, productCode: '000008', category: '冷惣菜', imageUrl: getImage('gomaae').imageUrl, imageHint: getImage('gomaae').imageHint },
+  { id: 'prod-9', name: 'おにぎり (鮭)', price: 180, costPrice: 70, productionQuantity: 60, productCode: '000009', category: '軽食', imageUrl: getImage('onigiri-salmon').imageUrl, imageHint: getImage('onigiri-salmon').imageHint },
+  { id: 'prod-10', name: 'おにぎり (梅)', price: 160, costPrice: 60, productionQuantity: 60, productCode: '000010', category: '軽食', imageUrl: getImage('onigiri-ume').imageUrl, imageHint: getImage('onigiri-ume').imageHint },
 ];
 
 export const transactions: Transaction[] = [
