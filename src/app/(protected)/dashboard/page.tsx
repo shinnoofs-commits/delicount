@@ -20,7 +20,7 @@ import { useTransactions } from "@/contexts/transaction-context";
 import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid } from "date-fns"
 import { ja } from "date-fns/locale"
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, Legend } from "recharts"
-import { TicketPercent, TrendingUp, Calendar as CalendarIcon, Package, Trash2, ShoppingCart } from 'lucide-react';
+import { TicketPercent, TrendingUp, Calendar as CalendarIcon, Package, Trash2, ShoppingCart, Percent } from 'lucide-react';
 import { useMemo, useState } from "react";
 import type { Category, Product, TransactionItem } from "@/lib/types";
 import { useProducts } from "@/contexts/product-context";
@@ -90,7 +90,7 @@ type WasteData = {
 
 export default function DashboardPage() {
   const { transactions } = useTransactions();
-  const { products } = useProducts();
+  const { products, getProductById } = useProducts();
 
   const categories = useMemo(() => [...new Set(products.map(p => p.category))] as Category[], [products]);
 
@@ -121,6 +121,22 @@ export default function DashboardPage() {
       }
       return acc;
   }, 0), [filteredTransactions]);
+
+  const totalCostOfGoodsSold = useMemo(() => {
+    return filteredTransactions.reduce((totalCost, transaction) => {
+      const transactionCost = transaction.items.reduce((itemCost, item) => {
+        const product = getProductById(item.productId);
+        return itemCost + (product ? product.costPrice * item.quantity : 0);
+      }, 0);
+      return totalCost + transactionCost;
+    }, 0);
+  }, [filteredTransactions, getProductById]);
+
+  const cogsRate = useMemo(() => {
+    if (totalRevenue === 0) return 0;
+    return (totalCostOfGoodsSold / totalRevenue) * 100;
+  }, [totalRevenue, totalCostOfGoodsSold]);
+
 
   const salesByTime = useMemo(() => Array.from({ length: 15 }, (_, i) => {
       const hour = i + 8; // 8:00 to 22:00
@@ -252,7 +268,7 @@ export default function DashboardPage() {
           <Button variant="outline" size="sm" onClick={() => setDatePreset('this_month')}>今月</Button>
         </div>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">総収益</CardTitle>
@@ -272,6 +288,16 @@ export default function DashboardPage() {
             <div className="text-2xl font-bold">¥{Math.round(totalDiscount).toLocaleString()}</div>
              <p className="text-xs text-muted-foreground">適用された割引・値引の合計です。</p>
           </CardContent>
+        </Card>
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">原価率</CardTitle>
+                <Percent className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{cogsRate.toFixed(1)}%</div>
+                <p className="text-xs text-muted-foreground">加重平均原価率です。</p>
+            </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -448,5 +474,3 @@ export default function DashboardPage() {
     </div>
   )
 }
-
-    
