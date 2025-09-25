@@ -83,7 +83,7 @@ type WasteData = {
     productName: string;
     productionQuantity: number;
     normalSales: number;
-    discountedSales: number;
+    discountedSalesByRate: { [key: number]: number };
     wasteCount: number;
 };
 
@@ -165,10 +165,30 @@ export default function DashboardPage() {
 
     const wasteAnalysisData: WasteData[] = useMemo(() => {
         return products.map(product => {
-            const soldItems = filteredTransactions.flatMap(t => t.items).filter(item => item.productId === product.id);
-            const normalSales = soldItems.filter(item => !item.wasDiscounted).reduce((sum, item) => sum + item.quantity, 0);
-            const discountedSales = soldItems.filter(item => item.wasDiscounted).reduce((sum, item) => sum + item.quantity, 0);
-            const totalSold = normalSales + discountedSales;
+            const transactionsWithProduct = filteredTransactions.filter(t => t.items.some(item => item.productId === product.id));
+
+            const normalSales = transactionsWithProduct
+                .filter(t => !t.discount || t.discount.value === 0)
+                .flatMap(t => t.items)
+                .filter(item => item.productId === product.id)
+                .reduce((sum, item) => sum + item.quantity, 0);
+            
+            const discountedSalesByRate = [10, 20, 30, 40].reduce((acc, rate) => ({ ...acc, [rate]: 0 }), {});
+
+            const discountedTransactions = transactionsWithProduct.filter(t => t.discount?.type === 'percentage' && t.discount.value > 0);
+            
+            discountedTransactions.forEach(t => {
+                const rate = t.discount!.value;
+                if ([10, 20, 30, 40].includes(rate)) {
+                    const productItem = t.items.find(item => item.productId === product.id);
+                    if (productItem) {
+                        (discountedSalesByRate as any)[rate] += productItem.quantity;
+                    }
+                }
+            });
+            
+            const totalDiscountedSales = Object.values(discountedSalesByRate).reduce((sum, q) => sum + q, 0);
+            const totalSold = normalSales + totalDiscountedSales;
             const wasteCount = Math.max(0, product.productionQuantity - totalSold);
             
             return {
@@ -176,7 +196,7 @@ export default function DashboardPage() {
                 productName: product.name,
                 productionQuantity: product.productionQuantity,
                 normalSales,
-                discountedSales,
+                discountedSalesByRate,
                 wasteCount
             };
         });
@@ -184,7 +204,7 @@ export default function DashboardPage() {
 
     const totalProduction = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.productionQuantity, 0), [wasteAnalysisData]);
     const totalWaste = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.wasteCount, 0), [wasteAnalysisData]);
-    const totalSold = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.normalSales + p.discountedSales, 0), [wasteAnalysisData]);
+    const totalSold = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.normalSales + Object.values(p.discountedSalesByRate).reduce((s,q) => s + q, 0), 0), [wasteAnalysisData]);
 
   const salesByDiscount = useMemo(() => {
     const discountCategories = [10, 20, 30, 40];
@@ -219,6 +239,8 @@ export default function DashboardPage() {
       setDate({ from: subDays(today, 6), to: today });
     }
   }
+
+  const discountRates = [10, 20, 30, 40];
 
   return (
     <div className="flex flex-col gap-4">
@@ -399,7 +421,9 @@ export default function DashboardPage() {
                         <TableHead>商品名</TableHead>
                         <TableHead className="text-right">製造数</TableHead>
                         <TableHead className="text-right">通常販売</TableHead>
-                        <TableHead className="text-right">割引販売</TableHead>
+                        {discountRates.map(rate => (
+                            <TableHead key={rate} className="text-right">{rate}%割引</TableHead>
+                        ))}
                         <TableHead className="text-right">廃棄数</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -409,7 +433,11 @@ export default function DashboardPage() {
                             <TableCell>{data.productName}</TableCell>
                             <TableCell className="text-right">{data.productionQuantity}</TableCell>
                             <TableCell className="text-right">{data.normalSales}</TableCell>
-                            <TableCell className="text-right">{data.discountedSales}</TableCell>
+                            {discountRates.map(rate => (
+                                <TableCell key={rate} className="text-right">
+                                    {(data.discountedSalesByRate as any)[rate] || 0}
+                                </TableCell>
+                            ))}
                             <TableCell className="text-right font-medium">{data.wasteCount}</TableCell>
                         </TableRow>
                     ))}
@@ -420,3 +448,5 @@ export default function DashboardPage() {
     </div>
   )
 }
+
+    
