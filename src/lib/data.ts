@@ -16,16 +16,16 @@ export const users: User[] = [
 ];
 
 export const products: Product[] = [
-  { id: 'prod-1', name: '絶品コロッケ', price: 180, stock: 50, sku: 'SKU001', category: '揚げ物', imageUrl: getImage('croquette').imageUrl, imageHint: getImage('croquette').imageHint },
-  { id: 'prod-2', name: 'ジューシー唐揚げ (100g)', price: 250, stock: 30, sku: 'SKU002', category: '揚げ物', imageUrl: getImage('karaage').imageUrl, imageHint: getImage('karaage').imageHint },
-  { id: 'prod-3', name: '自家製メンチカツ', price: 220, stock: 40, sku: 'SKU003', category: '揚げ物', imageUrl: getImage('menchi-katsu').imageUrl, imageHint: getImage('menchi-katsu').imageHint },
-  { id: 'prod-4', name: '彩り野菜のポテトサラダ', price: 320, stock: 25, sku: 'SKU004', category: 'サラダ', imageUrl: getImage('potato-salad').imageUrl, imageHint: getImage('potato-salad').imageHint },
-  { id: 'prod-5', name: '日替わり幕の内弁当', price: 850, stock: 20, sku: 'SKU005', category: 'お弁当', imageUrl: getImage('bento-box').imageUrl, imageHint: getImage('bento-box').imageHint },
-  { id: 'prod-6', name: 'のり弁当', price: 550, stock: 35, sku: 'SKU006', category: 'お弁当', imageUrl: getImage('nori-bento').imageUrl, imageHint: getImage('nori-bento').imageHint },
-  { id: 'prod-7', name: '特製だし巻き卵', price: 480, stock: 15, sku: 'SKU007', category: '一品料理', imageUrl: getImage('dashimaki-tamago').imageUrl, imageHint: getImage('dashimaki-tamago').imageHint },
-  { id: 'prod-8', name: 'ほうれん草の胡麻和え', price: 280, stock: 40, sku: 'SKU008', category: '一品料理', imageUrl: getImage('gomaae').imageUrl, imageHint: getImage('gomaae').imageHint },
-  { id: 'prod-9', name: 'おにぎり (鮭)', price: 180, stock: 60, sku: 'SKU009', category: 'ご飯もの', imageUrl: getImage('onigiri-salmon').imageUrl, imageHint: getImage('onigiri-salmon').imageHint },
-  { id: 'prod-10', name: 'おにぎり (梅)', price: 160, stock: 60, sku: 'SKU010', category: 'ご飯もの', imageUrl: getImage('onigiri-ume').imageUrl, imageHint: getImage('onigiri-ume').imageHint },
+  { id: 'prod-1', name: '絶品コロッケ', price: 180, productionQuantity: 50, productCode: '000001', category: '揚げ物', imageUrl: getImage('croquette').imageUrl, imageHint: getImage('croquette').imageHint },
+  { id: 'prod-2', name: 'ジューシー唐揚げ (100g)', price: 250, productionQuantity: 30, productCode: '000002', category: '揚げ物', imageUrl: getImage('karaage').imageUrl, imageHint: getImage('karaage').imageHint },
+  { id: 'prod-3', name: '自家製メンチカツ', price: 220, productionQuantity: 40, productCode: '000003', category: '揚げ物', imageUrl: getImage('menchi-katsu').imageUrl, imageHint: getImage('menchi-katsu').imageHint },
+  { id: 'prod-4', name: '彩り野菜のポテトサラダ', price: 320, productionQuantity: 25, productCode: '000004', category: 'サラダ', imageUrl: getImage('potato-salad').imageUrl, imageHint: getImage('potato-salad').imageHint },
+  { id: 'prod-5', name: '日替わり幕の内弁当', price: 850, productionQuantity: 20, productCode: '000005', category: 'お弁当', imageUrl: getImage('bento-box').imageUrl, imageHint: getImage('bento-box').imageHint },
+  { id: 'prod-6', name: 'のり弁当', price: 550, productionQuantity: 35, productCode: '000006', category: 'お弁当', imageUrl: getImage('nori-bento').imageUrl, imageHint: getImage('nori-bento').imageHint },
+  { id: 'prod-7', name: '特製だし巻き卵', price: 480, productionQuantity: 15, productCode: '000007', category: '一品料理', imageUrl: getImage('dashimaki-tamago').imageUrl, imageHint: getImage('dashimaki-tamago').imageHint },
+  { id: 'prod-8', name: 'ほうれん草の胡麻和え', price: 280, productionQuantity: 40, productCode: '000008', category: '一品料理', imageUrl: getImage('gomaae').imageUrl, imageHint: getImage('gomaae').imageHint },
+  { id: 'prod-9', name: 'おにぎり (鮭)', price: 180, productionQuantity: 60, productCode: '000009', category: 'ご飯もの', imageUrl: getImage('onigiri-salmon').imageUrl, imageHint: getImage('onigiri-salmon').imageHint },
+  { id: 'prod-10', name: 'おにぎり (梅)', price: 160, productionQuantity: 60, productCode: '000010', category: 'ご飯もの', imageUrl: getImage('onigiri-ume').imageUrl, imageHint: getImage('onigiri-ume').imageHint },
 ];
 
 export const transactions: Transaction[] = [

@@ -78,10 +78,10 @@ export default function ProductsClient() {
     }
   }
 
-  const handleFormSubmit = (productData: Product) => {
+  const handleFormSubmit = (productData: Omit<Product, 'id'> & { id?: string }) => {
     if (selectedProduct && productData.id) {
       // Edit
-      updateProduct(productData);
+      updateProduct(productData as Product);
     } else {
       // Add
       addProduct(productData);
@@ -101,7 +101,7 @@ export default function ProductsClient() {
       <Card>
         <CardHeader>
           <CardTitle>商品</CardTitle>
-          <CardDescription>商品の管理と在庫の確認ができます。</CardDescription>
+          <CardDescription>商品の管理ができます。</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -109,10 +109,10 @@ export default function ProductsClient() {
               <TableRow>
                 <TableHead className="hidden w-[100px] sm:table-cell">画像</TableHead>
                 <TableHead>名前</TableHead>
-                <TableHead>SKU</TableHead>
+                <TableHead>商品コード</TableHead>
                 <TableHead className="hidden md:table-cell">カテゴリ</TableHead>
                 <TableHead className="text-right">価格</TableHead>
-                <TableHead className="text-right">在庫</TableHead>
+                <TableHead className="text-right">製造数量</TableHead>
                 <TableHead>
                   <span className="sr-only">アクション</span>
                 </TableHead>
@@ -134,10 +134,10 @@ export default function ProductsClient() {
                     )}
                   </TableCell>
                   <TableCell className="font-medium">{product.name}</TableCell>
-                  <TableCell>{product.sku}</TableCell>
+                  <TableCell>{product.productCode}</TableCell>
                   <TableCell className="hidden md:table-cell">{product.category}</TableCell>
                   <TableCell className="text-right font-medium">¥{product.price.toLocaleString()}</TableCell>
-                  <TableCell className="text-right">{product.stock}</TableCell>
+                  <TableCell className="text-right">{product.productionQuantity}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -167,7 +167,7 @@ export default function ProductsClient() {
           <DialogHeader>
             <DialogTitle>{selectedProduct ? '商品を編集' : '商品を追加'}</DialogTitle>
             <DialogDescription>
-              {selectedProduct ? '商品の詳細を更新します。' : '新しい商品を在庫に追加します。'}
+              {selectedProduct ? '商品の詳細を更新します。' : '新しい商品を追加します。'}
             </DialogDescription>
           </DialogHeader>
           <ProductForm product={selectedProduct} onSubmit={handleFormSubmit} onCancel={() => setIsFormOpen(false)} />

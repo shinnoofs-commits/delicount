@@ -14,33 +14,35 @@ import { Input } from '@/components/ui/input'
 import { useToast } from '@/hooks/use-toast'
 
 const formSchema = z.object({
-  id: z.string(),
+  id: z.string().optional(),
   name: z.string().min(2, { message: '名前は2文字以上である必要があります。' }),
-  sku: z.string().min(2, { message: 'SKUは2文字以上である必要があります。' }),
+  productCode: z.string().length(6, { message: '商品コードは6桁である必要があります。' }),
   price: z.coerce.number().min(0, { message: '価格は正の数でなければなりません。' }),
-  stock: z.coerce.number().int().min(0, { message: '在庫は正の整数でなければなりません。' }),
+  productionQuantity: z.coerce.number().int().min(0, { message: '製造数量は正の整数でなければなりません。' }),
   category: z.string().min(1, { message: 'カテゴリは必須です。' }),
   imageUrl: z.string().url({ message: "有効なURLを入力してください。" }).or(z.literal('')),
   imageHint: z.string(),
 })
 
+type FormValues = z.infer<typeof formSchema>;
+
 interface ProductFormProps {
   product: Product | null;
-  onSubmit: (data: Product) => void;
+  onSubmit: (data: FormValues) => void;
   onCancel: () => void;
 }
 
 export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
   const { toast } = useToast()
   const [previewImage, setPreviewImage] = useState<string | null>(product?.imageUrl || null)
-  const form = useForm<z.infer<typeof formSchema>>({
+  
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: product || {
-      id: '',
       name: '',
-      sku: '',
+      productCode: '',
       price: 0,
-      stock: 0,
+      productionQuantity: 0,
       category: '揚げ物',
       imageUrl: '',
       imageHint: '',
@@ -63,12 +65,10 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
         const dataUrl = reader.result as string
         setPreviewImage(dataUrl)
         form.setValue('imageUrl', dataUrl, { shouldValidate: true })
-        form.setValue('imageHint', file.name)
       }
       reader.readAsDataURL(file)
     }
   }
-
 
   return (
     <Form {...form}>
@@ -102,10 +102,10 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
           />
           <FormField
             control={form.control}
-            name="stock"
+            name="productionQuantity"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>在庫</FormLabel>
+                <FormLabel>製造数量</FormLabel>
                 <FormControl>
                   <Input type="number" placeholder="50" {...field} />
                 </FormControl>
@@ -117,12 +117,12 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
-            name="sku"
+            name="productCode"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>SKU</FormLabel>
+                <FormLabel>商品コード</FormLabel>
                 <FormControl>
-                  <Input placeholder="SKU001" {...field} />
+                  <Input placeholder="000001" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

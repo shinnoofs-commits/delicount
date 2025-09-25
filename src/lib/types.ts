@@ -11,8 +11,8 @@ export type Product = {
   id: string;
   name: string;
   price: number;
-  stock: number;
-  sku: string;
+  productionQuantity: number;
+  productCode: string;
   category: Category;
   imageUrl: string;
   imageHint: string;

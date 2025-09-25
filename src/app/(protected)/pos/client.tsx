@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import Image from 'next/image';
-import { Search, X, Plus, Minus, Percent, Tag, Ticket } from 'lucide-react';
+import { Search, X, Plus, Minus, Percent, Ticket, Tag } from 'lucide-react';
 import type { Product, CartItem, Transaction } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -35,7 +35,7 @@ export default function PosClient() {
     return allProducts.filter(product => {
       const matchesCategory = selectedCategory === 'すべて' || product.category === selectedCategory;
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            product.sku.toLowerCase().includes(searchTerm.toLowerCase());
+                            product.productCode.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesCategory && matchesSearch;
     });
   }, [searchTerm, selectedCategory, allProducts]);
@@ -122,7 +122,7 @@ export default function PosClient() {
                 <div className="flex items-center gap-4">
                     <Search className="h-5 w-5 text-muted-foreground" />
                     <Input
-                        placeholder="商品名またはSKUで検索..."
+                        placeholder="商品名または商品コードで検索..."
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
                         className="w-full"
