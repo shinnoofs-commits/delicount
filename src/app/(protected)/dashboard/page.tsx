@@ -85,6 +85,7 @@ type WasteData = {
     normalSales: number;
     discountedSalesByRate: { [key: number]: number };
     wasteCount: number;
+    costPrice: number;
 };
 
 
@@ -122,6 +123,46 @@ export default function DashboardPage() {
       return acc;
   }, 0), [filteredTransactions]);
 
+  const wasteAnalysisData: WasteData[] = useMemo(() => {
+    return products.map(product => {
+        const transactionsWithProduct = filteredTransactions.filter(t => t.items.some(item => item.productId === product.id));
+
+        const normalSales = transactionsWithProduct
+            .filter(t => !t.discount || t.discount.value === 0)
+            .flatMap(t => t.items)
+            .filter(item => item.productId === product.id)
+            .reduce((sum, item) => sum + item.quantity, 0);
+        
+        const discountedSalesByRate = [10, 20, 30, 40].reduce((acc, rate) => ({ ...acc, [rate]: 0 }), {});
+
+        const discountedTransactions = transactionsWithProduct.filter(t => t.discount?.type === 'percentage' && t.discount.value > 0);
+        
+        discountedTransactions.forEach(t => {
+            const rate = t.discount!.value;
+            if ([10, 20, 30, 40].includes(rate)) {
+                const productItem = t.items.find(item => item.productId === product.id);
+                if (productItem) {
+                    (discountedSalesByRate as any)[rate] += productItem.quantity;
+                }
+            }
+        });
+        
+        const totalDiscountedSales = Object.values(discountedSalesByRate).reduce((sum, q) => sum + q, 0);
+        const totalSold = normalSales + totalDiscountedSales;
+        const wasteCount = Math.max(0, product.productionQuantity - totalSold);
+        
+        return {
+            productId: product.id,
+            productName: product.name,
+            productionQuantity: product.productionQuantity,
+            normalSales,
+            discountedSalesByRate,
+            wasteCount,
+            costPrice: product.costPrice
+        };
+    });
+  }, [products, filteredTransactions]);
+
   const totalCostOfGoodsSold = useMemo(() => {
     return filteredTransactions.reduce((totalCost, transaction) => {
       const transactionCost = transaction.items.reduce((itemCost, item) => {
@@ -132,10 +173,13 @@ export default function DashboardPage() {
     }, 0);
   }, [filteredTransactions, getProductById]);
 
+  const totalWasteCost = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.wasteCount * p.costPrice, 0), [wasteAnalysisData]);
+
   const cogsRate = useMemo(() => {
     if (totalRevenue === 0) return 0;
-    return (totalCostOfGoodsSold / totalRevenue) * 100;
-  }, [totalRevenue, totalCostOfGoodsSold]);
+    const totalCost = totalCostOfGoodsSold + totalWasteCost;
+    return (totalCost / totalRevenue) * 100;
+  }, [totalRevenue, totalCostOfGoodsSold, totalWasteCost]);
 
 
   const salesByTime = useMemo(() => Array.from({ length: 15 }, (_, i) => {
@@ -179,45 +223,6 @@ export default function DashboardPage() {
       };
   }), [filteredTransactions, products, categories, transactions]);
 
-    const wasteAnalysisData: WasteData[] = useMemo(() => {
-        return products.map(product => {
-            const transactionsWithProduct = filteredTransactions.filter(t => t.items.some(item => item.productId === product.id));
-
-            const normalSales = transactionsWithProduct
-                .filter(t => !t.discount || t.discount.value === 0)
-                .flatMap(t => t.items)
-                .filter(item => item.productId === product.id)
-                .reduce((sum, item) => sum + item.quantity, 0);
-            
-            const discountedSalesByRate = [10, 20, 30, 40].reduce((acc, rate) => ({ ...acc, [rate]: 0 }), {});
-
-            const discountedTransactions = transactionsWithProduct.filter(t => t.discount?.type === 'percentage' && t.discount.value > 0);
-            
-            discountedTransactions.forEach(t => {
-                const rate = t.discount!.value;
-                if ([10, 20, 30, 40].includes(rate)) {
-                    const productItem = t.items.find(item => item.productId === product.id);
-                    if (productItem) {
-                        (discountedSalesByRate as any)[rate] += productItem.quantity;
-                    }
-                }
-            });
-            
-            const totalDiscountedSales = Object.values(discountedSalesByRate).reduce((sum, q) => sum + q, 0);
-            const totalSold = normalSales + totalDiscountedSales;
-            const wasteCount = Math.max(0, product.productionQuantity - totalSold);
-            
-            return {
-                productId: product.id,
-                productName: product.name,
-                productionQuantity: product.productionQuantity,
-                normalSales,
-                discountedSalesByRate,
-                wasteCount
-            };
-        });
-    }, [products, filteredTransactions]);
-
     const totalProduction = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.productionQuantity, 0), [wasteAnalysisData]);
     const totalWaste = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.wasteCount, 0), [wasteAnalysisData]);
     const totalSold = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.normalSales + Object.values(p.discountedSalesByRate).reduce((s,q) => s + q, 0), 0), [wasteAnalysisData]);
@@ -232,12 +237,9 @@ export default function DashboardPage() {
     filteredTransactions.forEach(t => {
       if (t.discount?.type === 'percentage') {
         const rate = t.discount.value;
-        const category = discountCategories.find(c => c === rate);
-        if (category) {
-          const index = discountCategories.indexOf(category);
-          const discountedAmount = t.totalAmount * (1 - rate / 100);
-          const tax = discountedAmount * 0.08;
-          result[index]['売上'] += discountedAmount + tax;
+        const categoryIndex = discountCategories.indexOf(rate);
+        if (categoryIndex !== -1) {
+          result[categoryIndex]['売上'] += t.finalAmount;
         }
       }
     });
@@ -296,7 +298,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
                 <div className="text-2xl font-bold">{cogsRate.toFixed(1)}%</div>
-                <p className="text-xs text-muted-foreground">加重平均原価率です。</p>
+                <p className="text-xs text-muted-foreground">廃棄ロス含む加重平均原価率です。</p>
             </CardContent>
         </Card>
         <Card>
