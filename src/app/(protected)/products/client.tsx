@@ -3,7 +3,7 @@
 
 import { useState } from "react"
 import Image from "next/image"
-import { MoreHorizontal, PlusCircle } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Plus, Minus } from "lucide-react"
 
 import type { Product } from "@/lib/types"
 import { Button } from "@/components/ui/button"
@@ -79,15 +79,27 @@ export default function ProductsClient() {
   }
 
   const handleFormSubmit = (productData: Omit<Product, 'id'> & { id?: string }) => {
+    const newProductData = {
+        ...productData,
+        imageUrl: productData.imageUrl || 'https://placehold.co/400x400/png?text=No+Image',
+        imageHint: productData.imageHint || 'product image'
+    };
+
     if (selectedProduct && productData.id) {
-      // Edit
-      updateProduct(productData as Product);
+      updateProduct(newProductData as Product);
     } else {
-      // Add
-      addProduct(productData);
+      addProduct(newProductData as Omit<Product, 'id'>);
     }
     setIsFormOpen(false)
     setSelectedProduct(null)
+  }
+  
+  const adjustQuantity = (productId: string, amount: number) => {
+    const product = products.find(p => p.id === productId);
+    if (product) {
+        const newQuantity = Math.max(0, product.productionQuantity + amount);
+        updateProduct({ ...product, productionQuantity: newQuantity });
+    }
   }
 
   return (
@@ -112,7 +124,7 @@ export default function ProductsClient() {
                 <TableHead>商品コード</TableHead>
                 <TableHead className="hidden md:table-cell">カテゴリ</TableHead>
                 <TableHead className="text-right">価格</TableHead>
-                <TableHead className="text-right">製造数量</TableHead>
+                <TableHead className="text-center">製造数量</TableHead>
                 <TableHead>
                   <span className="sr-only">アクション</span>
                 </TableHead>
@@ -137,7 +149,17 @@ export default function ProductsClient() {
                   <TableCell>{product.productCode}</TableCell>
                   <TableCell className="hidden md:table-cell">{product.category}</TableCell>
                   <TableCell className="text-right font-medium">¥{product.price.toLocaleString()}</TableCell>
-                  <TableCell className="text-right">{product.productionQuantity}</TableCell>
+                  <TableCell className="text-center">
+                    <div className="flex items-center justify-center gap-2">
+                        <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => adjustQuantity(product.id, -1)}>
+                            <Minus className="h-4 w-4" />
+                        </Button>
+                        <span className="w-10 text-center">{product.productionQuantity}</span>
+                        <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => adjustQuantity(product.id, 1)}>
+                            <Plus className="h-4 w-4" />
+                        </Button>
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

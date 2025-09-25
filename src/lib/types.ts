@@ -23,15 +23,18 @@ export type CartItem = {
   quantity: number;
 };
 
+export type TransactionItem = {
+  productId: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  wasDiscounted: boolean;
+};
+
 export type Transaction = {
   id: string;
   date: Date;
-  items: {
-    productId: string;
-    name: string;
-    quantity: number;
-    unitPrice: number;
-  }[];
+  items: TransactionItem[];
   totalAmount: number;
   discount: {
     type: 'percentage' | 'amount';

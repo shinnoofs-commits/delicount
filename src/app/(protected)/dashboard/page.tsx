@@ -20,9 +20,9 @@ import { useTransactions } from "@/contexts/transaction-context";
 import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid } from "date-fns"
 import { ja } from "date-fns/locale"
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, Legend } from "recharts"
-import { TicketPercent, TrendingUp, Calendar as CalendarIcon } from 'lucide-react';
+import { TicketPercent, TrendingUp, Calendar as CalendarIcon, Package, Trash2, ShoppingCart } from 'lucide-react';
 import { useMemo, useState } from "react";
-import type { Category } from "@/lib/types";
+import type { Category, Product, TransactionItem } from "@/lib/types";
 import { useProducts } from "@/contexts/product-context";
 import { DateRange } from "react-day-picker"
 import { Button } from "@/components/ui/button"
@@ -78,6 +78,16 @@ const DateRangePicker = ({ date, setDate }: { date: DateRange | undefined, setDa
   );
 }
 
+type WasteData = {
+    productId: string;
+    productName: string;
+    productionQuantity: number;
+    normalSales: number;
+    discountedSales: number;
+    wasteCount: number;
+};
+
+
 export default function DashboardPage() {
   const { transactions } = useTransactions();
   const { products } = useProducts();
@@ -128,12 +138,17 @@ export default function DashboardPage() {
               return product?.category === category;
           })
           .reduce((acc, item) => {
-              const existing = acc.find(p => p.name === item.name);
+              const product = products.find(p => p.id === item.productId);
+              if (!product) return acc;
+              
+              const existing = acc.find(p => p.name === product.name);
+              const saleAmount = item.quantity * item.unitPrice * (item.wasDiscounted ? (1 - (transactions.find(t => t.items.includes(item))?.discount?.value || 0) / 100) : 1);
+
               if (existing) {
                   existing.quantity += item.quantity;
-                  existing.total += item.quantity * item.unitPrice;
+                  existing.total += saleAmount;
               } else {
-                  acc.push({ name: item.name, quantity: item.quantity, total: item.quantity * item.unitPrice });
+                  acc.push({ name: product.name, quantity: item.quantity, total: saleAmount });
               }
               return acc;
           }, [] as { name: string; quantity: number, total: number }[])
@@ -144,7 +159,31 @@ export default function DashboardPage() {
           category,
           sales: productSales
       };
-  }), [filteredTransactions, products, categories]);
+  }), [filteredTransactions, products, categories, transactions]);
+
+    const wasteAnalysisData: WasteData[] = useMemo(() => {
+        return products.map(product => {
+            const soldItems = filteredTransactions.flatMap(t => t.items).filter(item => item.productId === product.id);
+            const normalSales = soldItems.filter(item => !item.wasDiscounted).reduce((sum, item) => sum + item.quantity, 0);
+            const discountedSales = soldItems.filter(item => item.wasDiscounted).reduce((sum, item) => sum + item.quantity, 0);
+            const totalSold = normalSales + discountedSales;
+            const wasteCount = Math.max(0, product.productionQuantity - totalSold);
+            
+            return {
+                productId: product.id,
+                productName: product.name,
+                productionQuantity: product.productionQuantity,
+                normalSales,
+                discountedSales,
+                wasteCount
+            };
+        });
+    }, [products, filteredTransactions]);
+
+    const totalProduction = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.productionQuantity, 0), [wasteAnalysisData]);
+    const totalWaste = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.wasteCount, 0), [wasteAnalysisData]);
+    const totalSold = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.normalSales + p.discountedSales, 0), [wasteAnalysisData]);
+
 
   const setDatePreset = (preset: 'today' | 'this_month' | 'last_7_days') => {
     const today = new Date();
@@ -156,7 +195,6 @@ export default function DashboardPage() {
       setDate({ from: subDays(today, 6), to: today });
     }
   }
-
 
   return (
     <div className="flex flex-col gap-4">
@@ -187,6 +225,26 @@ export default function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold">¥{Math.round(totalDiscount).toLocaleString()}</div>
              <p className="text-xs text-muted-foreground">適用された割引・値引の合計です。</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">総販売数</CardTitle>
+            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalSold.toLocaleString()}</div>
+             <p className="text-xs text-muted-foreground">総製造数: {totalProduction.toLocaleString()}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">総廃棄数</CardTitle>
+            <Trash2 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalWaste.toLocaleString()}</div>
+             <p className="text-xs text-muted-foreground">廃棄率: {totalProduction > 0 ? ((totalWaste / totalProduction) * 100).toFixed(1) : 0}%</p>
           </CardContent>
         </Card>
       </div>
@@ -267,6 +325,36 @@ export default function DashboardPage() {
             ))}
         </div>
       </div>
+      <Card>
+        <CardHeader>
+            <CardTitle>廃棄分析</CardTitle>
+            <CardDescription>各商品の製造数、販売数、廃棄数の一覧です。</CardDescription>
+        </CardHeader>
+        <CardContent>
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>商品名</TableHead>
+                        <TableHead className="text-right">製造数</TableHead>
+                        <TableHead className="text-right">通常販売</TableHead>
+                        <TableHead className="text-right">割引販売</TableHead>
+                        <TableHead className="text-right">廃棄数</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {wasteAnalysisData.map(data => (
+                        <TableRow key={data.productId}>
+                            <TableCell>{data.productName}</TableCell>
+                            <TableCell className="text-right">{data.productionQuantity}</TableCell>
+                            <TableCell className="text-right">{data.normalSales}</TableCell>
+                            <TableCell className="text-right">{data.discountedSales}</TableCell>
+                            <TableCell className="text-right font-medium">{data.wasteCount}</TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </CardContent>
+      </Card>
     </div>
   )
 }

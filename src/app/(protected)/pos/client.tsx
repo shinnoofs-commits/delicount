@@ -77,6 +77,7 @@ export default function PosClient() {
   }, [cart]);
 
   const discountAmount = useMemo(() => {
+    if (discount.value === 0) return 0;
     if (discount.type === 'percentage') {
       return Math.round((subtotal * discount.value) / 100);
     }
@@ -95,6 +96,7 @@ export default function PosClient() {
         name: item.product.name,
         quantity: item.quantity,
         unitPrice: item.product.price,
+        wasDiscounted: discount.value > 0,
       })),
       totalAmount: subtotal,
       discount: discount.value > 0 ? discount : null,

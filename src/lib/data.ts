@@ -1,3 +1,4 @@
+
 import type { User, Product, Transaction, Category } from './types';
 import { PlaceHolderImages } from './placeholder-images';
 
@@ -5,7 +6,7 @@ const getImage = (id: string) => {
   const image = PlaceHolderImages.find((img) => img.id === id);
   // If no image is found, return a default placeholder to avoid crashes
   return image || { 
-    imageUrl: 'https://picsum.photos/seed/placeholder/400/400', 
+    imageUrl: `https://picsum.photos/seed/${id}/400/400`, 
     imageHint: 'placeholder' 
   };
 };
@@ -33,8 +34,8 @@ export const transactions: Transaction[] = [
     id: 'txn-1',
     date: new Date(new Date().setHours(12, 30, 0, 0) - 1 * 24 * 60 * 60 * 1000),
     items: [
-      { productId: 'prod-5', name: '日替わり幕の内弁当', quantity: 2, unitPrice: 850 },
-      { productId: 'prod-4', name: '彩り野菜のポテトサラダ', quantity: 1, unitPrice: 320 },
+      { productId: 'prod-5', name: '日替わり幕の内弁当', quantity: 2, unitPrice: 850, wasDiscounted: false },
+      { productId: 'prod-4', name: '彩り野菜のポテトサラダ', quantity: 1, unitPrice: 320, wasDiscounted: false },
     ],
     totalAmount: 2020.00,
     discount: null,
@@ -46,9 +47,9 @@ export const transactions: Transaction[] = [
     id: 'txn-2',
     date: new Date(new Date().setHours(18, 0, 0, 0) - 2 * 24 * 60 * 60 * 1000),
     items: [
-      { productId: 'prod-1', name: '絶品コロッケ', quantity: 3, unitPrice: 180 },
-      { productId: 'prod-2', name: 'ジューシー唐揚げ (100g)', quantity: 2, unitPrice: 250 },
-      { productId: 'prod-3', name: '自家製メンチカツ', quantity: 2, unitPrice: 220 },
+      { productId: 'prod-1', name: '絶品コロッケ', quantity: 3, unitPrice: 180, wasDiscounted: true },
+      { productId: 'prod-2', name: 'ジューシー唐揚げ (100g)', quantity: 2, unitPrice: 250, wasDiscounted: true },
+      { productId: 'prod-3', name: '自家製メンチカツ', quantity: 2, unitPrice: 220, wasDiscounted: true },
     ],
     totalAmount: 1480.00,
     discount: { type: 'percentage', value: 10 }, // 10% discount
@@ -60,7 +61,7 @@ export const transactions: Transaction[] = [
     id: 'txn-3',
     date: new Date(new Date().setHours(19, 15, 0, 0) - 3 * 24 * 60 * 60 * 1000),
     items: [
-      { productId: 'prod-6', name: 'のり弁当', quantity: 1, unitPrice: 550 },
+      { productId: 'prod-6', name: 'のり弁当', quantity: 1, unitPrice: 550, wasDiscounted: true },
     ],
     totalAmount: 550.00,
     discount: { type: 'amount', value: 50 }, // 50 yen off
@@ -72,8 +73,8 @@ export const transactions: Transaction[] = [
     id: 'txn-4',
     date: new Date(new Date().setHours(10, 5, 0, 0)),
     items: [
-      { productId: 'prod-9', name: 'おにぎり (鮭)', quantity: 2, unitPrice: 180 },
-      { productId: 'prod-10', name: 'おにぎり (梅)', quantity: 1, unitPrice: 160 },
+      { productId: 'prod-9', name: 'おにぎり (鮭)', quantity: 2, unitPrice: 180, wasDiscounted: false },
+      { productId: 'prod-10', name: 'おにぎり (梅)', quantity: 1, unitPrice: 160, wasDiscounted: false },
     ],
     totalAmount: 520,
     discount: null,
@@ -85,8 +86,8 @@ export const transactions: Transaction[] = [
     id: 'txn-5',
     date: new Date(new Date().setHours(17, 45, 0, 0)),
     items: [
-      { productId: 'prod-1', name: '絶品コロッケ', quantity: 5, unitPrice: 180 },
-      { productId: 'prod-2', name: 'ジューシー唐揚げ (100g)', quantity: 3, unitPrice: 250 },
+      { productId: 'prod-1', name: '絶品コロッケ', quantity: 5, unitPrice: 180, wasDiscounted: true },
+      { productId: 'prod-2', name: 'ジューシー唐揚げ (100g)', quantity: 3, unitPrice: 250, wasDiscounted: true },
     ],
     totalAmount: 1650,
     discount: { type: 'percentage', value: 20 }, // 20% time sale
