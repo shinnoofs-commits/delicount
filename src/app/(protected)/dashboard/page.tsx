@@ -142,7 +142,9 @@ export default function DashboardPage() {
               if (!product) return acc;
               
               const existing = acc.find(p => p.name === product.name);
-              const saleAmount = item.quantity * item.unitPrice * (item.wasDiscounted ? (1 - (transactions.find(t => t.items.includes(item))?.discount?.value || 0) / 100) : 1);
+              const transaction = transactions.find(t => t.items.some(i => i.productId === item.productId));
+              const discountValue = (transaction?.discount?.type === 'percentage' ? transaction.discount.value : 0);
+              const saleAmount = item.quantity * item.unitPrice * (item.wasDiscounted ? (1 - discountValue / 100) : 1);
 
               if (existing) {
                   existing.quantity += item.quantity;
@@ -192,15 +194,18 @@ export default function DashboardPage() {
     }));
 
     filteredTransactions.forEach(t => {
-      if (t.discount?.type === 'percentage' && discountCategories.includes(t.discount.value)) {
-        const index = discountCategories.indexOf(t.discount.value);
-        if (index !== -1) {
-          result[index]['売上'] += t.finalAmount;
+      if (t.discount?.type === 'percentage') {
+        const rate = t.discount.value;
+        const category = discountCategories.find(c => c === rate);
+        if (category) {
+          const index = discountCategories.indexOf(category);
+          const discountedAmount = t.totalAmount * (1 - rate / 100);
+          const tax = discountedAmount * 0.08;
+          result[index]['売上'] += discountedAmount + tax;
         }
       }
     });
-
-    return result.filter(r => r['売上'] > 0);
+    return result;
   }, [filteredTransactions]);
 
 
@@ -232,7 +237,7 @@ export default function DashboardPage() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">¥{totalRevenue.toLocaleString()}</div>
+            <div className="text-2xl font-bold">¥{Math.round(totalRevenue).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">選択期間中の総売上です。</p>
           </CardContent>
         </Card>
@@ -297,7 +302,7 @@ export default function DashboardPage() {
                             borderColor: 'hsl(var(--border))',
                             borderRadius: 'var(--radius)'
                         }}
-                         formatter={(value: number) => `¥${value.toLocaleString()}`}
+                         formatter={(value: number) => `¥${Math.round(value).toLocaleString()}`}
                     />
                     <Bar dataKey="売上" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                 </BarChart>
@@ -333,7 +338,7 @@ export default function DashboardPage() {
                             borderColor: 'hsl(var(--border))',
                             borderRadius: 'var(--radius)'
                         }}
-                         formatter={(value: number) => `¥${value.toLocaleString()}`}
+                         formatter={(value: number) => `¥${Math.round(value).toLocaleString()}`}
                     />
                     <Bar dataKey="売上" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
                 </BarChart>
@@ -372,7 +377,7 @@ export default function DashboardPage() {
                                     borderColor: 'hsl(var(--border))',
                                     borderRadius: 'var(--radius)'
                                 }}
-                                formatter={(value: number, name) => [`¥${value.toLocaleString()}`, name]}
+                                formatter={(value: number, name) => [`¥${Math.round(value).toLocaleString()}`, name]}
                             />
                             <Legend formatter={(value) => <span className="text-muted-foreground text-xs truncate w-32 inline-block">{value}</span>} />
                         </PieChart>
