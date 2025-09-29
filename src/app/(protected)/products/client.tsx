@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useState } from "react"
@@ -114,6 +115,23 @@ export default function ProductsClient() {
         complete: (results) => {
           const importedProducts = results.data.map((row: any) => {
             const existingProduct = products.find(p => p.productCode === row['商品コード']);
+            
+            let materials, containers;
+            if (row.materials_json) {
+                try {
+                    materials = JSON.parse(row.materials_json);
+                } catch (e) {
+                    console.error(`Error parsing materials_json for product code ${row['商品コード']}:`, e);
+                }
+            }
+            if (row.containers_json) {
+                try {
+                    containers = JSON.parse(row.containers_json);
+                } catch (e) {
+                    console.error(`Error parsing containers_json for product code ${row['商品コード']}:`, e);
+                }
+            }
+
             return {
               id: existingProduct?.id || `prod-${Date.now()}-${Math.random()}`,
               name: row['商品名'],
@@ -124,6 +142,8 @@ export default function ProductsClient() {
               category: existingProduct?.category || '未分類',
               imageUrl: existingProduct?.imageUrl || 'https://placehold.co/400x400/png?text=No+Image',
               imageHint: existingProduct?.imageHint || 'product image',
+              materials: materials || existingProduct?.materials,
+              containers: containers || existingProduct?.containers,
             } as Product;
           });
 
@@ -131,7 +151,7 @@ export default function ProductsClient() {
           importedProducts.forEach(importedProduct => {
             const index = updatedProducts.findIndex(p => p.id === importedProduct.id);
             if (index !== -1) {
-              updatedProducts[index] = importedProduct;
+              updatedProducts[index] = { ...updatedProducts[index], ...importedProduct };
             } else {
               updatedProducts.push(importedProduct);
             }

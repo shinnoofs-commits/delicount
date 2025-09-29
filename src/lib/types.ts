@@ -1,3 +1,4 @@
+
 export type User = {
   id: string;
   name: string;
@@ -6,6 +7,16 @@ export type User = {
 };
 
 export type Category = '弁当' | '丼' | '軽食' | 'おこわ' | '温惣菜' | '冷惣菜' | 'サラダ' | '揚げ物' | '唐揚げ';
+
+export type Material = {
+  name: string;
+  quantity: number;
+}
+
+export type Container = {
+  name: string;
+  quantity: number;
+}
 
 export type Product = {
   id: string;
@@ -17,6 +28,8 @@ export type Product = {
   category: Category;
   imageUrl: string;
   imageHint: string;
+  materials?: Material[];
+  containers?: Container[];
 };
 
 export type CartItem = {
