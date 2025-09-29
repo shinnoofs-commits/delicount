@@ -26,8 +26,6 @@ export type Product = {
   productionQuantity: number;
   productCode: string;
   category: Category;
-  imageUrl: string;
-  imageHint: string;
   materials?: Material[];
   containers?: Container[];
 };

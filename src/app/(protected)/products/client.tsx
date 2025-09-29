@@ -2,7 +2,6 @@
 'use client'
 
 import { useState } from "react"
-import Image from "next/image"
 import { MoreHorizontal, PlusCircle, Plus, Minus, Upload } from "lucide-react"
 import Papa from "papaparse"
 
@@ -83,11 +82,7 @@ export default function ProductsClient() {
   }
 
   const handleFormSubmit = (productData: Omit<Product, 'id'> & { id?: string }) => {
-    const newProductData = {
-        ...productData,
-        imageUrl: productData.imageUrl || 'https://placehold.co/400x400/png?text=No+Image',
-        imageHint: productData.imageHint || 'product image'
-    };
+    const newProductData = { ...productData };
 
     if (selectedProduct && productData.id) {
       updateProduct(newProductData as Product);
@@ -140,8 +135,6 @@ export default function ProductsClient() {
               costPrice: parseFloat(row['原価額']),
               productionQuantity: existingProduct?.productionQuantity || 0,
               category: existingProduct?.category || '未分類',
-              imageUrl: existingProduct?.imageUrl || 'https://placehold.co/400x400/png?text=No+Image',
-              imageHint: existingProduct?.imageHint || 'product image',
               materials: materials || existingProduct?.materials,
               containers: containers || existingProduct?.containers,
             } as Product;
@@ -205,7 +198,6 @@ export default function ProductsClient() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="hidden w-[100px] sm:table-cell">画像</TableHead>
                 <TableHead>名前</TableHead>
                 <TableHead>商品コード</TableHead>
                 <TableHead className="hidden md:table-cell">カテゴリ</TableHead>
@@ -220,18 +212,6 @@ export default function ProductsClient() {
             <TableBody>
               {products.map(product => (
                 <TableRow key={product.id}>
-                  <TableCell className="hidden sm:table-cell">
-                    {product.imageUrl && (
-                      <Image
-                        alt={product.name}
-                        className="aspect-square rounded-md object-cover"
-                        height="64"
-                        src={product.imageUrl}
-                        width="64"
-                        data-ai-hint={product.imageHint}
-                      />
-                    )}
-                  </TableCell>
                   <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell>{product.productCode}</TableCell>
                   <TableCell className="hidden md:table-cell">{product.category}</TableCell>

@@ -1,16 +1,14 @@
+
 'use client'
 
-import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import Image from 'next/image'
 
 import type { Product } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { useToast } from '@/hooks/use-toast'
 
 const formSchema = z.object({
   id: z.string().optional(),
@@ -20,8 +18,6 @@ const formSchema = z.object({
   costPrice: z.coerce.number().min(0, { message: '原価は正の数でなければなりません。' }),
   productionQuantity: z.coerce.number().int().min(0, { message: '製造数量は正の整数でなければなりません。' }),
   category: z.string().min(1, { message: 'カテゴリは必須です。' }),
-  imageUrl: z.string().url({ message: "有効なURLを入力してください。" }).or(z.literal('')),
-  imageHint: z.string(),
 })
 
 type FormValues = z.infer<typeof formSchema>;
@@ -33,9 +29,6 @@ interface ProductFormProps {
 }
 
 export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
-  const { toast } = useToast()
-  const [previewImage, setPreviewImage] = useState<string | null>(product?.imageUrl || null)
-  
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: product || {
@@ -45,31 +38,8 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
       costPrice: 0,
       productionQuantity: 0,
       category: '揚げ物',
-      imageUrl: '',
-      imageHint: '',
     },
   })
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) { // 2MB limit
-        toast({
-          variant: "destructive",
-          title: "ファイルが大きすぎます",
-          description: "2MB未満の画像ファイルを選択してください。",
-        })
-        return
-      }
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        const dataUrl = reader.result as string
-        setPreviewImage(dataUrl)
-        form.setValue('imageUrl', dataUrl, { shouldValidate: true })
-      }
-      reader.readAsDataURL(file)
-    }
-  }
 
   return (
     <Form {...form}>
@@ -156,18 +126,6 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
               </FormItem>
             )}
           />
-         <FormItem>
-            <FormLabel>画像</FormLabel>
-              <FormControl>
-                <Input type="file" accept="image/png, image/jpeg, image/gif" onChange={handleFileChange} className="pt-1.5"/>
-              </FormControl>
-            <FormMessage />
-            {previewImage && (
-                <div className="mt-2 w-32 h-32 relative">
-                    <Image src={previewImage} alt="Preview" fill className="rounded-md object-cover" />
-                </div>
-            )}
-        </FormItem>
         <div className="flex justify-end gap-2 pt-4">
           <Button type="button" variant="outline" onClick={onCancel}>
             キャンセル

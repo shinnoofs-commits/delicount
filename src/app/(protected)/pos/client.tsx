@@ -2,7 +2,6 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import Image from 'next/image';
 import { Search, X, Plus, Minus, Percent, Ticket, Tag } from 'lucide-react';
 import type { Product, CartItem, Transaction } from '@/lib/types';
 import { Input } from '@/components/ui/input';
@@ -152,18 +151,8 @@ export default function PosClient() {
                     onClick={() => addToCart(product)} 
                     className="cursor-pointer hover:shadow-lg hover:border-primary transition-all flex flex-col"
                 >
-                <CardContent className="p-2 flex-1 flex flex-col">
-                    <div className="aspect-square w-full relative">
-                        <Image
-                            src={product.imageUrl}
-                            alt={product.name}
-                            fill
-                            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
-                            className="rounded-md object-cover"
-                            data-ai-hint={product.imageHint}
-                        />
-                    </div>
-                    <div className="pt-2 text-center">
+                <CardContent className="p-4 flex-1 flex flex-col justify-center">
+                    <div className="text-center">
                         <p className="font-semibold text-sm truncate">{product.name}</p>
                         <p className="text-xs text-muted-foreground">¥{product.price.toLocaleString()}</p>
                     </div>
@@ -198,7 +187,6 @@ export default function PosClient() {
                   const product = getCartItemProduct(item);
                   return (
                   <div key={item.product.id} className="flex items-start gap-4">
-                    <Image src={product.imageUrl} alt={product.name} width={64} height={64} className="rounded-md object-cover aspect-square" data-ai-hint={product.imageHint} />
                     <div className="flex-1">
                       <p className="font-medium text-sm">{product.name}</p>
                       <p className="text-xs text-muted-foreground">¥{product.price.toLocaleString()}</p>

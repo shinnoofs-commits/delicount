@@ -1,22 +1,12 @@
 
 import type { User, Product, Transaction, Category } from './types';
-import { PlaceHolderImages } from './placeholder-images';
-
-const getImage = (id: string) => {
-  const image = PlaceHolderImages.find((img) => img.id === id);
-  // If no image is found, return a default placeholder to avoid crashes
-  return image || { 
-    imageUrl: `https://picsum.photos/seed/${id}/400/400`, 
-    imageHint: 'placeholder' 
-  };
-};
 
 export const users: User[] = [
   { id: 'user-1', name: '管理者ユーザー', email: 'admin@swiftpos.com', role: 'admin' },
   { id: 'user-2', name: '従業員ユーザー', email: 'employee@swiftpos.com', role: 'employee' },
 ];
 
-const productDefinitions: Omit<Product, 'imageUrl' | 'imageHint' | 'id'>[] = [
+const productDefinitions: Omit<Product, 'id'>[] = [
   // 揚げ物 (10)
   { name: '絶品コロッケ', price: 180, costPrice: 63, productionQuantity: 50, productCode: '000001', category: '揚げ物' },
   { name: '自家製メンチカツ', price: 220, costPrice: 88, productionQuantity: 50, productCode: '000003', category: '揚げ物' },
@@ -126,115 +116,12 @@ const productDefinitions: Omit<Product, 'imageUrl' | 'imageHint' | 'id'>[] = [
   { name: '中華おこわ', price: 550, costPrice: 220, productionQuantity: 50, productCode: '000090', category: 'おこわ' },
 ];
 
-const imageIdMap: Record<string, string> = {
-  '000001': 'croquette',
-  '000003': 'menchi-katsu',
-  '000002': 'karaage',
-  '000004': 'potato-salad',
-  '000005': 'bento-box',
-  '000006': 'nori-bento',
-  '000007': 'dashimaki-tamago',
-  '000008': 'gomaae',
-  '000009': 'onigiri-salmon',
-  '000010': 'onigiri-ume',
-  '000011': 'crab-croquette',
-  '000012': 'fried-fish',
-  '000013': 'fried-squid',
-  '000014': 'cheese-cutlet',
-  '000015': 'fried-shrimp',
-  '000016': 'pork-skewer',
-  '000017': 'ham-cutlet',
-  '000018': 'veg-fritter',
-  '000019': 'korean-chicken',
-  '000020': 'yurinchi',
-  '000021': 'chicken-nanban',
-  '000022': 'chicken-wings',
-  '000023': 'tatsutaage',
-  '000024': 'cartilage-karaage',
-  '000025': 'gizzard-karaage',
-  '000026': 'herb-chicken',
-  '000027': 'shiokoji-chicken',
-  '000028': 'caesar-salad',
-  '000029': 'tofu-salad',
-  '000030': 'macaroni-salad',
-  '000031': 'coleslaw',
-  '000032': 'noodle-salad',
-  '000033': 'shrimp-avocado',
-  '000034': 'burdock-salad',
-  '000035': 'prosciutto-salad',
-  '000036': 'pumpkin-salad',
-  '000037': 'karaage-bento',
-  '000038': 'ginger-pork',
-  '000039': 'hamburg-bento',
-  '000040': 'salmon-bento',
-  '000041': 'tonkatsu-bento',
-  '000042': 'stir-fry',
-  '000043': 'chinese-bento',
-  '000044': 'kids-bento',
-  '000045': 'niku-jaga',
-  '000046': 'chikuzenni',
-  '000047': 'pork-belly',
-  '000048': 'mapo-tofu',
-  '000049': 'simmered-fish',
-  '000050': 'cabbage-rolls',
-  '000051': 'oden',
-  '000052': 'chicken-stew',
-  '000053': 'beef-tendon',
-  '000054': 'kinpira',
-  '000055': 'hijiki',
-  '000056': 'daikon',
-  '000057': 'unohana',
-  '000058': 'fried-eggplant',
-  '000059': 'sunomono',
-  '000060': 'mozuku',
-  '000061': 'spicy-cucumber',
-  '000062': 'cold-tofu',
-  '000063': 'tuna-onigiri',
-  '000064': 'sandwich-mix',
-  '000065': 'egg-sandwich',
-  '000066': 'yakisoba-pan',
-  '000067': 'croquette-pan',
-  '000068': 'inari-sushi',
-  '000069': 'frankfurter',
-  '000070': 'corn-dog',
-  '000071': 'katsudon',
-  '000072': 'oyakodon',
-  '000073': 'gyudon',
-  '000074': 'tendon',
-  '000075': 'chukadon',
-  '000076': 'kaisendon',
-  '000077': 'locomoco',
-  '000078': 'bibimbap',
-  '000079': 'pork-kimchi',
-  '000080': 'sauce-katsudon',
-  '000081': 'sansai-okowa',
-  '000082': 'chestnut-okowa',
-  '000083': 'sekihan',
-  '000084': 'gomoku-okowa',
-  '000085': 'chicken-okowa',
-  '000086': 'eel-okowa',
-  '000087': 'mushroom-okowa',
-  '000088': 'bamboo-okowa',
-  '000089': 'bean-okowa',
-  '000090': 'chinese-okowa',
-};
-
 export const products: Product[] = productDefinitions.map((p, index) => {
-    const imageInfo = getImage(imageIdMap[p.productCode] || p.productCode);
     return {
         ...p,
         id: `prod-${index + 1}`,
-        imageUrl: imageInfo.imageUrl,
-        imageHint: imageInfo.imageHint,
     }
 });
 
 
 export const transactions: Transaction[] = [];
-
-
-
-
-    
-
-    
