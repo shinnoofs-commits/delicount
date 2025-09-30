@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Product } from '@/lib/types';
@@ -10,6 +11,7 @@ interface ProductContextType {
   addProduct: (product: Omit<Product, 'id'>) => void;
   updateProduct: (product: Product) => void;
   deleteProduct: (productId: string) => void;
+  deleteProducts: (productIds: string[]) => void;
   getProductById: (productId: string) => Product | undefined;
 }
 
@@ -32,6 +34,10 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
       setProducts(prevProducts => prevProducts.filter(p => p.id !== productId));
   }, []);
 
+  const deleteProducts = useCallback((productIds: string[]) => {
+    setProducts(prevProducts => prevProducts.filter(p => !productIds.includes(p.id)));
+  }, []);
+
   const getProductById = useCallback((productId: string) => {
       return products.find(p => p.id === productId);
   }, [products]);
@@ -42,8 +48,9 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
     addProduct,
     updateProduct,
     deleteProduct,
+    deleteProducts,
     getProductById
-  }), [products, setProducts, addProduct, updateProduct, deleteProduct, getProductById]);
+  }), [products, setProducts, addProduct, updateProduct, deleteProduct, deleteProducts, getProductById]);
 
   return (
     <ProductContext.Provider value={value}>

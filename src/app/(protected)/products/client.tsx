@@ -2,7 +2,7 @@
 'use client'
 
 import { useState } from "react"
-import { MoreHorizontal, PlusCircle, Plus, Minus, Upload } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Plus, Minus, Upload, Trash2 } from "lucide-react"
 import Papa from "papaparse"
 
 import type { Product } from "@/lib/types"
@@ -50,47 +50,64 @@ import {
 import { useProducts } from "@/contexts/product-context"
 import { useToast } from "@/hooks/use-toast"
 import { Input } from "@/components/ui/input"
+import { Checkbox } from "@/components/ui/checkbox"
 
 export default function ProductsClient() {
-  const { products, addProduct, updateProduct, deleteProduct, setProducts } = useProducts();
+  const { products, addProduct, updateProduct, deleteProduct, deleteProducts, setProducts } = useProducts();
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null)
+  const [productsToDelete, setProductsToDelete] = useState<string[]>([]);
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([])
+
   const { toast } = useToast()
 
   const handleAdd = () => {
-    setSelectedProduct(null)
+    setProductToDelete(null)
     setIsFormOpen(true)
   }
 
   const handleEdit = (product: Product) => {
-    setSelectedProduct(product)
+    setProductToDelete(product)
     setIsFormOpen(true)
   }
 
   const handleDelete = (product: Product) => {
-    setSelectedProduct(product)
+    setProductToDelete(product)
+    setProductsToDelete([])
+    setIsDeleteConfirmOpen(true)
+  }
+
+  const handleDeleteSelected = () => {
+    setProductToDelete(null)
+    setProductsToDelete(selectedProductIds)
     setIsDeleteConfirmOpen(true)
   }
 
   const confirmDelete = () => {
-    if (selectedProduct) {
-      deleteProduct(selectedProduct.id);
-      setIsDeleteConfirmOpen(false)
-      setSelectedProduct(null)
+    if (productToDelete) {
+      deleteProduct(productToDelete.id);
+      toast({ title: "商品が削除されました", description: `「${productToDelete.name}」を削除しました。` });
+    } else if (productsToDelete.length > 0) {
+      deleteProducts(productsToDelete);
+      toast({ title: "商品が削除されました", description: `${productsToDelete.length}件の商品を削除しました。` });
     }
+    setIsDeleteConfirmOpen(false)
+    setProductToDelete(null)
+    setProductsToDelete([])
+    setSelectedProductIds([])
   }
 
   const handleFormSubmit = (productData: Omit<Product, 'id'> & { id?: string }) => {
     const newProductData = { ...productData };
 
-    if (selectedProduct && productData.id) {
+    if (productToDelete && productData.id) {
       updateProduct(newProductData as Product);
     } else {
       addProduct(newProductData as Omit<Product, 'id'>);
     }
     setIsFormOpen(false)
-    setSelectedProduct(null)
+    setProductToDelete(null)
   }
   
   const adjustQuantity = (productId: string, amount: number) => {
@@ -167,10 +184,31 @@ export default function ProductsClient() {
     }
   };
 
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedProductIds(products.map(p => p.id));
+    } else {
+      setSelectedProductIds([]);
+    }
+  }
+
+  const handleSelectRow = (productId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedProductIds(prev => [...prev, productId]);
+    } else {
+      setSelectedProductIds(prev => prev.filter(id => id !== productId));
+    }
+  }
 
   return (
     <>
       <div className="flex items-center justify-end gap-2">
+         {selectedProductIds.length > 0 && (
+          <Button variant="destructive" size="sm" onClick={handleDeleteSelected}>
+            <Trash2 className="h-4 w-4 mr-2" />
+            選択した{selectedProductIds.length}件を削除
+          </Button>
+        )}
         <Button asChild variant="outline" size="sm">
             <label htmlFor="csv-upload" className="cursor-pointer">
                 <Upload className="h-4 w-4 mr-2" />
@@ -198,6 +236,13 @@ export default function ProductsClient() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead padding="checkbox">
+                  <Checkbox
+                    checked={selectedProductIds.length > 0 && selectedProductIds.length === products.length}
+                    onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
+                    aria-label="すべての商品を選択"
+                  />
+                </TableHead>
                 <TableHead>名前</TableHead>
                 <TableHead>商品コード</TableHead>
                 <TableHead className="hidden md:table-cell">カテゴリ</TableHead>
@@ -211,7 +256,14 @@ export default function ProductsClient() {
             </TableHeader>
             <TableBody>
               {products.map(product => (
-                <TableRow key={product.id}>
+                <TableRow key={product.id} data-state={selectedProductIds.includes(product.id) && "selected"}>
+                   <TableCell padding="checkbox">
+                    <Checkbox
+                      checked={selectedProductIds.includes(product.id)}
+                      onCheckedChange={(checked) => handleSelectRow(product.id, checked as boolean)}
+                      aria-label={`${product.name}を選択`}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell>{product.productCode}</TableCell>
                   <TableCell className="hidden md:table-cell">{product.category}</TableCell>
@@ -255,12 +307,12 @@ export default function ProductsClient() {
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle>{selectedProduct ? '商品を編集' : '商品を追加'}</DialogTitle>
+            <DialogTitle>{productToDelete ? '商品を編集' : '商品を追加'}</DialogTitle>
             <DialogDescription>
-              {selectedProduct ? '商品の詳細を更新します。' : '新しい商品を追加します。'}
+              {productToDelete ? '商品の詳細を更新します。' : '新しい商品を追加します。'}
             </DialogDescription>
           </DialogHeader>
-          <ProductForm product={selectedProduct} onSubmit={handleFormSubmit} onCancel={() => setIsFormOpen(false)} />
+          <ProductForm product={productToDelete} onSubmit={handleFormSubmit} onCancel={() => setIsFormOpen(false)} />
         </DialogContent>
       </Dialog>
 
@@ -269,7 +321,9 @@ export default function ProductsClient() {
           <AlertDialogHeader>
             <AlertDialogTitle>よろしいですか？</AlertDialogTitle>
             <AlertDialogDescription>
-              この操作は元に戻せません。商品「{selectedProduct?.name}」を完全に削除します。
+              {productToDelete
+                ? `この操作は元に戻せません。商品「${productToDelete?.name}」を完全に削除します。`
+                : `この操作は元に戻せません。選択した${productsToDelete.length}件の商品を完全に削除します。`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
