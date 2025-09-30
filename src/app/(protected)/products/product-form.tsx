@@ -17,7 +17,8 @@ const formSchema = z.object({
   price: z.coerce.number().min(0, { message: '価格は正の数でなければなりません。' }),
   costPrice: z.coerce.number().min(0, { message: '原価は正の数でなければなりません。' }),
   productionQuantity: z.coerce.number().int().min(0, { message: '製造数量は正の整数でなければなりません。' }),
-  category: z.string().min(1, { message: 'カテゴリは必須です。' }),
+  category: z.string().min(1, { message: 'カテゴリーは必須です。' }),
+  pricePattern: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof formSchema>;
@@ -38,6 +39,7 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
       costPrice: 0,
       productionQuantity: 0,
       category: '揚げ物',
+      pricePattern: '',
     },
   })
 
@@ -113,19 +115,34 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
             )}
           />
         </div>
-         <FormField
-            control={form.control}
-            name="category"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>カテゴリ</FormLabel>
-                <FormControl>
-                  <Input placeholder="例：揚げ物" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>カテゴリー</FormLabel>
+                  <FormControl>
+                    <Input placeholder="例：揚げ物" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+             <FormField
+              control={form.control}
+              name="pricePattern"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>価格パターン</FormLabel>
+                  <FormControl>
+                    <Input placeholder="例：通常" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+        </div>
         <div className="flex justify-end gap-2 pt-4">
           <Button type="button" variant="outline" onClick={onCancel}>
             キャンセル

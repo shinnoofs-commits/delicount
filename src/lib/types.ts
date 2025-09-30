@@ -26,6 +26,7 @@ export type Product = {
   productionQuantity: number;
   productCode: string;
   category: Category;
+  pricePattern?: string;
   materials?: Material[];
   containers?: Container[];
 };

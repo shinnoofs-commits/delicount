@@ -128,8 +128,6 @@ export default function ProductsClient() {
           const importedProducts = results.data.map((row: any) => {
             const productCode = row['label_number'] || row['商品コード'];
             if (!productCode) return null;
-
-            const existingProduct = products.find(p => p.productCode === productCode);
             
             let materials, containers;
             if (row.materials_json) {
@@ -150,32 +148,27 @@ export default function ProductsClient() {
             const csvCategory = row['category'] || row['カテゴリー'];
             const price = parseFloat(row['selling_price'] || row['価格']);
             const costPrice = parseFloat(row['total_cost'] || row['原価額']);
+            const pricePattern = row['price_pattern_label'];
+
 
             return {
-              id: existingProduct?.id || `prod-${productCode}`,
+              id: `prod-${Date.now()}-${Math.random()}`,
               name: row['recipe_name'] || row['商品名'],
               productCode: productCode,
               price: isNaN(price) ? 0 : price,
               costPrice: isNaN(costPrice) ? 0 : costPrice,
-              productionQuantity: existingProduct?.productionQuantity || 0,
+              productionQuantity: 0,
               category: csvCategory,
-              materials: materials || existingProduct?.materials,
-              containers: containers || existingProduct?.containers,
+              pricePattern: pricePattern,
+              materials: materials,
+              containers: containers,
             } as Product;
-          }).filter(p => p !== null) as Product[];
+          }).filter(p => p !== null && p.productCode) as Product[];
 
-          const updatedProducts = [...products];
-          importedProducts.forEach(importedProduct => {
-            if (!importedProduct.name || !importedProduct.productCode) return;
-            const index = updatedProducts.findIndex(p => p.productCode === importedProduct.productCode);
-            if (index !== -1) {
-              updatedProducts[index] = { ...updatedProducts[index], ...importedProduct };
-            } else {
-              updatedProducts.push(importedProduct);
-            }
-          });
+          if (importedProducts.length > 0) {
+            setProducts(prevProducts => [...prevProducts, ...importedProducts]);
+          }
           
-          setProducts(updatedProducts);
           toast({
             title: "CSVインポート完了",
             description: `${importedProducts.length}件の商品をインポート/更新しました。`,
@@ -253,7 +246,8 @@ export default function ProductsClient() {
                 </TableHead>
                 <TableHead>名前</TableHead>
                 <TableHead>商品コード</TableHead>
-                <TableHead className="hidden md:table-cell">カテゴリ</TableHead>
+                <TableHead className="hidden md:table-cell">カテゴリー</TableHead>
+                <TableHead className="hidden md:table-cell">価格パターン</TableHead>
                 <TableHead className="text-right">価格</TableHead>
                  <TableHead className="text-right">原価額</TableHead>
                 <TableHead className="text-center">製造数量</TableHead>
@@ -275,6 +269,7 @@ export default function ProductsClient() {
                   <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell>{product.productCode}</TableCell>
                   <TableCell className="hidden md:table-cell">{product.category}</TableCell>
+                  <TableCell className="hidden md:table-cell">{product.pricePattern}</TableCell>
                   <TableCell className="text-right font-medium">¥{product.price.toLocaleString()}</TableCell>
                    <TableCell className="text-right">¥{product.costPrice.toLocaleString()}</TableCell>
                   <TableCell className="text-center">
