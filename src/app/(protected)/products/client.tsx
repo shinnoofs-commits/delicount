@@ -127,6 +127,8 @@ export default function ProductsClient() {
         complete: (results) => {
           const importedProducts = results.data.map((row: any) => {
             const productCode = row['label_number'] || row['商品コード'];
+            if (!productCode) return null;
+
             const existingProduct = products.find(p => p.productCode === productCode);
             
             let materials, containers;
@@ -146,19 +148,21 @@ export default function ProductsClient() {
             }
 
             const csvCategory = row['category'] || row['カテゴリー'];
+            const price = parseFloat(row['selling_price'] || row['価格']);
+            const costPrice = parseFloat(row['total_cost'] || row['原価額']);
 
             return {
-              id: existingProduct?.id || `prod-${Date.now()}-${Math.random()}`,
+              id: existingProduct?.id || `prod-${productCode}`,
               name: row['recipe_name'] || row['商品名'],
               productCode: productCode,
-              price: parseFloat(row['selling_price'] || row['価格']),
-              costPrice: parseFloat(row['total_cost'] || row['原価額']),
+              price: isNaN(price) ? 0 : price,
+              costPrice: isNaN(costPrice) ? 0 : costPrice,
               productionQuantity: existingProduct?.productionQuantity || 0,
               category: csvCategory,
               materials: materials || existingProduct?.materials,
               containers: containers || existingProduct?.containers,
             } as Product;
-          });
+          }).filter(p => p !== null) as Product[];
 
           const updatedProducts = [...products];
           importedProducts.forEach(importedProduct => {
