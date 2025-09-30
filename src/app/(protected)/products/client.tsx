@@ -126,32 +126,33 @@ export default function ProductsClient() {
         skipEmptyLines: true,
         complete: (results) => {
           const importedProducts = results.data.map((row: any) => {
-            const existingProduct = products.find(p => p.productCode === row['商品コード']);
+            const productCode = row['label_number'] || row['商品コード'];
+            const existingProduct = products.find(p => p.productCode === productCode);
             
             let materials, containers;
             if (row.materials_json) {
                 try {
                     materials = JSON.parse(row.materials_json);
                 } catch (e) {
-                    console.error(`Error parsing materials_json for product code ${row['商品コード']}:`, e);
+                    console.error(`Error parsing materials_json for product code ${productCode}:`, e);
                 }
             }
             if (row.containers_json) {
                 try {
                     containers = JSON.parse(row.containers_json);
                 } catch (e) {
-                    console.error(`Error parsing containers_json for product code ${row['商品コード']}:`, e);
+                    console.error(`Error parsing containers_json for product code ${productCode}:`, e);
                 }
             }
 
             return {
               id: existingProduct?.id || `prod-${Date.now()}-${Math.random()}`,
-              name: row['商品名'],
-              productCode: row['商品コード'],
-              price: parseFloat(row['価格']),
-              costPrice: parseFloat(row['原価額']),
+              name: row['recipe_name'] || row['商品名'],
+              productCode: productCode,
+              price: parseFloat(row['selling_price'] || row['価格']),
+              costPrice: parseFloat(row['total_cost'] || row['原価額']),
               productionQuantity: existingProduct?.productionQuantity || 0,
-              category: existingProduct?.category || '未分類',
+              category: row['categor'] || existingProduct?.category || '未分類',
               materials: materials || existingProduct?.materials,
               containers: containers || existingProduct?.containers,
             } as Product;
@@ -159,7 +160,7 @@ export default function ProductsClient() {
 
           const updatedProducts = [...products];
           importedProducts.forEach(importedProduct => {
-            const index = updatedProducts.findIndex(p => p.id === importedProduct.id);
+            const index = updatedProducts.findIndex(p => p.productCode === importedProduct.productCode);
             if (index !== -1) {
               updatedProducts[index] = { ...updatedProducts[index], ...importedProduct };
             } else {
@@ -170,7 +171,7 @@ export default function ProductsClient() {
           setProducts(updatedProducts);
           toast({
             title: "CSVインポート完了",
-            description: `${importedProducts.length}件の商品をインポートしました。`,
+            description: `${importedProducts.length}件の商品をインポート/更新しました。`,
           });
         },
         error: (error) => {
