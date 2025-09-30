@@ -5,7 +5,7 @@ import { useState } from "react"
 import { MoreHorizontal, PlusCircle, Plus, Minus, Upload, Trash2 } from "lucide-react"
 import Papa from "papaparse"
 
-import type { Product } from "@/lib/types"
+import type { Product, Category } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -145,6 +145,15 @@ export default function ProductsClient() {
                 }
             }
 
+            const csvCategory = row['categor'] || row['カテゴリ'];
+            let mappedCategory: Category = '惣菜'; // Default
+            if (['弁当', '丼'].includes(csvCategory)) mappedCategory = '弁当';
+            else if (['惣菜', '唐揚げ', 'サラダ', '温惣菜'].includes(csvCategory)) mappedCategory = '惣菜';
+            else if (['おこわ'].includes(csvCategory)) mappedCategory = 'おこわ';
+            else if (['揚げ物'].includes(csvCategory)) mappedCategory = '揚げ物';
+            else if (['冷総菜', '軽食'].includes(csvCategory)) mappedCategory = '冷総菜';
+
+
             return {
               id: existingProduct?.id || `prod-${Date.now()}-${Math.random()}`,
               name: row['recipe_name'] || row['商品名'],
@@ -152,7 +161,7 @@ export default function ProductsClient() {
               price: parseFloat(row['selling_price'] || row['価格']),
               costPrice: parseFloat(row['total_cost'] || row['原価額']),
               productionQuantity: existingProduct?.productionQuantity || 0,
-              category: row['categor'] || existingProduct?.category || '未分類',
+              category: mappedCategory,
               materials: materials || existingProduct?.materials,
               containers: containers || existingProduct?.containers,
             } as Product;
