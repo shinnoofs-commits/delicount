@@ -145,7 +145,7 @@ export default function ProductsClient() {
                 }
             }
 
-            const csvCategory = row['categor'] || row['カテゴリ'];
+            const csvCategory = row['category'] || row['カテゴリー'];
 
             return {
               id: existingProduct?.id || `prod-${Date.now()}-${Math.random()}`,
