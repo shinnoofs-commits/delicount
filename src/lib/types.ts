@@ -6,7 +6,7 @@ export type User = {
   role: 'admin' | 'employee';
 };
 
-export type Category = '弁当' | '惣菜' | 'おこわ' | '揚げ物' | '冷総菜';
+export type Category = string;
 
 export type Material = {
   name: string;
