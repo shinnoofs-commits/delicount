@@ -119,7 +119,7 @@ export default function PosClient() {
   }
 
   return (
-    <div className="grid flex-1 grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 h-[calc(100vh-theme(spacing.24))]">
+    <div className="grid flex-1 grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 items-start">
       {/* Product Selection */}
       <div className="md:col-span-2 lg:col-span-3 flex flex-col gap-4">
         <Card>
@@ -143,123 +143,123 @@ export default function PosClient() {
             </TabsList>
         </Tabs>
 
-        <ScrollArea className="flex-1 -m-2 p-2">
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {filteredProducts.map(product => (
-                <Card 
-                    key={product.id} 
-                    onClick={() => addToCart(product)} 
-                    className="cursor-pointer hover:shadow-lg hover:border-primary transition-all flex flex-col"
-                >
-                <CardContent className="p-4 flex-1 flex flex-col justify-center">
-                    <div className="text-center">
-                        <p className="font-semibold text-sm truncate">{product.name}</p>
-                        <p className="text-xs text-muted-foreground">¥{product.price.toLocaleString()}</p>
-                    </div>
-                </CardContent>
-                </Card>
-            ))}
-            </div>
-        </ScrollArea>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        {filteredProducts.map(product => (
+            <Card 
+                key={product.id} 
+                onClick={() => addToCart(product)} 
+                className="cursor-pointer hover:shadow-lg hover:border-primary transition-all flex flex-col"
+            >
+            <CardContent className="p-4 flex-1 flex flex-col justify-center">
+                <div className="text-center">
+                    <p className="font-semibold text-sm truncate">{product.name}</p>
+                    <p className="text-xs text-muted-foreground">¥{product.price.toLocaleString()}</p>
+                </div>
+            </CardContent>
+            </Card>
+        ))}
+        </div>
       </div>
 
       {/* Cart Section */}
-      <Card className="flex flex-col h-full">
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            会計
-            <Button variant="ghost" size="icon" onClick={clearCart} disabled={cart.length === 0}>
-                <X className="h-4 w-4" />
-                <span className="sr-only">会計をクリア</span>
-            </Button>
-          </CardTitle>
-        </CardHeader>
-        <ScrollArea className="flex-1">
-          <CardContent>
-            {cart.length === 0 ? (
-              <div className="text-center text-muted-foreground py-10">
-                <p>カートは空です。</p>
-                <p className="text-sm">商品を追加してください。</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {cart.map(item => {
-                  const product = getCartItemProduct(item);
-                  return (
-                  <div key={item.product.id} className="flex items-start gap-4">
-                    <div className="flex-1">
-                      <p className="font-medium text-sm">{product.name}</p>
-                      <p className="text-xs text-muted-foreground">¥{product.price.toLocaleString()}</p>
-                       <div className="flex items-center gap-2 mt-2">
-                          <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.product.id, item.quantity - 1)}>
-                            <Minus className="h-4 w-4" />
-                          </Button>
-                          <span className="w-5 text-center">{item.quantity}</span>
-                          <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.product.id, item.quantity + 1)}>
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </div>
-                    </div>
-                    <p className="font-medium text-sm">¥{(product.price * item.quantity).toLocaleString()}</p>
-                  </div>
-                  )
-                })}
-              </div>
-            )}
-          </CardContent>
-        </ScrollArea>
-        <CardFooter className="flex flex-col gap-4 mt-auto !p-6 bg-muted/50">
-          <div className="w-full space-y-2 text-sm">
-             <div className="flex justify-between">
-                <span>小計</span>
-                <span>¥{subtotal.toLocaleString()}</span>
-            </div>
-             <div className="flex justify-between items-center">
-                <span className="whitespace-nowrap flex items-center">
-                    <Button variant={discount.type === 'percentage' ? 'secondary' : 'ghost'} size="sm" className="h-7" onClick={() => setDiscount(prev => ({ ...prev, type: 'percentage' }))}>
-                        <Percent className="h-4 w-4 mr-1"/>割引
-                    </Button>
-                    <span className="mx-1">/</span>
-                    <Button variant={discount.type === 'amount' ? 'secondary' : 'ghost'} size="sm" className="h-7" onClick={() => setDiscount(prev => ({ ...prev, type: 'amount' }))}>
-                        <Ticket className="h-4 w-4 mr-1"/>値引
-                    </Button>
-                </span>
-                <div className="flex items-center gap-2 w-32">
-                  <Input type="number" 
-                    className="h-8 text-right" 
-                    value={discount.value} 
-                    onChange={e => setDiscount({ ...discount, value: parseFloat(e.target.value) || 0 })}
-                    aria-label="Discount value"
-                  />
-                  <span className="text-muted-foreground">{discount.type === 'percentage' ? '%' : '円'}</span>
+      <div className="md:col-span-1 lg:col-span-1 sticky top-6">
+        <Card className="flex flex-col h-full max-h-[calc(100vh-theme(spacing.24))]">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              会計
+              <Button variant="ghost" size="icon" onClick={clearCart} disabled={cart.length === 0}>
+                  <X className="h-4 w-4" />
+                  <span className="sr-only">会計をクリア</span>
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <ScrollArea className="flex-1">
+            <CardContent>
+              {cart.length === 0 ? (
+                <div className="text-center text-muted-foreground py-10">
+                  <p>カートは空です。</p>
+                  <p className="text-sm">商品を追加してください。</p>
                 </div>
+              ) : (
+                <div className="space-y-4">
+                  {cart.map(item => {
+                    const product = getCartItemProduct(item);
+                    return (
+                    <div key={item.product.id} className="flex items-start gap-4">
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{product.name}</p>
+                        <p className="text-xs text-muted-foreground">¥{product.price.toLocaleString()}</p>
+                         <div className="flex items-center gap-2 mt-2">
+                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.product.id, item.quantity - 1)}>
+                              <Minus className="h-4 w-4" />
+                            </Button>
+                            <span className="w-5 text-center">{item.quantity}</span>
+                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.product.id, item.quantity + 1)}>
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                      </div>
+                      <p className="font-medium text-sm">¥{(product.price * item.quantity).toLocaleString()}</p>
+                    </div>
+                    )
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </ScrollArea>
+          <CardFooter className="flex flex-col gap-4 mt-auto !p-6 bg-muted/50">
+            <div className="w-full space-y-2 text-sm">
+               <div className="flex justify-between">
+                  <span>小計</span>
+                  <span>¥{subtotal.toLocaleString()}</span>
+              </div>
+               <div className="flex justify-between items-center">
+                  <span className="whitespace-nowrap flex items-center">
+                      <Button variant={discount.type === 'percentage' ? 'secondary' : 'ghost'} size="sm" className="h-7" onClick={() => setDiscount(prev => ({ ...prev, type: 'percentage' }))}>
+                          <Percent className="h-4 w-4 mr-1"/>割引
+                      </Button>
+                      <span className="mx-1">/</span>
+                      <Button variant={discount.type === 'amount' ? 'secondary' : 'ghost'} size="sm" className="h-7" onClick={() => setDiscount(prev => ({ ...prev, type: 'amount' }))}>
+                          <Ticket className="h-4 w-4 mr-1"/>値引
+                      </Button>
+                  </span>
+                  <div className="flex items-center gap-2 w-32">
+                    <Input type="number" 
+                      className="h-8 text-right" 
+                      value={discount.value} 
+                      onChange={e => setDiscount({ ...discount, value: parseFloat(e.target.value) || 0 })}
+                      aria-label="Discount value"
+                    />
+                    <span className="text-muted-foreground">{discount.type === 'percentage' ? '%' : '円'}</span>
+                  </div>
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                {[10, 20, 30, 40].map(p => (
+                  <Button key={p} variant="outline" size="sm" onClick={() => applyPresetDiscount(p)}>
+                    {p}%
+                  </Button>
+                ))}
+              </div>
+               <div className="flex justify-between text-muted-foreground">
+                  <span></span>
+                  <span>-¥{discountAmount.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                  <span>税 (8%)</span>
+                  <span>¥{taxAmount.toLocaleString()}</span>
+              </div>
+              <Separator />
+              <div className="flex justify-between font-bold text-lg">
+                  <span>合計</span>
+                  <span>¥{total.toLocaleString()}</span>
+              </div>
             </div>
-            <div className="grid grid-cols-4 gap-2">
-              {[10, 20, 30, 40].map(p => (
-                <Button key={p} variant="outline" size="sm" onClick={() => applyPresetDiscount(p)}>
-                  {p}%
-                </Button>
-              ))}
-            </div>
-             <div className="flex justify-between text-muted-foreground">
-                <span></span>
-                <span>-¥{discountAmount.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between">
-                <span>税 (8%)</span>
-                <span>¥{taxAmount.toLocaleString()}</span>
-            </div>
-            <Separator />
-            <div className="flex justify-between font-bold text-lg">
-                <span>合計</span>
-                <span>¥{total.toLocaleString()}</span>
-            </div>
-          </div>
-          <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" size="lg" disabled={cart.length === 0} onClick={() => setIsCheckoutOpen(true)}>
-             <Tag className="mr-2 h-5 w-5"/> 会計に進む
-          </Button>
-        </CardFooter>
-      </Card>
+            <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" size="lg" disabled={cart.length === 0} onClick={() => setIsCheckoutOpen(true)}>
+               <Tag className="mr-2 h-5 w-5"/> 会計に進む
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
       {isCheckoutOpen && (
         <CheckoutDialog 
             isOpen={isCheckoutOpen} 
