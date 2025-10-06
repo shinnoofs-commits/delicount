@@ -173,7 +173,7 @@ export default function PosClient() {
               </Button>
             </CardTitle>
           </CardHeader>
-          <ScrollArea className="flex-1">
+          <ScrollArea className="flex-1" style={{height: "35rem"}}>
             <CardContent>
               {cart.length === 0 ? (
                 <div className="text-center text-muted-foreground py-10">
@@ -185,21 +185,21 @@ export default function PosClient() {
                   {cart.map(item => {
                     const product = getCartItemProduct(item);
                     return (
-                    <div key={item.product.id} className="flex items-start gap-4">
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">{product.name}</p>
-                        <p className="text-xs text-muted-foreground">¥{product.price.toLocaleString()}</p>
-                         <div className="flex items-center gap-2 mt-2">
-                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.product.id, item.quantity - 1)}>
-                              <Minus className="h-4 w-4" />
-                            </Button>
-                            <span className="w-5 text-center">{item.quantity}</span>
-                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.product.id, item.quantity + 1)}>
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                          </div>
+                    <div key={item.product.id} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-sm flex-1 truncate pr-2">{product.name}</span>
+                        <span className="w-12 text-center">x{item.quantity}</span>
+                        <span className="font-medium text-sm w-20 text-right">¥{(product.price * item.quantity).toLocaleString()}</span>
                       </div>
-                      <p className="font-medium text-sm">¥{(product.price * item.quantity).toLocaleString()}</p>
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.product.id, item.quantity - 1)}>
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.product.id, item.quantity + 1)}>
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                        <p className="text-xs text-muted-foreground ml-auto">単価: ¥{product.price.toLocaleString()}</p>
+                      </div>
                     </div>
                     )
                   })}
