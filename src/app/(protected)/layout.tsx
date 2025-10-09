@@ -13,6 +13,7 @@ import {
   ShoppingCart,
   LineChart,
   PanelLeft,
+  PieChart,
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -35,6 +36,7 @@ import { Loader2 } from 'lucide-react';
 const navItems = [
   { href: '/pos', icon: ShoppingCart, label: 'POS', adminOnly: false },
   { href: '/dashboard', icon: LineChart, label: 'ダッシュボード', adminOnly: true },
+  { href: '/abc-analysis', icon: PieChart, label: 'ABC分析', adminOnly: true },
   { href: '/products', icon: Package, label: '商品', adminOnly: true },
 ];
 

@@ -19,10 +19,10 @@ import {
 import { useTransactions } from "@/contexts/transaction-context";
 import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid } from "date-fns"
 import { ja } from "date-fns/locale"
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, Legend } from "recharts"
-import { TicketPercent, TrendingUp, Calendar as CalendarIcon, Package, Trash2, ShoppingCart, Percent, AlertCircle, TrendingDown } from 'lucide-react';
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from "recharts"
+import { Calendar as CalendarIcon, Trash2, TrendingDown } from 'lucide-react';
 import { useMemo, useState } from "react";
-import type { Category, Product, TransactionItem } from "@/lib/types";
+import type { Category, Product } from "@/lib/types";
 import { useProducts } from "@/contexts/product-context";
 import { DateRange } from "react-day-picker"
 import { Button } from "@/components/ui/button"
@@ -33,7 +33,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
-import { Badge } from "@/components/ui/badge";
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"];
 
@@ -83,8 +82,6 @@ type WasteData = {
     productId: string;
     productName: string;
     productionQuantity: number;
-    normalSales: number;
-    discountedSalesByRate: { [key: number]: number };
     wasteCount: number;
     costPrice: number;
     price: number;
@@ -92,20 +89,9 @@ type WasteData = {
     opportunityLoss: number;
 };
 
-type AbcRank = 'A' | 'B' | 'C';
-
-type AbcDataItem = {
-    productId: string;
-    productName: string;
-    wasteCost: number;
-    cumulativePercentage: number;
-    rank: AbcRank;
-};
-
-
 export default function DashboardPage() {
   const { transactions, wasteEntries } = useTransactions();
-  const { products, getProductById } = useProducts();
+  const { products } = useProducts();
 
   const categories = useMemo(() => [...new Set(products.map(p => p.category))] as Category[], [products]);
 
@@ -169,8 +155,6 @@ export default function DashboardPage() {
             productId: product.id,
             productName: product.name,
             productionQuantity: product.productionQuantity,
-            normalSales,
-            discountedSalesByRate,
             wasteCount,
             costPrice: product.costPrice,
             price: product.price,
@@ -180,38 +164,6 @@ export default function DashboardPage() {
     }).filter(d => d.productionQuantity > 0 || d.wasteCount > 0);
   }, [products, filteredTransactions, filteredWasteEntries]);
   
-  const abcAnalysisData: AbcDataItem[] = useMemo(() => {
-    const sortedByWasteCost = wasteAnalysisData
-      .filter(p => p.totalWasteCost > 0)
-      .sort((a, b) => b.totalWasteCost - a.totalWasteCost);
-
-    const totalWasteCost = sortedByWasteCost.reduce((sum, p) => sum + p.totalWasteCost, 0);
-    if (totalWasteCost === 0) return [];
-
-    let cumulativeCost = 0;
-    return sortedByWasteCost.map(product => {
-      cumulativeCost += product.totalWasteCost;
-      const cumulativePercentage = (cumulativeCost / totalWasteCost) * 100;
-      
-      let rank: AbcRank;
-      if (cumulativePercentage <= 70) {
-        rank = 'A';
-      } else if (cumulativePercentage <= 90) {
-        rank = 'B';
-      } else {
-        rank = 'C';
-      }
-
-      return {
-        productId: product.productId,
-        productName: product.productName,
-        wasteCost: product.totalWasteCost,
-        cumulativePercentage,
-        rank,
-      };
-    });
-  }, [wasteAnalysisData]);
-
   const totalWasteCost = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.totalWasteCost, 0), [wasteAnalysisData]);
   const totalOpportunityLoss = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.opportunityLoss, 0), [wasteAnalysisData]);
   const totalWaste = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.wasteCount, 0), [wasteAnalysisData]);
@@ -260,8 +212,6 @@ export default function DashboardPage() {
     }
   }
 
-  const discountRates = [10, 20, 30, 40];
-
   return (
     <div className="flex flex-col gap-4">
        <div className="flex items-center gap-4">
@@ -294,7 +244,7 @@ export default function DashboardPage() {
             </CardContent>
         </Card>
       </div>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4">
         <Card>
             <CardHeader>
                 <CardTitle>廃棄分析</CardTitle>
@@ -321,38 +271,6 @@ export default function DashboardPage() {
                                 <TableCell className="text-right">{data.wasteCount}</TableCell>
                                 <TableCell className="text-right font-medium">¥{data.totalWasteCost.toLocaleString()}</TableCell>
                                 <TableCell className="text-right text-destructive">¥{data.opportunityLoss.toLocaleString()}</TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
-        <Card>
-            <CardHeader>
-                <CardTitle>廃棄ABC分析</CardTitle>
-                <CardDescription>廃棄額の大きさに基づいて商品をランク付けし、管理の優先度を明確にします。</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>ランク</TableHead>
-                            <TableHead>商品名</TableHead>
-                            <TableHead className="text-right">廃棄額</TableHead>
-                            <TableHead className="text-right">累積比率</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {abcAnalysisData.map(data => (
-                            <TableRow key={data.productId}>
-                                <TableCell>
-                                    <Badge variant={data.rank === 'A' ? 'destructive' : data.rank === 'B' ? 'secondary': 'outline'}>
-                                        {data.rank}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell>{data.productName}</TableCell>
-                                <TableCell className="text-right">¥{data.wasteCost.toLocaleString()}</TableCell>
-                                <TableCell className="text-right">{data.cumulativePercentage.toFixed(1)}%</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
