@@ -2,7 +2,7 @@
 'use client';
 
 import type { Product } from '@/lib/types';
-import { products as initialProducts } from '@/lib/data';
+import { initialProducts } from '@/lib/data';
 import React, { createContext, useState, useContext, useCallback, useMemo } from 'react';
 
 interface ProductContextType {

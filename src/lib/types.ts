@@ -23,9 +23,8 @@ export type Product = {
   name: string;
   price: number;
   costPrice: number;
-  productionQuantity: number;
   productCode: string;
-  category: Category;
+  category: string;
   pricePattern?: string;
   materials?: Material[];
   containers?: Container[];
@@ -72,3 +71,4 @@ export type WasteEntry = {
   totalWasteCost: number;
   staffId: string;
 };
+

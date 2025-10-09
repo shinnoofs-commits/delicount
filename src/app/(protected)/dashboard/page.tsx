@@ -81,7 +81,6 @@ const DateRangePicker = ({ date, setDate }: { date: DateRange | undefined, setDa
 type WasteData = {
     productId: string;
     productName: string;
-    productionQuantity: number;
     wasteCount: number;
     costPrice: number;
     price: number;
@@ -118,50 +117,35 @@ export default function DashboardPage() {
   }, [date, transactions, wasteEntries]);
 
   const wasteAnalysisData: WasteData[] = useMemo(() => {
-    return products.map(product => {
-        const transactionsWithProduct = filteredTransactions.filter(t => t.items.some(item => item.productId === product.id));
+    const wasteDataMap = new Map<string, WasteData>();
 
-        const normalSales = transactionsWithProduct
-            .filter(t => !t.discount || t.discount.value === 0)
-            .flatMap(t => t.items)
-            .filter(item => item.productId === product.id)
-            .reduce((sum, item) => sum + item.quantity, 0);
-        
-        const discountedSalesByRate = [10, 20, 30, 40].reduce((acc, rate) => ({ ...acc, [rate]: 0 }), {});
-
-        const discountedTransactions = transactionsWithProduct.filter(t => t.discount?.type === 'percentage' && t.discount.value > 0);
-        
-        discountedTransactions.forEach(t => {
-            const rate = t.discount!.value;
-            if ([10, 20, 30, 40].includes(rate)) {
-                const productItem = t.items.find(item => item.productId === product.id);
-                if (productItem) {
-                    (discountedSalesByRate as any)[rate] += productItem.quantity;
-                }
-            }
-        });
-        
-        const totalDiscountedSales = Object.values(discountedSalesByRate).reduce((sum, q) => sum + q, 0);
-        const totalSold = normalSales + totalDiscountedSales;
-        
-        const wastedQuantityFromEntries = filteredWasteEntries
-          .flatMap(we => we.items)
-          .filter(item => item.productId === product.id)
-          .reduce((sum, item) => sum + item.quantity, 0);
-        
-        const wasteCount = Math.max(0, product.productionQuantity - totalSold) + wastedQuantityFromEntries;
-
-        return {
+    products.forEach(product => {
+        wasteDataMap.set(product.id, {
             productId: product.id,
             productName: product.name,
-            productionQuantity: product.productionQuantity,
-            wasteCount,
+            wasteCount: 0,
             costPrice: product.costPrice,
             price: product.price,
-            totalWasteCost: wasteCount * product.costPrice,
-            opportunityLoss: wasteCount * product.price,
-        };
-    }).filter(d => d.productionQuantity > 0 || d.wasteCount > 0);
+            totalWasteCost: 0,
+            opportunityLoss: 0,
+        });
+    });
+
+    filteredWasteEntries.forEach(entry => {
+        entry.items.forEach(item => {
+            const data = wasteDataMap.get(item.productId);
+            if (data) {
+                data.wasteCount += item.quantity;
+            }
+        });
+    });
+    
+    return Array.from(wasteDataMap.values()).map(data => ({
+        ...data,
+        totalWasteCost: data.wasteCount * data.costPrice,
+        opportunityLoss: data.wasteCount * data.price,
+    })).filter(d => d.wasteCount > 0);
+
   }, [products, filteredTransactions, filteredWasteEntries]);
   
   const totalWasteCost = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.totalWasteCost, 0), [wasteAnalysisData]);
@@ -322,5 +306,3 @@ export default function DashboardPage() {
     </div>
   )
 }
-
-    

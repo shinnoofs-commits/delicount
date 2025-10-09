@@ -13,10 +13,9 @@ import { Input } from '@/components/ui/input'
 const formSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(2, { message: '名前は2文字以上である必要があります。' }),
-  productCode: z.string().length(6, { message: '商品コードは6桁である必要があります。' }),
+  productCode: z.string().min(1, { message: '商品コードは必須です。' }),
   price: z.coerce.number().min(0, { message: '価格は正の数でなければなりません。' }),
   costPrice: z.coerce.number().min(0, { message: '原価は正の数でなければなりません。' }),
-  productionQuantity: z.coerce.number().int().min(0, { message: '製造数量は正の整数でなければなりません。' }),
   category: z.string().min(1, { message: 'カテゴリーは必須です。' }),
   pricePattern: z.string().optional(),
 })
@@ -37,7 +36,6 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
       productCode: '',
       price: 0,
       costPrice: 0,
-      productionQuantity: 0,
       category: '揚げ物',
       pricePattern: '',
     },
@@ -88,19 +86,6 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
           />
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="productionQuantity"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>製造数量</FormLabel>
-                <FormControl>
-                  <Input type="number" placeholder="50" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
            <FormField
             control={form.control}
             name="productCode"
@@ -114,21 +99,21 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
               </FormItem>
             )}
           />
+           <FormField
+            control={form.control}
+            name="category"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>カテゴリー</FormLabel>
+                <FormControl>
+                  <Input placeholder="例：揚げ物" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
         <div className="grid grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="category"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>カテゴリー</FormLabel>
-                  <FormControl>
-                    <Input placeholder="例：揚げ物" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
              <FormField
               control={form.control}
               name="pricePattern"

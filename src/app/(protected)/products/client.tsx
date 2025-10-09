@@ -2,10 +2,10 @@
 'use client'
 
 import { useState } from "react"
-import { MoreHorizontal, PlusCircle, Plus, Minus, Upload, Trash2 } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Upload, Trash2 } from "lucide-react"
 import Papa from "papaparse"
 
-import type { Product, Category } from "@/lib/types"
+import type { Product } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -56,66 +56,52 @@ export default function ProductsClient() {
   const { products, addProduct, updateProduct, deleteProduct, deleteProducts, setProducts } = useProducts();
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
-  const [productToDelete, setProductToDelete] = useState<Product | null>(null)
+  const [productToEdit, setProductToEdit] = useState<Product | null>(null)
   const [productsToDelete, setProductsToDelete] = useState<string[]>([]);
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([])
 
   const { toast } = useToast()
 
   const handleAdd = () => {
-    setProductToDelete(null)
+    setProductToEdit(null)
     setIsFormOpen(true)
   }
 
   const handleEdit = (product: Product) => {
-    setProductToDelete(product)
+    setProductToEdit(product)
     setIsFormOpen(true)
   }
 
   const handleDelete = (product: Product) => {
-    setProductToDelete(product)
-    setProductsToDelete([])
+    setProductsToDelete([product.id])
     setIsDeleteConfirmOpen(true)
   }
 
   const handleDeleteSelected = () => {
-    setProductToDelete(null)
     setProductsToDelete(selectedProductIds)
     setIsDeleteConfirmOpen(true)
   }
 
   const confirmDelete = () => {
-    if (productToDelete) {
-      deleteProduct(productToDelete.id);
-      toast({ title: "商品が削除されました", description: `「${productToDelete.name}」を削除しました。` });
-    } else if (productsToDelete.length > 0) {
-      deleteProducts(productsToDelete);
-      toast({ title: "商品が削除されました", description: `${productsToDelete.length}件の商品を削除しました。` });
+    if (productsToDelete.length > 0) {
+        deleteProducts(productsToDelete);
+        const singular = productsToDelete.length === 1;
+        const productName = singular ? `「${products.find(p => p.id === productsToDelete[0])?.name}」` : `${productsToDelete.length}件の商品`;
+        toast({ title: `商品が削除されました`, description: `${productName}を削除しました。` });
     }
     setIsDeleteConfirmOpen(false)
-    setProductToDelete(null)
     setProductsToDelete([])
     setSelectedProductIds([])
   }
 
   const handleFormSubmit = (productData: Omit<Product, 'id'> & { id?: string }) => {
-    const newProductData = { ...productData };
-
-    if (productToDelete && productData.id) {
-      updateProduct(newProductData as Product);
+    if (productData.id) {
+      updateProduct(productData as Product);
     } else {
-      addProduct(newProductData as Omit<Product, 'id'>);
+      addProduct(productData);
     }
     setIsFormOpen(false)
-    setProductToDelete(null)
-  }
-  
-  const adjustQuantity = (productId: string, amount: number) => {
-    const product = products.find(p => p.id === productId);
-    if (product) {
-        const newQuantity = Math.max(0, product.productionQuantity + amount);
-        updateProduct({ ...product, productionQuantity: newQuantity });
-    }
+    setProductToEdit(null)
   }
 
   const handleCsvImport = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -125,9 +111,9 @@ export default function ProductsClient() {
         header: true,
         skipEmptyLines: true,
         complete: (results) => {
-          const importedProducts = results.data.map((row: any) => {
+          const importedProducts = results.data.map((row: any, index: number) => {
             const productCode = row['label_number'] || row['商品コード'];
-            if (!productCode) return null;
+            if (!productCode || productCode.trim() === '') return null;
             
             let materials, containers;
             if (row.materials_json) {
@@ -148,22 +134,21 @@ export default function ProductsClient() {
             const csvCategory = row['category'] || row['カテゴリー'];
             const price = parseFloat(row['selling_price'] || row['価格']);
             const costPrice = parseFloat(row['total_cost'] || row['原価額']);
-            const pricePattern = row['price_pattern_label'];
+            const pricePattern = row['price_pattern_label'] || '';
 
 
             return {
-              id: `prod-${Date.now()}-${Math.random()}`,
+              id: `prod-${productCode}-${Date.now()}-${index}`,
               name: row['recipe_name'] || row['商品名'],
               productCode: productCode,
               price: isNaN(price) ? 0 : price,
               costPrice: isNaN(costPrice) ? 0 : costPrice,
-              productionQuantity: 0,
               category: csvCategory,
               pricePattern: pricePattern,
               materials: materials,
               containers: containers,
             } as Product;
-          }).filter(p => p !== null && p.productCode) as Product[];
+          }).filter(p => p !== null) as Product[];
 
           if (importedProducts.length > 0) {
             setProducts(prevProducts => [...prevProducts, ...importedProducts]);
@@ -171,8 +156,10 @@ export default function ProductsClient() {
           
           toast({
             title: "CSVインポート完了",
-            description: `${importedProducts.length}件の商品をインポート/更新しました。`,
+            description: `${importedProducts.length}件の商品をインポートしました。`,
           });
+          // Reset file input
+          event.target.value = '';
         },
         error: (error) => {
             toast({
@@ -250,7 +237,6 @@ export default function ProductsClient() {
                 <TableHead className="hidden md:table-cell">価格パターン</TableHead>
                 <TableHead className="text-right">価格</TableHead>
                  <TableHead className="text-right">原価額</TableHead>
-                <TableHead className="text-center">製造数量</TableHead>
                 <TableHead>
                   <span className="sr-only">アクション</span>
                 </TableHead>
@@ -272,17 +258,6 @@ export default function ProductsClient() {
                   <TableCell className="hidden md:table-cell">{product.pricePattern}</TableCell>
                   <TableCell className="text-right font-medium">¥{product.price.toLocaleString()}</TableCell>
                    <TableCell className="text-right">¥{product.costPrice.toLocaleString()}</TableCell>
-                  <TableCell className="text-center">
-                    <div className="flex items-center justify-center gap-2">
-                        <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => adjustQuantity(product.id, -1)}>
-                            <Minus className="h-4 w-4" />
-                        </Button>
-                        <span className="w-10 text-center">{product.productionQuantity}</span>
-                        <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => adjustQuantity(product.id, 1)}>
-                            <Plus className="h-4 w-4" />
-                        </Button>
-                    </div>
-                  </TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -310,12 +285,12 @@ export default function ProductsClient() {
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle>{productToDelete ? '商品を編集' : '商品を追加'}</DialogTitle>
+            <DialogTitle>{productToEdit ? '商品を編集' : '商品を追加'}</DialogTitle>
             <DialogDescription>
-              {productToDelete ? '商品の詳細を更新します。' : '新しい商品を追加します。'}
+              {productToEdit ? '商品の詳細を更新します。' : '新しい商品を追加します。'}
             </DialogDescription>
           </DialogHeader>
-          <ProductForm product={productToDelete} onSubmit={handleFormSubmit} onCancel={() => setIsFormOpen(false)} />
+          <ProductForm product={productToEdit} onSubmit={handleFormSubmit} onCancel={() => setIsFormOpen(false)} />
         </DialogContent>
       </Dialog>
 
@@ -324,9 +299,7 @@ export default function ProductsClient() {
           <AlertDialogHeader>
             <AlertDialogTitle>よろしいですか？</AlertDialogTitle>
             <AlertDialogDescription>
-              {productToDelete
-                ? `この操作は元に戻せません。商品「${productToDelete?.name}」を完全に削除します。`
-                : `この操作は元に戻せません。選択した${productsToDelete.length}件の商品を完全に削除します。`}
+              {`この操作は元に戻せません。選択した${productsToDelete.length}件の商品を完全に削除します。`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
