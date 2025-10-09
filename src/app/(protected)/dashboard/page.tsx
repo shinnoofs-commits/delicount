@@ -131,18 +131,6 @@ export default function DashboardPage() {
     };
   }, [date, transactions, wasteEntries]);
 
-
-  const totalRevenue = useMemo(() => filteredTransactions.reduce((acc, t) => acc + t.finalAmount, 0), [filteredTransactions]);
-  const totalDiscount = useMemo(() => filteredTransactions.reduce((acc, t) => {
-      if (t.discount) {
-          if (t.discount.type === 'percentage') {
-              return acc + (t.totalAmount * t.discount.value / 100);
-          }
-          return acc + t.discount.value;
-      }
-      return acc;
-  }, 0), [filteredTransactions]);
-
   const wasteAnalysisData: WasteData[] = useMemo(() => {
     return products.map(product => {
         const transactionsWithProduct = filteredTransactions.filter(t => t.items.some(item => item.productId === product.id));
@@ -224,33 +212,9 @@ export default function DashboardPage() {
     });
   }, [wasteAnalysisData]);
 
-  const totalCostOfGoodsSold = useMemo(() => {
-    return filteredTransactions.reduce((totalCost, transaction) => {
-      const transactionCost = transaction.items.reduce((itemCost, item) => {
-        const product = getProductById(item.productId);
-        return itemCost + (product ? product.costPrice * item.quantity : 0);
-      }, 0);
-      return totalCost + transactionCost;
-    }, 0);
-  }, [filteredTransactions, getProductById]);
-
   const totalWasteCost = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.totalWasteCost, 0), [wasteAnalysisData]);
   const totalOpportunityLoss = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.opportunityLoss, 0), [wasteAnalysisData]);
-
-  const cogsRate = useMemo(() => {
-    if (totalRevenue === 0) return 0;
-    const totalCost = totalCostOfGoodsSold + totalWasteCost;
-    return (totalCost / totalRevenue) * 100;
-  }, [totalRevenue, totalCostOfGoodsSold, totalWasteCost]);
-
-
-  const salesByTime = useMemo(() => Array.from({ length: 15 }, (_, i) => {
-      const hour = i + 8; // 8:00 to 22:00
-      const sales = filteredTransactions
-          .filter(t => new Date(t.date).getHours() >= hour && new Date(t.date).getHours() < hour + 1)
-          .reduce((sum, t) => sum + t.finalAmount, 0);
-      return { name: `${hour}:00`, '売上': sales };
-  }), [filteredTransactions]);
+  const totalWaste = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.wasteCount, 0), [wasteAnalysisData]);
 
   const salesByCategory = useMemo(() => categories.map(category => {
       const productSales = filteredTransactions
@@ -285,9 +249,6 @@ export default function DashboardPage() {
       };
   }), [filteredTransactions, products, categories, transactions]);
 
-    const totalProduction = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.productionQuantity, 0), [wasteAnalysisData]);
-    const totalWaste = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.wasteCount, 0), [wasteAnalysisData]);
-    const totalSold = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.normalSales + Object.values(p.discountedSalesByRate).reduce((s,q) => s + q, 0), 0), [wasteAnalysisData]);
 
   const salesByDiscount = useMemo(() => {
     const discountCategories = [10, 20, 30, 40];
@@ -332,17 +293,7 @@ export default function DashboardPage() {
           <Button variant="outline" size="sm" onClick={() => setDatePreset('this_month')}>今月</Button>
         </div>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">総収益</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">¥{Math.round(totalRevenue).toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">選択期間中の総売上です。</p>
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">廃棄ロス（原価）</CardTitle>
@@ -363,65 +314,9 @@ export default function DashboardPage() {
                 <p className="text-xs text-muted-foreground">廃棄された商品の売価合計です。</p>
             </CardContent>
         </Card>
-        <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">原価率</CardTitle>
-                <Percent className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-                <div className="text-2xl font-bold">{cogsRate.toFixed(1)}%</div>
-                <p className="text-xs text-muted-foreground">廃棄ロス含む加重平均原価率です。</p>
-            </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">総販売数</CardTitle>
-            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalSold.toLocaleString()}</div>
-             <p className="text-xs text-muted-foreground">総製造数: {totalProduction.toLocaleString()}</p>
-          </CardContent>
-        </Card>
       </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-7">
-        <Card className="lg:col-span-4">
-          <CardHeader>
-            <CardTitle>時間帯別売上概要</CardTitle>
-            <CardDescription>選択期間中の時間帯別売上です。</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={salesByTime}>
-                    <XAxis
-                        dataKey="name"
-                        stroke="hsl(var(--muted-foreground))"
-                        fontSize={12}
-                        tickLine={false}
-                        axisLine={false}
-                    />
-                    <YAxis
-                        stroke="hsl(var(--muted-foreground))"
-                        fontSize={12}
-                        tickLine={false}
-                        axisLine={false}
-                        tickFormatter={(value) => `¥${value.toLocaleString()}`}
-                    />
-                    <Tooltip
-                        cursor={{fill: 'hsl(var(--muted))'}}
-                        contentStyle={{
-                            backgroundColor: 'hsl(var(--background))',
-                            borderColor: 'hsl(var(--border))',
-                            borderRadius: 'var(--radius)'
-                        }}
-                         formatter={(value: number) => `¥${Math.round(value).toLocaleString()}`}
-                    />
-                    <Bar dataKey="売上" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-        <Card className="lg:col-span-3">
+        <Card className="lg:col-span-7">
           <CardHeader>
             <CardTitle>割引率別売上</CardTitle>
             <CardDescription>選択期間中の割引率ごとの売上貢献です。</CardDescription>
@@ -572,3 +467,5 @@ export default function DashboardPage() {
     </div>
   )
 }
+
+    
