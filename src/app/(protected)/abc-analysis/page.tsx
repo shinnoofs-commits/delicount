@@ -158,7 +158,7 @@ export default function AbcAnalysisPage() {
   const abcAnalysisData: AbcDataItem[] = useMemo(() => {
     const sortedByWasteCost = wasteAnalysisData
       .filter(p => p.totalWasteCost > 0)
-      .sort((a, b) => b.totalWasteCost - a.totalWasteCost);
+      .sort((a, b) => a.totalWasteCost - b.totalWasteCost);
 
     const totalWasteCost = sortedByWasteCost.reduce((sum, p) => sum + p.totalWasteCost, 0);
     if (totalWasteCost === 0) return [];
@@ -170,11 +170,11 @@ export default function AbcAnalysisPage() {
       
       let rank: AbcRank;
       if (cumulativePercentage <= 70) {
-        rank = 'A';
+        rank = 'C';
       } else if (cumulativePercentage <= 90) {
         rank = 'B';
       } else {
-        rank = 'C';
+        rank = 'A';
       }
 
       return {
