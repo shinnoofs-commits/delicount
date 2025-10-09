@@ -6,9 +6,7 @@ export const users: User[] = [
   { id: 'user-2', name: '従業員ユーザー', email: 'employee@swiftpos.com', role: 'employee' },
 ];
 
-export const initialProducts: Product[] = [];
-
-const productDefinitions: Omit<Product, 'id'>[] = [
+const productDefinitions: Omit<Product, 'id' | 'pricePattern'>[] = [
   // 揚げ物 (10)
   { name: '絶品コロッケ', price: 180, costPrice: 63, productCode: '000001', category: '揚げ物' },
   { name: '自家製メンチカツ', price: 220, costPrice: 88, productCode: '000003', category: '揚げ物' },
@@ -110,21 +108,14 @@ const productDefinitions: Omit<Product, 'id'>[] = [
   { name: '中華おこわ', price: 550, costPrice: 220, productCode: '000090', category: 'おこわ' },
 ];
 
-export const products: Product[] = productDefinitions.map((p, index) => {
-    const newId = `prod-${p.productCode || (index + 1)}`;
-    const existingProduct = initialProducts.find(ip => ip.id === newId);
-    if(existingProduct) {
-        return {
-            ...existingProduct,
-            ...p,
-            id: newId,
-        };
-    }
-    return {
-        ...p,
-        id: newId,
-    }
-}).filter((p): p is Product => p !== null);
+export const initialProducts: Product[] = productDefinitions.map((p, index) => ({
+    ...p,
+    id: `prod-${p.productCode || (index + 1)}-${new Date().getTime()}`,
+    pricePattern: '',
+}));
+
+
+export const products: Product[] = initialProducts;
 
 export const transactions: Transaction[] = [];
 

@@ -2,7 +2,7 @@
 'use client';
 
 import type { Product } from '@/lib/types';
-import { initialProducts } from '@/lib/data';
+import { products as initialProductsData } from '@/lib/data';
 import React, { createContext, useState, useContext, useCallback, useMemo } from 'react';
 
 interface ProductContextType {
@@ -18,7 +18,7 @@ interface ProductContextType {
 export const ProductContext = createContext<ProductContextType | undefined>(undefined);
 
 export function ProductProvider({ children }: { children: React.ReactNode }) {
-  const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [products, setProducts] = useState<Product[]>(initialProductsData);
 
   const addProduct = useCallback((product: Omit<Product, 'id'>) => {
     setProducts(prevProducts => [...prevProducts, { ...product, id: `prod-${Date.now()}` }]);
