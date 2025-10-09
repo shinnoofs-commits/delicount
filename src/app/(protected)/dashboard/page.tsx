@@ -20,7 +20,7 @@ import { useTransactions } from "@/contexts/transaction-context";
 import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid } from "date-fns"
 import { ja } from "date-fns/locale"
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, Legend } from "recharts"
-import { TicketPercent, TrendingUp, Calendar as CalendarIcon, Package, Trash2, ShoppingCart, Percent } from 'lucide-react';
+import { TicketPercent, TrendingUp, Calendar as CalendarIcon, Package, Trash2, ShoppingCart, Percent, AlertCircle, TrendingDown } from 'lucide-react';
 import { useMemo, useState } from "react";
 import type { Category, Product, TransactionItem } from "@/lib/types";
 import { useProducts } from "@/contexts/product-context";
@@ -33,6 +33,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
+import { Badge } from "@/components/ui/badge";
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"];
 
@@ -86,6 +87,19 @@ type WasteData = {
     discountedSalesByRate: { [key: number]: number };
     wasteCount: number;
     costPrice: number;
+    price: number;
+    totalWasteCost: number;
+    opportunityLoss: number;
+};
+
+type AbcRank = 'A' | 'B' | 'C';
+
+type AbcDataItem = {
+    productId: string;
+    productName: string;
+    wasteCost: number;
+    cumulativePercentage: number;
+    rank: AbcRank;
 };
 
 
@@ -170,10 +184,45 @@ export default function DashboardPage() {
             normalSales,
             discountedSalesByRate,
             wasteCount,
-            costPrice: product.costPrice
+            costPrice: product.costPrice,
+            price: product.price,
+            totalWasteCost: wasteCount * product.costPrice,
+            opportunityLoss: wasteCount * product.price,
         };
-    });
+    }).filter(d => d.productionQuantity > 0 || d.wasteCount > 0);
   }, [products, filteredTransactions, filteredWasteEntries]);
+  
+  const abcAnalysisData: AbcDataItem[] = useMemo(() => {
+    const sortedByWasteCost = wasteAnalysisData
+      .filter(p => p.totalWasteCost > 0)
+      .sort((a, b) => b.totalWasteCost - a.totalWasteCost);
+
+    const totalWasteCost = sortedByWasteCost.reduce((sum, p) => sum + p.totalWasteCost, 0);
+    if (totalWasteCost === 0) return [];
+
+    let cumulativeCost = 0;
+    return sortedByWasteCost.map(product => {
+      cumulativeCost += product.totalWasteCost;
+      const cumulativePercentage = (cumulativeCost / totalWasteCost) * 100;
+      
+      let rank: AbcRank;
+      if (cumulativePercentage <= 70) {
+        rank = 'A';
+      } else if (cumulativePercentage <= 90) {
+        rank = 'B';
+      } else {
+        rank = 'C';
+      }
+
+      return {
+        productId: product.productId,
+        productName: product.productName,
+        wasteCost: product.totalWasteCost,
+        cumulativePercentage,
+        rank,
+      };
+    });
+  }, [wasteAnalysisData]);
 
   const totalCostOfGoodsSold = useMemo(() => {
     return filteredTransactions.reduce((totalCost, transaction) => {
@@ -185,7 +234,8 @@ export default function DashboardPage() {
     }, 0);
   }, [filteredTransactions, getProductById]);
 
-  const totalWasteCost = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.wasteCount * p.costPrice, 0), [wasteAnalysisData]);
+  const totalWasteCost = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.totalWasteCost, 0), [wasteAnalysisData]);
+  const totalOpportunityLoss = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.opportunityLoss, 0), [wasteAnalysisData]);
 
   const cogsRate = useMemo(() => {
     if (totalRevenue === 0) return 0;
@@ -293,15 +343,25 @@ export default function DashboardPage() {
             <p className="text-xs text-muted-foreground">選択期間中の総売上です。</p>
           </CardContent>
         </Card>
+         <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">廃棄ロス（原価）</CardTitle>
+                <Trash2 className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">¥{totalWasteCost.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">総廃棄数: {totalWaste.toLocaleString()}個</p>
+            </CardContent>
+        </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">割引/値引額合計</CardTitle>
-            <TicketPercent className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">¥{Math.round(totalDiscount).toLocaleString()}</div>
-             <p className="text-xs text-muted-foreground">適用された割引・値引の合計です。</p>
-          </CardContent>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">機会損失（売価）</CardTitle>
+                <TrendingDown className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">¥{totalOpportunityLoss.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">廃棄された商品の売価合計です。</p>
+            </CardContent>
         </Card>
         <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -321,16 +381,6 @@ export default function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold">{totalSold.toLocaleString()}</div>
              <p className="text-xs text-muted-foreground">総製造数: {totalProduction.toLocaleString()}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">総廃棄数</CardTitle>
-            <Trash2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalWaste.toLocaleString()}</div>
-             <p className="text-xs text-muted-foreground">廃棄率: {totalProduction > 0 ? ((totalWaste / totalProduction) * 100).toFixed(1) : 0}%</p>
           </CardContent>
         </Card>
       </div>
@@ -408,7 +458,77 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-      <div className="grid grid-cols-1 gap-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card>
+            <CardHeader>
+                <CardTitle>廃棄分析</CardTitle>
+                <CardDescription>各商品の製造、販売、廃棄状況と、それに伴う損失額の一覧です。</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>商品名</TableHead>
+                            <TableHead className="text-right">売価</TableHead>
+                            <TableHead className="text-right">原価</TableHead>
+                            <TableHead className="text-right">製造数</TableHead>
+                            <TableHead className="text-right">販売数</TableHead>
+                            <TableHead className="text-right">廃棄数</TableHead>
+                            <TableHead className="text-right">廃棄額</TableHead>
+                            <TableHead className="text-right">機会損失</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {wasteAnalysisData.map(data => (
+                            <TableRow key={data.productId}>
+                                <TableCell className="font-medium">{data.productName}</TableCell>
+                                <TableCell className="text-right">¥{data.price.toLocaleString()}</TableCell>
+                                <TableCell className="text-right">¥{data.costPrice.toLocaleString()}</TableCell>
+                                <TableCell className="text-right">{data.productionQuantity}</TableCell>
+                                <TableCell className="text-right">{data.normalSales + Object.values(data.discountedSalesByRate).reduce((s,q) => s + q, 0)}</TableCell>
+                                <TableCell className="text-right">{data.wasteCount}</TableCell>
+                                <TableCell className="text-right font-medium">¥{data.totalWasteCost.toLocaleString()}</TableCell>
+                                <TableCell className="text-right text-destructive">¥{data.opportunityLoss.toLocaleString()}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+        <Card>
+            <CardHeader>
+                <CardTitle>廃棄ABC分析</CardTitle>
+                <CardDescription>廃棄額の大きさに基づいて商品をランク付けし、管理の優先度を明確にします。</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>ランク</TableHead>
+                            <TableHead>商品名</TableHead>
+                            <TableHead className="text-right">廃棄額</TableHead>
+                            <TableHead className="text-right">累積比率</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {abcAnalysisData.map(data => (
+                            <TableRow key={data.productId}>
+                                <TableCell>
+                                    <Badge variant={data.rank === 'A' ? 'destructive' : data.rank === 'B' ? 'secondary': 'outline'}>
+                                        {data.rank}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell>{data.productName}</TableCell>
+                                <TableCell className="text-right">¥{data.wasteCost.toLocaleString()}</TableCell>
+                                <TableCell className="text-right">{data.cumulativePercentage.toFixed(1)}%</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+      </div>
+       <div className="grid grid-cols-1 gap-4">
         <div className="grid grid-cols-1 gap-4 auto-rows-min lg:grid-cols-3">
             {salesByCategory.filter(cat => cat.sales.length > 0).map(({ category, sales }) => (
             <Card key={category}>
@@ -449,42 +569,6 @@ export default function DashboardPage() {
             ))}
         </div>
       </div>
-      <Card>
-        <CardHeader>
-            <CardTitle>廃棄分析</CardTitle>
-            <CardDescription>各商品の製造数、販売数、廃棄数の一覧です。</CardDescription>
-        </CardHeader>
-        <CardContent>
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>商品名</TableHead>
-                        <TableHead className="text-right">製造数</TableHead>
-                        <TableHead className="text-right">通常販売</TableHead>
-                        {discountRates.map(rate => (
-                            <TableHead key={rate} className="text-right">{rate}%割引</TableHead>
-                        ))}
-                        <TableHead className="text-right">廃棄数</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {wasteAnalysisData.map(data => (
-                        <TableRow key={data.productId}>
-                            <TableCell>{data.productName}</TableCell>
-                            <TableCell className="text-right">{data.productionQuantity}</TableCell>
-                            <TableCell className="text-right">{data.normalSales}</TableCell>
-                            {discountRates.map(rate => (
-                                <TableCell key={rate} className="text-right">
-                                    {(data.discountedSalesByRate as any)[rate] || 0}
-                                </TableCell>
-                            ))}
-                            <TableCell className="text-right font-medium">{data.wasteCount}</TableCell>
-                        </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
-        </CardContent>
-      </Card>
     </div>
   )
 }
