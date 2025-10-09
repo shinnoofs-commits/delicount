@@ -298,7 +298,7 @@ export default function DashboardPage() {
         <Card>
             <CardHeader>
                 <CardTitle>廃棄分析</CardTitle>
-                <CardDescription>各商品の製造、販売、廃棄状況と、それに伴う損失額の一覧です。</CardDescription>
+                <CardDescription>各商品の廃棄状況と、それに伴う損失額の一覧です。</CardDescription>
             </CardHeader>
             <CardContent>
                 <Table>
@@ -307,8 +307,6 @@ export default function DashboardPage() {
                             <TableHead>商品名</TableHead>
                             <TableHead className="text-right">売価</TableHead>
                             <TableHead className="text-right">原価</TableHead>
-                            <TableHead className="text-right">製造数</TableHead>
-                            <TableHead className="text-right">販売数</TableHead>
                             <TableHead className="text-right">廃棄数</TableHead>
                             <TableHead className="text-right">廃棄額</TableHead>
                             <TableHead className="text-right">機会損失</TableHead>
@@ -320,8 +318,6 @@ export default function DashboardPage() {
                                 <TableCell className="font-medium">{data.productName}</TableCell>
                                 <TableCell className="text-right">¥{data.price.toLocaleString()}</TableCell>
                                 <TableCell className="text-right">¥{data.costPrice.toLocaleString()}</TableCell>
-                                <TableCell className="text-right">{data.productionQuantity}</TableCell>
-                                <TableCell className="text-right">{data.normalSales + Object.values(data.discountedSalesByRate).reduce((s,q) => s + q, 0)}</TableCell>
                                 <TableCell className="text-right">{data.wasteCount}</TableCell>
                                 <TableCell className="text-right font-medium">¥{data.totalWasteCost.toLocaleString()}</TableCell>
                                 <TableCell className="text-right text-destructive">¥{data.opportunityLoss.toLocaleString()}</TableCell>
@@ -408,3 +404,5 @@ export default function DashboardPage() {
     </div>
   )
 }
+
+    
