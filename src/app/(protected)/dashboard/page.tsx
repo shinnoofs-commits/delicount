@@ -90,7 +90,7 @@ type WasteData = {
 
 
 export default function DashboardPage() {
-  const { transactions } = useTransactions();
+  const { transactions, wasteEntries } = useTransactions();
   const { products, getProductById } = useProducts();
 
   const categories = useMemo(() => [...new Set(products.map(p => p.category))] as Category[], [products]);
@@ -100,17 +100,23 @@ export default function DashboardPage() {
     to: new Date(),
   });
 
-  const filteredTransactions = useMemo(() => {
-    if (!date || !date.from) return [];
+  const { filteredTransactions, filteredWasteEntries } = useMemo(() => {
+    if (!date || !date.from) return { filteredTransactions: [], filteredWasteEntries: [] };
     
     const fromDate = startOfDay(date.from);
     const toDate = date.to ? endOfDay(date.to) : endOfDay(date.from);
 
-    return transactions.filter(t => {
-        const transactionDate = new Date(t.date);
-        return isValid(transactionDate) && transactionDate >= fromDate && transactionDate <= toDate;
-    });
-  }, [date, transactions]);
+    const filterByDate = (entry: { date: Date }) => {
+        const entryDate = new Date(entry.date);
+        return isValid(entryDate) && entryDate >= fromDate && entryDate <= toDate;
+    };
+
+    return {
+        filteredTransactions: transactions.filter(filterByDate),
+        filteredWasteEntries: wasteEntries.filter(filterByDate)
+    };
+  }, [date, transactions, wasteEntries]);
+
 
   const totalRevenue = useMemo(() => filteredTransactions.reduce((acc, t) => acc + t.finalAmount, 0), [filteredTransactions]);
   const totalDiscount = useMemo(() => filteredTransactions.reduce((acc, t) => {
@@ -149,8 +155,14 @@ export default function DashboardPage() {
         
         const totalDiscountedSales = Object.values(discountedSalesByRate).reduce((sum, q) => sum + q, 0);
         const totalSold = normalSales + totalDiscountedSales;
-        const wasteCount = Math.max(0, product.productionQuantity - totalSold);
         
+        const wastedQuantityFromEntries = filteredWasteEntries
+          .flatMap(we => we.items)
+          .filter(item => item.productId === product.id)
+          .reduce((sum, item) => sum + item.quantity, 0);
+        
+        const wasteCount = Math.max(0, product.productionQuantity - totalSold) + wastedQuantityFromEntries;
+
         return {
             productId: product.id,
             productName: product.name,
@@ -161,7 +173,7 @@ export default function DashboardPage() {
             costPrice: product.costPrice
         };
     });
-  }, [products, filteredTransactions]);
+  }, [products, filteredTransactions, filteredWasteEntries]);
 
   const totalCostOfGoodsSold = useMemo(() => {
     return filteredTransactions.reduce((totalCost, transaction) => {

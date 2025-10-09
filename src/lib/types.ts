@@ -57,3 +57,18 @@ export type Transaction = {
   paymentMethod: 'Cash' | 'Credit Card' | 'E-Money' | 'QR Code' | 'Points';
   staffId: string;
 };
+
+export type WasteItem = {
+  productId: string;
+  name: string;
+  quantity: number;
+  costPrice: number;
+};
+
+export type WasteEntry = {
+  id: string;
+  date: Date;
+  items: WasteItem[];
+  totalWasteCost: number;
+  staffId: string;
+};

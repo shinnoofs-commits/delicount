@@ -2,30 +2,31 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { Search, X, Plus, Minus, Percent, Ticket, Tag } from 'lucide-react';
-import type { Product, CartItem, Transaction } from '@/lib/types';
+import { Search, X, Plus, Minus, Trash2 } from 'lucide-react';
+import type { Product, WasteItem, WasteEntry } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CheckoutDialog } from './checkout-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useTransactions } from '@/contexts/transaction-context';
 import { useAuth } from '@/hooks/use-auth';
 import { useProducts } from '@/contexts/product-context';
 
+type WasteListItem = {
+  product: Product;
+  quantity: number;
+};
+
 export default function PosClient() {
   const { user } = useAuth();
-  const { addTransaction } = useTransactions();
+  const { addWasteEntry } = useTransactions();
   const { products: allProducts, getProductById } = useProducts();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('すべて');
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [discount, setDiscount] = useState({ type: 'percentage' as 'percentage' | 'amount', value: 0 });
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [wasteList, setWasteList] = useState<WasteListItem[]>([]);
   const { toast } = useToast();
 
   const categories = useMemo(() => ['すべて', ...Array.from(new Set(allProducts.map(p => p.category)))], [allProducts]);
@@ -39,84 +40,68 @@ export default function PosClient() {
     });
   }, [searchTerm, selectedCategory, allProducts]);
 
-  const addToCart = useCallback((product: Product) => {
-    setCart(prevCart => {
-      const existingItem = prevCart.find(item => item.product.id === product.id);
+  const addToWasteList = useCallback((product: Product) => {
+    setWasteList(prevList => {
+      const existingItem = prevList.find(item => item.product.id === product.id);
       if (existingItem) {
-        return prevCart.map(item =>
+        return prevList.map(item =>
           item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
         );
       }
-      return [...prevCart, { product, quantity: 1 }];
+      return [...prevList, { product, quantity: 1 }];
     });
     toast({
-      title: "カートに追加しました",
-      description: `${product.name} をカートに追加しました。`,
+      title: "廃棄リストに追加しました",
+      description: `${product.name} をリストに追加しました。`,
     })
   }, [toast]);
 
   const updateQuantity = (productId: string, quantity: number) => {
-    setCart(prevCart => {
+    setWasteList(prevList => {
       if (quantity <= 0) {
-        return prevCart.filter(item => item.product.id !== productId);
+        return prevList.filter(item => item.product.id !== productId);
       }
-      return prevCart.map(item =>
+      return prevList.map(item =>
         item.product.id === productId ? { ...item, quantity } : item
       );
     });
   };
 
-  const clearCart = () => {
-    setCart([]);
-    setDiscount({ type: 'percentage', value: 0 });
+  const clearWasteList = () => {
+    setWasteList([]);
   };
 
-  const subtotal = useMemo(() => {
-    return cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
-  }, [cart]);
+  const totalWasteCost = useMemo(() => {
+    return wasteList.reduce((acc, item) => acc + item.product.costPrice * item.quantity, 0);
+  }, [wasteList]);
 
-  const discountAmount = useMemo(() => {
-    if (discount.value === 0) return 0;
-    if (discount.type === 'percentage') {
-      return Math.round((subtotal * discount.value) / 100);
+  const handleRecordWaste = () => {
+    if (wasteList.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "リストが空です",
+        description: "廃棄する商品を追加してください。",
+      });
+      return;
     }
-    return Math.min(discount.value, subtotal);
-  }, [subtotal, discount]);
-  
-  const taxAmount = Math.round((subtotal - discountAmount) * 0.08); // 8% tax for takeout
-  const total = subtotal - discountAmount + taxAmount;
 
-  const handleConfirmCheckout = (paymentMethod: Transaction['paymentMethod']) => {
-    const newTransaction: Transaction = {
-      id: `txn-${Date.now()}`,
+    const newWasteEntry: WasteEntry = {
+      id: `waste-${Date.now()}`,
       date: new Date(),
-      items: cart.map(item => ({
+      items: wasteList.map(item => ({
         productId: item.product.id,
         name: item.product.name,
         quantity: item.quantity,
-        unitPrice: item.product.price,
-        wasDiscounted: discount.value > 0,
+        costPrice: item.product.costPrice,
       })),
-      totalAmount: subtotal,
-      discount: discount.value > 0 ? discount : null,
-      finalAmount: total,
-      paymentMethod,
+      totalWasteCost,
       staffId: user?.id || 'unknown',
     };
 
-    addTransaction(newTransaction);
-    setIsCheckoutOpen(false);
-    toast({ title: '会計完了！', description: `取引額 ¥${total.toLocaleString()} が記録されました` });
-    clearCart();
+    addWasteEntry(newWasteEntry);
+    toast({ title: '廃棄を記録しました', description: `合計廃棄額 ¥${totalWasteCost.toLocaleString()} が記録されました` });
+    clearWasteList();
   };
-  
-  const getCartItemProduct = (item: CartItem) => {
-    return getProductById(item.product.id) || item.product;
-  }
-  
-  const applyPresetDiscount = (percentage: number) => {
-    setDiscount({ type: 'percentage', value: percentage });
-  }
 
   return (
     <div className="grid flex-1 grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 items-start">
@@ -147,13 +132,13 @@ export default function PosClient() {
         {filteredProducts.map(product => (
             <Card 
                 key={product.id} 
-                onClick={() => addToCart(product)} 
-                className="cursor-pointer hover:shadow-lg hover:border-primary transition-all flex flex-col"
+                onClick={() => addToWasteList(product)} 
+                className="cursor-pointer hover:shadow-lg hover:border-destructive transition-all flex flex-col"
             >
             <CardContent className="p-4 flex-1 flex flex-col justify-center">
                 <div className="text-center">
                     <p className="font-semibold text-sm truncate">{product.name}</p>
-                    <p className="text-xs text-muted-foreground">¥{product.price.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">原価: ¥{product.costPrice.toLocaleString()}</p>
                 </div>
             </CardContent>
             </Card>
@@ -161,35 +146,33 @@ export default function PosClient() {
         </div>
       </div>
 
-      {/* Cart Section */}
+      {/* Waste List Section */}
       <div className="md:col-span-1 lg:col-span-1 sticky top-6">
         <Card className="flex flex-col h-full max-h-[calc(100vh-theme(spacing.24))]">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              会計
-              <Button variant="ghost" size="icon" onClick={clearCart} disabled={cart.length === 0}>
+              廃棄商品リスト
+              <Button variant="ghost" size="icon" onClick={clearWasteList} disabled={wasteList.length === 0}>
                   <X className="h-4 w-4" />
-                  <span className="sr-only">会計をクリア</span>
+                  <span className="sr-only">リストをクリア</span>
               </Button>
             </CardTitle>
           </CardHeader>
-          <ScrollArea className="flex-1" style={{height: "35rem"}}>
+          <ScrollArea className="flex-1" style={{height: "40rem"}}>
             <CardContent>
-              {cart.length === 0 ? (
+              {wasteList.length === 0 ? (
                 <div className="text-center text-muted-foreground py-10">
-                  <p>カートは空です。</p>
-                  <p className="text-sm">商品を追加してください。</p>
+                  <p>廃棄リストは空です。</p>
+                  <p className="text-sm">商品をクリックして追加してください。</p>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {cart.map(item => {
-                    const product = getCartItemProduct(item);
-                    return (
+                  {wasteList.map(item => (
                     <div key={item.product.id} className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="font-medium text-sm flex-1 truncate pr-2">{product.name}</span>
+                        <span className="font-medium text-sm flex-1 truncate pr-2">{item.product.name}</span>
                         <span className="w-12 text-center">x{item.quantity}</span>
-                        <span className="font-medium text-sm w-20 text-right">¥{(product.price * item.quantity).toLocaleString()}</span>
+                        <span className="font-medium text-sm w-20 text-right">¥{(item.product.costPrice * item.quantity).toLocaleString()}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.product.id, item.quantity - 1)}>
@@ -198,76 +181,28 @@ export default function PosClient() {
                         <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.product.id, item.quantity + 1)}>
                           <Plus className="h-4 w-4" />
                         </Button>
-                        <p className="text-xs text-muted-foreground ml-auto">単価: ¥{product.price.toLocaleString()}</p>
+                        <p className="text-xs text-muted-foreground ml-auto">原価: ¥{item.product.costPrice.toLocaleString()}</p>
                       </div>
                     </div>
-                    )
-                  })}
+                  ))}
                 </div>
               )}
             </CardContent>
           </ScrollArea>
           <CardFooter className="flex flex-col gap-4 mt-auto !p-6 bg-muted/50">
             <div className="w-full space-y-2 text-sm">
-               <div className="flex justify-between">
-                  <span>小計</span>
-                  <span>¥{subtotal.toLocaleString()}</span>
-              </div>
-               <div className="flex justify-between items-center">
-                  <span className="whitespace-nowrap flex items-center">
-                      <Button variant={discount.type === 'percentage' ? 'secondary' : 'ghost'} size="sm" className="h-7" onClick={() => setDiscount(prev => ({ ...prev, type: 'percentage' }))}>
-                          <Percent className="h-4 w-4 mr-1"/>割引
-                      </Button>
-                      <span className="mx-1">/</span>
-                      <Button variant={discount.type === 'amount' ? 'secondary' : 'ghost'} size="sm" className="h-7" onClick={() => setDiscount(prev => ({ ...prev, type: 'amount' }))}>
-                          <Ticket className="h-4 w-4 mr-1"/>値引
-                      </Button>
-                  </span>
-                  <div className="flex items-center gap-2 w-32">
-                    <Input type="number" 
-                      className="h-8 text-right" 
-                      value={discount.value} 
-                      onChange={e => setDiscount({ ...discount, value: parseFloat(e.target.value) || 0 })}
-                      aria-label="Discount value"
-                    />
-                    <span className="text-muted-foreground">{discount.type === 'percentage' ? '%' : '円'}</span>
-                  </div>
-              </div>
-              <div className="grid grid-cols-4 gap-2">
-                {[10, 20, 30, 40].map(p => (
-                  <Button key={p} variant="outline" size="sm" onClick={() => applyPresetDiscount(p)}>
-                    {p}%
-                  </Button>
-                ))}
-              </div>
-               <div className="flex justify-between text-muted-foreground">
-                  <span></span>
-                  <span>-¥{discountAmount.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                  <span>税 (8%)</span>
-                  <span>¥{taxAmount.toLocaleString()}</span>
-              </div>
               <Separator />
               <div className="flex justify-between font-bold text-lg">
-                  <span>合計</span>
-                  <span>¥{total.toLocaleString()}</span>
+                  <span>廃棄合計額</span>
+                  <span>¥{totalWasteCost.toLocaleString()}</span>
               </div>
             </div>
-            <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" size="lg" disabled={cart.length === 0} onClick={() => setIsCheckoutOpen(true)}>
-               <Tag className="mr-2 h-5 w-5"/> 会計に進む
+            <Button className="w-full bg-destructive hover:bg-destructive/90 text-destructive-foreground" size="lg" disabled={wasteList.length === 0} onClick={handleRecordWaste}>
+               <Trash2 className="mr-2 h-5 w-5"/> 廃棄を記録
             </Button>
           </CardFooter>
         </Card>
       </div>
-      {isCheckoutOpen && (
-        <CheckoutDialog 
-            isOpen={isCheckoutOpen} 
-            onClose={() => setIsCheckoutOpen(false)}
-            onConfirm={handleConfirmCheckout}
-            total={total}
-        />
-      )}
     </div>
   );
 }
