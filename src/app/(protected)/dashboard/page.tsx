@@ -249,27 +249,6 @@ export default function DashboardPage() {
       };
   }), [filteredTransactions, products, categories, transactions]);
 
-
-  const salesByDiscount = useMemo(() => {
-    const discountCategories = [10, 20, 30, 40];
-    const result: { name: string; '売上': number }[] = discountCategories.map(rate => ({
-      name: `${rate}%`,
-      '売上': 0,
-    }));
-
-    filteredTransactions.forEach(t => {
-      if (t.discount?.type === 'percentage') {
-        const rate = t.discount.value;
-        const categoryIndex = discountCategories.indexOf(rate);
-        if (categoryIndex !== -1) {
-          result[categoryIndex]['売上'] += t.finalAmount;
-        }
-      }
-    });
-    return result;
-  }, [filteredTransactions]);
-
-
   const setDatePreset = (preset: 'today' | 'this_month' | 'last_7_days') => {
     const today = new Date();
     if (preset === 'today') {
@@ -313,44 +292,6 @@ export default function DashboardPage() {
                 <div className="text-2xl font-bold">¥{totalOpportunityLoss.toLocaleString()}</div>
                 <p className="text-xs text-muted-foreground">廃棄された商品の売価合計です。</p>
             </CardContent>
-        </Card>
-      </div>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-7">
-        <Card className="lg:col-span-7">
-          <CardHeader>
-            <CardTitle>割引率別売上</CardTitle>
-            <CardDescription>選択期間中の割引率ごとの売上貢献です。</CardDescription>
-          </CardHeader>
-          <CardContent>
-             <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={salesByDiscount}>
-                    <XAxis
-                        dataKey="name"
-                        stroke="hsl(var(--muted-foreground))"
-                        fontSize={12}
-                        tickLine={false}
-                        axisLine={false}
-                    />
-                    <YAxis
-                        stroke="hsl(var(--muted-foreground))"
-                        fontSize={12}
-                        tickLine={false}
-                        axisLine={false}
-                        tickFormatter={(value) => `¥${value.toLocaleString()}`}
-                    />
-                    <Tooltip
-                        cursor={{fill: 'hsl(var(--muted))'}}
-                        contentStyle={{
-                            backgroundColor: 'hsl(var(--background))',
-                            borderColor: 'hsl(var(--border))',
-                            borderRadius: 'var(--radius)'
-                        }}
-                         formatter={(value: number) => `¥${Math.round(value).toLocaleString()}`}
-                    />
-                    <Bar dataKey="売上" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
-                </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
         </Card>
       </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -467,5 +408,3 @@ export default function DashboardPage() {
     </div>
   )
 }
-
-    
