@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { Search, X, Plus, Minus, Trash2 } from 'lucide-react';
+import { X, Plus, Minus, Trash2 } from 'lucide-react';
 import type { Product, WasteItem, WasteEntry } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -24,7 +24,6 @@ export default function PosClient() {
   const { user } = useAuth();
   const { addWasteEntry } = useTransactions();
   const { products: allProducts, getProductById } = useProducts();
-  const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('すべて');
   const [wasteList, setWasteList] = useState<WasteListItem[]>([]);
   const { toast } = useToast();
@@ -34,11 +33,9 @@ export default function PosClient() {
   const filteredProducts = useMemo(() => {
     return allProducts.filter(product => {
       const matchesCategory = selectedCategory === 'すべて' || product.category === selectedCategory;
-      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            product.productCode.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesCategory && matchesSearch;
+      return matchesCategory;
     });
-  }, [searchTerm, selectedCategory, allProducts]);
+  }, [selectedCategory, allProducts]);
 
   const addToWasteList = useCallback((product: Product) => {
     setWasteList(prevList => {
@@ -107,19 +104,6 @@ export default function PosClient() {
     <div className="grid flex-1 grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 items-start">
       {/* Product Selection */}
       <div className="md:col-span-2 lg:col-span-3 flex flex-col gap-4">
-        <Card>
-            <CardHeader>
-                <div className="flex items-center gap-4">
-                    <Search className="h-5 w-5 text-muted-foreground" />
-                    <Input
-                        placeholder="商品名または商品コードで検索..."
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                        className="w-full"
-                    />
-                </div>
-            </CardHeader>
-        </Card>
         <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
             <TabsList>
                 {categories.map(category => (
