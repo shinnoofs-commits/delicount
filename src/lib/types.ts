@@ -71,4 +71,3 @@ export type WasteEntry = {
   totalWasteCost: number;
   staffId: string;
 };
-
