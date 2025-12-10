@@ -29,7 +29,6 @@ import { Button } from '@/components/ui/button';
 
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { UserNav } from '@/components/user-nav';
 import { Icons } from '@/components/icons';
 import { Loader2 } from 'lucide-react';
@@ -48,34 +47,28 @@ function MainNav({ userRole }: { userRole: 'admin' | 'employee' }) {
 
   return (
     <>
-      <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 flex-col border-r bg-background sm:flex">
-        <nav className="flex flex-col items-center gap-4 px-2 sm:py-5">
-          <TooltipProvider>
-            <Link
-              href="/pos"
-              className="group flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:h-8 md:w-8 md:text-base"
-            >
-              <Icons.logo className="h-5 w-5 transition-all group-hover:scale-110" />
-              <span className="sr-only">廃棄分析ツール</span>
-            </Link>
+      <aside className="fixed inset-y-0 left-0 z-10 hidden w-60 flex-col border-r bg-background sm:flex">
+        <nav className="flex flex-col gap-2 px-4 sm:py-5">
+          <Link
+            href="/pos"
+            className="group flex h-10 shrink-0 items-center justify-start gap-2 rounded-lg bg-primary px-3 text-lg font-semibold text-primary-foreground md:text-base"
+          >
+            <Icons.logo className="h-5 w-5 transition-all group-hover:scale-110" />
+            <span>廃棄分析ツール</span>
+          </Link>
             {filteredNavItems.map((item) => (
-              <Tooltip key={item.href}>
-                <TooltipTrigger asChild>
-                  <Link
+                <Link
+                    key={item.href}
                     href={item.href}
                     className={cn(
-                      'flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8',
-                      pathname.startsWith(item.href) && 'bg-accent text-accent-foreground'
+                        'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
+                        pathname.startsWith(item.href) && 'bg-accent text-primary'
                     )}
-                  >
-                    <item.icon className="h-5 w-5" />
-                    <span className="sr-only">{item.label}</span>
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent side="right">{item.label}</TooltipContent>
-              </Tooltip>
+                >
+                    <item.icon className="h-4 w-4" />
+                    {item.label}
+                </Link>
             ))}
-          </TooltipProvider>
         </nav>
       </aside>
       <Sheet>
@@ -161,7 +154,7 @@ function ProtectedLayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-14">
+      <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-60">
         <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
           <MainNav userRole={user.role} />
           <Breadcrumb className="hidden md:flex">
