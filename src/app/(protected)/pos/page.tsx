@@ -1,7 +1,7 @@
 import PosClient from './client';
 
 export const metadata = {
-  title: 'POS - SwiftPOS',
+  title: 'POS - 廃棄分析ツール',
 };
 
 export default function POSPage() {

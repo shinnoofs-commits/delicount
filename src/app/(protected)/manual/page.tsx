@@ -68,7 +68,7 @@ export default function ManualPage() {
   return (
     <div className="flex flex-col gap-4 items-center justify-center">
         <div className="text-center">
-            <h1 className="text-3xl font-bold">SwiftPOS 操作説明</h1>
+            <h1 className="text-3xl font-bold">廃棄分析ツール 操作説明</h1>
             <p className="text-muted-foreground">左右の矢印をクリックしてスライドを切り替えてください。</p>
         </div>
       <Carousel className="w-full max-w-4xl">

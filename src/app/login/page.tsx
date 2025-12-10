@@ -35,7 +35,7 @@ export default function LoginPage() {
           <div className="mx-auto mb-4">
             <Icons.logo className="h-12 w-12 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-headline">SwiftPOSへようこそ</CardTitle>
+          <CardTitle className="text-2xl font-headline">廃棄分析ツールへようこそ</CardTitle>
           <CardDescription>サインインするユーザーを選択してください</CardDescription>
         </CardHeader>
         <CardContent>

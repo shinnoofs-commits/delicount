@@ -7,8 +7,8 @@ import { TransactionProvider } from '@/contexts/transaction-context';
 import { ProductProvider } from '@/contexts/product-context';
 
 export const metadata: Metadata = {
-  title: 'SwiftPOS',
-  description: '小売店向けの最新のPOSシステム。',
+  title: '廃棄分析ツール',
+  description: '廃棄分析に特化したツールです。',
 };
 
 export default function RootLayout({

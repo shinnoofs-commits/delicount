@@ -56,7 +56,7 @@ function MainNav({ userRole }: { userRole: 'admin' | 'employee' }) {
               className="group flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:h-8 md:w-8 md:text-base"
             >
               <Icons.logo className="h-5 w-5 transition-all group-hover:scale-110" />
-              <span className="sr-only">SwiftPOS</span>
+              <span className="sr-only">廃棄分析ツール</span>
             </Link>
             {filteredNavItems.map((item) => (
               <Tooltip key={item.href}>
@@ -92,7 +92,7 @@ function MainNav({ userRole }: { userRole: 'admin' | 'employee' }) {
               className="group flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:text-base"
             >
               <Icons.logo className="h-5 w-5 transition-all group-hover:scale-110" />
-              <span className="sr-only">SwiftPOS</span>
+              <span className="sr-only">廃棄分析ツール</span>
             </Link>
             {filteredNavItems.map((item) => (
                  <Link
@@ -137,7 +137,7 @@ function ProtectedLayoutContent({ children }: { children: React.ReactNode }) {
         isPage: index === pathParts.length - 1,
       };
     });
-    return [{ href: '/', label: 'SwiftPOS' }, ...items];
+    return [{ href: '/', label: '廃棄分析ツール' }, ...items];
   }, [pathname]);
 
   if (loading || !user) {
