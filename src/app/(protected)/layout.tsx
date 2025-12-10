@@ -14,6 +14,7 @@ import {
   LineChart,
   PanelLeft,
   PieChart,
+  BookText,
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -38,6 +39,7 @@ const navItems = [
   { href: '/dashboard', icon: LineChart, label: 'ダッシュボード', adminOnly: true },
   { href: '/abc-analysis', icon: PieChart, label: 'ABC分析', adminOnly: true },
   { href: '/products', icon: Package, label: '商品', adminOnly: true },
+  { href: '/manual', icon: BookText, label: '操作説明', adminOnly: false },
 ];
 
 function MainNav({ userRole }: { userRole: 'admin' | 'employee' }) {
