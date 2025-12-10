@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 
 const manualSlides = [
     {
-        title: "POS（廃棄登録）",
+        title: "廃棄入力",
         description: "この画面では、日々の廃棄商品を登録します。正確な廃棄数を記録することが、食品ロス削減の第一歩です。",
         points: [
             "カテゴリを選択するか、「すべて」のまま商品を表示します。",
@@ -52,7 +52,7 @@ const manualSlides = [
     },
     {
         title: "商品管理（管理者のみ）",
-        description: "POSシステムで扱うすべての商品の情報を一元管理します。",
+        description: "システムで扱うすべての商品の情報を一元管理します。",
         points: [
             "「商品を追加」ボタンから、新しい商品を一つずつ登録できます。",
             "「CSVで商品をインポート」ボタンから、CSVファイルを使って一度に多くの商品を登録・更新できます。",

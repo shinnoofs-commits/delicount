@@ -34,7 +34,7 @@ import { Icons } from '@/components/icons';
 import { Loader2 } from 'lucide-react';
 
 const navItems = [
-  { href: '/pos', icon: ShoppingCart, label: 'POS', adminOnly: false },
+  { href: '/pos', icon: ShoppingCart, label: '廃棄入力', adminOnly: false },
   { href: '/dashboard', icon: LineChart, label: 'ダッシュボード', adminOnly: true },
   { href: '/abc-analysis', icon: PieChart, label: 'ABC分析', adminOnly: true },
   { href: '/products', icon: Package, label: '商品', adminOnly: true },
