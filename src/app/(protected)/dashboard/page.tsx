@@ -17,7 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useTransactions } from "@/contexts/transaction-context";
-import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid } from "date-fns"
+import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid, getDay } from "date-fns"
 import { ja } from "date-fns/locale"
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from "recharts"
 import { Calendar as CalendarIcon, Trash2, TrendingDown } from 'lucide-react';
@@ -33,6 +33,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"];
 
@@ -52,11 +54,11 @@ const DateRangePicker = ({ date, setDate }: { date: DateRange | undefined, setDa
           {date?.from ? (
             date.to ? (
               <>
-                {format(date.from, "LLL dd, y")} -{" "}
-                {format(date.to, "LLL dd, y")}
+                {format(date.from, "yyyy/MM/dd")} -{" "}
+                {format(date.to, "yyyy/MM/dd")}
               </>
             ) : (
-              format(date.from, "LLL dd, y")
+              format(date.from, "yyyy/MM/dd")
             )
           ) : (
             <span>日付を選択</span>
@@ -78,6 +80,16 @@ const DateRangePicker = ({ date, setDate }: { date: DateRange | undefined, setDa
   );
 }
 
+const weekdays = [
+  { id: 0, label: '日' },
+  { id: 1, label: '月' },
+  { id: 2, label: '火' },
+  { id: 3, label: '水' },
+  { id: 4, label: '木' },
+  { id: 5, label: '金' },
+  { id: 6, label: '土' },
+];
+
 type WasteData = {
     productId: string;
     productName: string;
@@ -91,6 +103,7 @@ type WasteData = {
 export default function DashboardPage() {
   const { transactions, wasteEntries } = useTransactions();
   const { products } = useProducts();
+  const [selectedDays, setSelectedDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
 
   const categories = useMemo(() => [...new Set(products.map(p => p.category))] as Category[], [products]);
 
@@ -99,22 +112,32 @@ export default function DashboardPage() {
     to: new Date(),
   });
 
+  const handleDayToggle = (dayId: number) => {
+    setSelectedDays(prev => 
+      prev.includes(dayId) ? prev.filter(d => d !== dayId) : [...prev, dayId]
+    );
+  };
+  
   const { filteredTransactions, filteredWasteEntries } = useMemo(() => {
     if (!date || !date.from) return { filteredTransactions: [], filteredWasteEntries: [] };
     
     const fromDate = startOfDay(date.from);
     const toDate = date.to ? endOfDay(date.to) : endOfDay(date.from);
 
-    const filterByDate = (entry: { date: Date }) => {
+    const filterByDateAndDay = (entry: { date: Date }) => {
         const entryDate = new Date(entry.date);
-        return isValid(entryDate) && entryDate >= fromDate && entryDate <= toDate;
+        if (!isValid(entryDate) || entryDate < fromDate || entryDate > toDate) {
+          return false;
+        }
+        const dayOfWeek = getDay(entryDate);
+        return selectedDays.includes(dayOfWeek);
     };
 
     return {
-        filteredTransactions: transactions.filter(filterByDate),
-        filteredWasteEntries: wasteEntries.filter(filterByDate)
+        filteredTransactions: transactions.filter(filterByDateAndDay),
+        filteredWasteEntries: wasteEntries.filter(filterByDateAndDay)
     };
-  }, [date, transactions, wasteEntries]);
+  }, [date, transactions, wasteEntries, selectedDays]);
 
   const wasteAnalysisData: WasteData[] = useMemo(() => {
     const wasteDataMap = new Map<string, WasteData>();
@@ -198,14 +221,37 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-4">
-       <div className="flex flex-wrap items-center gap-4">
-        <DateRangePicker date={date} setDate={setDate} />
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setDatePreset('today')}>今日</Button>
-          <Button variant="outline" size="sm" onClick={() => setDatePreset('last_7_days')}>過去7日間</Button>
-          <Button variant="outline" size="sm" onClick={() => setDatePreset('this_month')}>今月</Button>
+       <div className="flex flex-col gap-4 p-4 border rounded-lg">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+            <div>
+              <Label className="text-sm font-medium mb-2 block">期間を選択</Label>
+              <div className="flex flex-wrap items-center gap-2">
+                <DateRangePicker date={date} setDate={setDate} />
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setDatePreset('today')}>今日</Button>
+                  <Button variant="outline" size="sm" onClick={() => setDatePreset('last_7_days')}>過去7日間</Button>
+                  <Button variant="outline" size="sm" onClick={() => setDatePreset('this_month')}>今月</Button>
+                </div>
+              </div>
+            </div>
+            <div>
+                <Label className="text-sm font-medium mb-2 block">曜日を選択</Label>
+                <div className="flex flex-wrap items-center gap-4">
+                  {weekdays.map(day => (
+                    <div key={day.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`day-${day.id}`}
+                        checked={selectedDays.includes(day.id)}
+                        onCheckedChange={() => handleDayToggle(day.id)}
+                      />
+                      <Label htmlFor={`day-${day.id}`} className="text-sm font-normal cursor-pointer">{day.label}</Label>
+                    </div>
+                  ))}
+                </div>
+            </div>
         </div>
       </div>
+
       <div className="grid gap-4 md:grid-cols-2">
          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -306,3 +352,5 @@ export default function DashboardPage() {
     </div>
   )
 }
+
+    
