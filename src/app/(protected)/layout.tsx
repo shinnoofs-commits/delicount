@@ -45,13 +45,13 @@ function MainNav({ userRole, onLinkClick }: { userRole: 'admin' | 'employee', on
   const filteredNavItems = navItems.filter(item => !item.adminOnly || userRole === 'admin');
 
   return (
-    <nav className="flex flex-col gap-2 px-4 sm:py-5">
+    <nav className="grid items-start px-4 text-sm font-medium">
       <Link
         href="/pos"
-        className="group flex h-10 shrink-0 items-center justify-start gap-2 rounded-lg bg-primary px-3 text-lg font-semibold text-primary-foreground md:text-base"
+        className="flex items-center gap-3 rounded-lg bg-primary px-3 py-2 text-primary-foreground transition-all hover:bg-primary/90"
         onClick={onLinkClick}
       >
-        <Icons.logo className="h-5 w-5 transition-all group-hover:scale-110" />
+        <Icons.logo className="h-6 w-6" />
         <span>廃棄分析ツール</span>
       </Link>
         {filteredNavItems.map((item) => (
@@ -123,26 +123,44 @@ function ProtectedLayoutContent({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      <aside className="fixed inset-y-0 left-0 z-10 hidden w-60 flex-col border-r bg-background md:flex">
-        <MainNav userRole={user.role} onLinkClick={() => {}} />
-      </aside>
+    <div className="grid min-h-screen w-full lg:grid-cols-[280px_1fr]">
+      <div className="hidden border-r bg-background lg:block">
+        <div className="flex h-full max-h-screen flex-col gap-2">
+          <div className="flex h-14 items-center border-b px-6">
+            <Link href="/pos" className="flex items-center gap-2 font-semibold">
+              <Icons.logo className="h-6 w-6" />
+              <span className="">廃棄分析ツール</span>
+            </Link>
+          </div>
+          <div className="flex-1 overflow-auto py-2">
+            <MainNav userRole={user.role} onLinkClick={() => {}} />
+          </div>
+        </div>
+      </div>
 
-      <div className="flex flex-col md:pl-60">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:px-6">
+      <div className="flex flex-col">
+        <header className="flex h-14 items-center gap-4 border-b bg-background px-6">
            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
             <SheetTrigger asChild>
-              <Button size="icon" variant="outline" className="md:hidden">
+              <Button size="icon" variant="outline" className="lg:hidden">
                 <PanelLeft className="h-5 w-5" />
                 <span className="sr-only">メニューを開閉</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="sm:max-w-xs p-0">
-               <MainNav userRole={user.role} onLinkClick={handleLinkClick} />
+            <SheetContent side="left" className="w-[280px] p-0">
+               <div className="flex h-14 items-center border-b px-6">
+                <Link href="/pos" className="flex items-center gap-2 font-semibold">
+                  <Icons.logo className="h-6 w-6" />
+                  <span className="">廃棄分析ツール</span>
+                </Link>
+              </div>
+              <div className="flex-1 overflow-auto py-2">
+                <MainNav userRole={user.role} onLinkClick={handleLinkClick} />
+              </div>
             </SheetContent>
           </Sheet>
 
-          <Breadcrumb className="hidden md:flex">
+          <Breadcrumb className="hidden lg:flex">
             <BreadcrumbList>
               {breadcrumbItems.map((item, index) => (
                 <React.Fragment key={item.href}>
@@ -165,7 +183,7 @@ function ProtectedLayoutContent({ children }: { children: React.ReactNode }) {
           </div>
           <UserNav />
         </header>
-        <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
+        <main className="flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6">
           {children}
         </main>
       </div>
