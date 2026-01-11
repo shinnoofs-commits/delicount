@@ -105,7 +105,7 @@ export default function PosClient() {
   };
 
   return (
-    <div className="grid flex-1 grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+    <div className="grid flex-1 grid-cols-1 gap-4 items-start lg:grid-cols-3">
       {/* Product Selection */}
       <div className="lg:col-span-2 flex flex-col gap-4">
         <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
@@ -123,11 +123,11 @@ export default function PosClient() {
             <Card 
                 key={product.id} 
                 onClick={() => addToWasteList(product)} 
-                className="cursor-pointer hover:shadow-lg hover:border-destructive transition-all flex flex-col"
+                className="cursor-pointer hover:shadow-lg hover:border-destructive transition-all flex flex-col min-h-24"
             >
             <CardContent className="p-4 flex-1 flex flex-col justify-center">
                 <div className="text-center">
-                    <p className="font-semibold text-sm truncate">{product.name}</p>
+                    <p className="font-semibold text-sm break-words">{product.name}</p>
                     <p className="text-xs text-muted-foreground">原価: ¥{product.costPrice.toLocaleString()}</p>
                 </div>
             </CardContent>
