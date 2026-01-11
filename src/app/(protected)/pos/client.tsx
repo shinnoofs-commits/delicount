@@ -109,11 +109,13 @@ export default function PosClient() {
       {/* Product Selection */}
       <div className="md:col-span-1 lg:col-span-2 flex flex-col gap-4">
         <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
+          <ScrollArea className="w-full whitespace-nowrap">
             <TabsList>
                 {categories.map(category => (
                     <TabsTrigger key={category} value={category}>{category}</TabsTrigger>
                 ))}
             </TabsList>
+          </ScrollArea>
         </Tabs>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
