@@ -3,7 +3,7 @@
 
 import { useAuth } from '@/hooks/use-auth';
 import { useRouter, usePathname } from 'next/navigation';
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { TransactionProvider } from '@/contexts/transaction-context';
 
@@ -41,69 +41,35 @@ const navItems = [
   { href: '/manual', icon: BookText, label: '操作説明', adminOnly: false },
 ];
 
-function MainNav({ userRole }: { userRole: 'admin' | 'employee' }) {
+function MainNav({ userRole, onLinkClick }: { userRole: 'admin' | 'employee', onLinkClick: () => void }) {
   const pathname = usePathname();
   const filteredNavItems = navItems.filter(item => !item.adminOnly || userRole === 'admin');
 
   return (
-    <>
-      <aside className="fixed inset-y-0 left-0 z-10 hidden w-60 flex-col border-r bg-background md:flex">
-        <nav className="flex flex-col gap-2 px-4 sm:py-5">
-          <Link
-            href="/pos"
-            className="group flex h-10 shrink-0 items-center justify-start gap-2 rounded-lg bg-primary px-3 text-lg font-semibold text-primary-foreground md:text-base"
-          >
-            <Icons.logo className="h-5 w-5 transition-all group-hover:scale-110" />
-            <span>廃棄分析ツール</span>
-          </Link>
-            {filteredNavItems.map((item) => (
-                <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                        'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
-                        pathname.startsWith(item.href) && 'bg-accent text-primary'
-                    )}
-                >
-                    <item.icon className="h-4 w-4" />
-                    {item.label}
-                </Link>
-            ))}
-        </nav>
-      </aside>
-      <Sheet>
-        <SheetTrigger asChild>
-          <Button size="icon" variant="outline" className="md:hidden">
-            <PanelLeft className="h-5 w-5" />
-            <span className="sr-only">メニューを開閉</span>
-          </Button>
-        </SheetTrigger>
-        <SheetContent side="left" className="sm:max-w-xs">
-          <nav className="grid gap-6 text-lg font-medium">
+    <nav className="flex flex-col gap-2 px-4 sm:py-5">
+      <Link
+        href="/pos"
+        className="group flex h-10 shrink-0 items-center justify-start gap-2 rounded-lg bg-primary px-3 text-lg font-semibold text-primary-foreground md:text-base"
+        onClick={onLinkClick}
+      >
+        <Icons.logo className="h-5 w-5 transition-all group-hover:scale-110" />
+        <span>廃棄分析ツール</span>
+      </Link>
+        {filteredNavItems.map((item) => (
             <Link
-              href="/pos"
-              className="group flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:text-base"
+                key={item.href}
+                href={item.href}
+                onClick={onLinkClick}
+                className={cn(
+                    'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
+                    pathname.startsWith(item.href) && 'bg-accent text-primary'
+                )}
             >
-              <Icons.logo className="h-5 w-5 transition-all group-hover:scale-110" />
-              <span className="sr-only">廃棄分析ツール</span>
+                <item.icon className="h-4 w-4" />
+                {item.label}
             </Link>
-            {filteredNavItems.map((item) => (
-                 <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                        "flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground",
-                        pathname.startsWith(item.href) && 'text-foreground'
-                    )}
-                  >
-                    <item.icon className="h-5 w-5" />
-                    {item.label}
-                  </Link>
-            ))}
-          </nav>
-        </SheetContent>
-      </Sheet>
-    </>
+        ))}
+    </nav>
   );
 }
 
@@ -111,6 +77,7 @@ function ProtectedLayoutContent({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -151,12 +118,31 @@ function ProtectedLayoutContent({ children }: { children: React.ReactNode }) {
         </div>
      );
   }
+  
+  const handleLinkClick = () => {
+    setIsSheetOpen(false);
+  }
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      <div className="flex flex-col sm:gap-4 sm:py-4 md:pl-60">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
-          <MainNav userRole={user.role} />
+      <aside className="fixed inset-y-0 left-0 z-10 hidden w-60 flex-col border-r bg-background md:flex">
+        <MainNav userRole={user.role} onLinkClick={() => {}} />
+      </aside>
+
+      <div className="flex flex-col md:pl-60">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:px-6">
+           <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+            <SheetTrigger asChild>
+              <Button size="icon" variant="outline" className="md:hidden">
+                <PanelLeft className="h-5 w-5" />
+                <span className="sr-only">メニューを開閉</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="sm:max-w-xs p-0">
+               <MainNav userRole={user.role} onLinkClick={handleLinkClick} />
+            </SheetContent>
+          </Sheet>
+
           <Breadcrumb className="hidden md:flex">
             <BreadcrumbList>
               {breadcrumbItems.map((item, index) => (
