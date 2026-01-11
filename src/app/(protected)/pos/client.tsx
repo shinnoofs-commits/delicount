@@ -105,9 +105,9 @@ export default function PosClient() {
   };
 
   return (
-    <div className="grid flex-1 grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 items-start">
+    <div className="grid flex-1 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
       {/* Product Selection */}
-      <div className="md:col-span-2 lg:col-span-3 flex flex-col gap-4">
+      <div className="md:col-span-1 lg:col-span-2 flex flex-col gap-4">
         <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
             <TabsList>
                 {categories.map(category => (
@@ -116,7 +116,7 @@ export default function PosClient() {
             </TabsList>
         </Tabs>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
         {filteredProducts.map(product => (
             <Card 
                 key={product.id} 
@@ -146,7 +146,8 @@ export default function PosClient() {
               </Button>
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1 p-0">
+            <div className="space-y-4 p-6">
               {wasteList.length === 0 ? (
                 <div className="text-center text-muted-foreground py-10">
                   <p>廃棄リストは空です。</p>
@@ -158,14 +159,17 @@ export default function PosClient() {
                     <div key={item.product.id} className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="font-medium text-sm flex-1 truncate pr-2">{item.product.name}</span>
-                        <span className="w-12 text-center">x{item.quantity}</span>
-                        <span className="font-medium text-sm w-20 text-right">¥{(item.product.costPrice * item.quantity).toLocaleString()}</span>
+                        <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm w-20 text-right">¥{(item.product.price * item.quantity).toLocaleString()}</span>
+                            <span className="font-medium text-sm w-20 text-right">¥{(item.product.costPrice * item.quantity).toLocaleString()}</span>
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.product.id, item.quantity - 1)}>
+                         <span className="w-12 text-center text-lg">x{item.quantity}</span>
+                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateQuantity(item.product.id, item.quantity - 1)}>
                           <Minus className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.product.id, item.quantity + 1)}>
+                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateQuantity(item.product.id, item.quantity + 1)}>
                           <Plus className="h-4 w-4" />
                         </Button>
                          <div className="flex-1 text-right text-xs text-muted-foreground">
@@ -176,6 +180,7 @@ export default function PosClient() {
                   ))}
                 </div>
               )}
+            </div>
             </CardContent>
           <CardFooter className="flex flex-col gap-4 mt-auto !p-6 bg-muted/50">
             <div className="w-full space-y-2 text-sm">

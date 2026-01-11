@@ -198,7 +198,7 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-4">
-       <div className="flex items-center gap-4">
+       <div className="flex flex-wrap items-center gap-4">
         <DateRangePicker date={date} setDate={setDate} />
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => setDatePreset('today')}>今日</Button>
@@ -206,7 +206,7 @@ export default function DashboardPage() {
           <Button variant="outline" size="sm" onClick={() => setDatePreset('this_month')}>今月</Button>
         </div>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2">
          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">廃棄ロス（原価）</CardTitle>
@@ -263,7 +263,7 @@ export default function DashboardPage() {
         </Card>
       </div>
        <div className="grid grid-cols-1 gap-4">
-        <div className="grid grid-cols-1 gap-4 auto-rows-min lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 auto-rows-min lg:grid-cols-2 xl:grid-cols-3">
             {salesByCategory.filter(cat => cat.sales.length > 0).map(({ category, sales }) => (
             <Card key={category}>
                 <CardHeader className="pb-4">

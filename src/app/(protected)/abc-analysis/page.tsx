@@ -158,7 +158,7 @@ export default function AbcAnalysisPage() {
   const abcAnalysisData: AbcDataItem[] = useMemo(() => {
     const sortedByWasteCost = wasteAnalysisData
       .filter(p => p.totalWasteCost > 0)
-      .sort((a, b) => a.totalWasteCost - b.totalWasteCost);
+      .sort((a, b) => b.totalWasteCost - a.totalWasteCost);
 
     const totalWasteCost = sortedByWasteCost.reduce((sum, p) => sum + p.totalWasteCost, 0);
     if (totalWasteCost === 0) return [];
@@ -170,11 +170,11 @@ export default function AbcAnalysisPage() {
       
       let rank: AbcRank;
       if (cumulativePercentage <= 70) {
-        rank = 'C';
+        rank = 'A';
       } else if (cumulativePercentage <= 90) {
         rank = 'B';
       } else {
-        rank = 'A';
+        rank = 'C';
       }
 
       return {
@@ -200,7 +200,7 @@ export default function AbcAnalysisPage() {
 
   return (
     <div className="flex flex-col gap-4">
-       <div className="flex items-center gap-4">
+       <div className="flex flex-wrap items-center gap-4">
         <DateRangePicker date={date} setDate={setDate} />
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => setDatePreset('today')}>今日</Button>

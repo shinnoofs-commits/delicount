@@ -190,7 +190,7 @@ export default function ProductsClient() {
 
   return (
     <>
-      <div className="flex items-center justify-end gap-2">
+      <div className="flex items-center justify-end gap-2 mb-4">
          {selectedProductIds.length > 0 && (
           <Button variant="destructive" size="sm" onClick={handleDeleteSelected}>
             <Trash2 className="h-4 w-4 mr-2" />
@@ -234,7 +234,7 @@ export default function ProductsClient() {
                 <TableHead>名前</TableHead>
                 <TableHead>商品コード</TableHead>
                 <TableHead className="hidden md:table-cell">カテゴリー</TableHead>
-                <TableHead className="hidden md:table-cell">価格パターン</TableHead>
+                <TableHead className="hidden lg:table-cell">価格パターン</TableHead>
                 <TableHead className="text-right">価格</TableHead>
                  <TableHead className="text-right">原価額</TableHead>
                 <TableHead>
@@ -255,7 +255,7 @@ export default function ProductsClient() {
                   <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell>{product.productCode}</TableCell>
                   <TableCell className="hidden md:table-cell">{product.category}</TableCell>
-                  <TableCell className="hidden md:table-cell">{product.pricePattern}</TableCell>
+                  <TableCell className="hidden lg:table-cell">{product.pricePattern}</TableCell>
                   <TableCell className="text-right font-medium">¥{product.price.toLocaleString()}</TableCell>
                    <TableCell className="text-right">¥{product.costPrice.toLocaleString()}</TableCell>
                   <TableCell>
