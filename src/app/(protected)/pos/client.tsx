@@ -105,9 +105,9 @@ export default function PosClient() {
   };
 
   return (
-    <div className="grid flex-1 grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+    <div className="grid flex-1 grid-cols-1 md:grid-cols-3 gap-4 items-start">
       {/* Product Selection */}
-      <div className="lg:col-span-2 flex flex-col gap-4">
+      <div className="md:col-span-2 flex flex-col gap-4">
         <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
           <ScrollArea className="w-full whitespace-nowrap">
             <TabsList>
@@ -137,7 +137,7 @@ export default function PosClient() {
       </div>
 
       {/* Waste List Section */}
-      <div className="lg:col-span-1 sticky top-6">
+      <div className="md:col-span-1 sticky top-6">
         <Card className="flex flex-col h-auto">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
@@ -159,9 +159,9 @@ export default function PosClient() {
                 <div className="space-y-4">
                   {wasteList.map(item => (
                     <div key={item.product.id} className="space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="font-medium text-sm flex-grow-[2] basis-0 break-words pr-2">{item.product.name}</span>
-                        <div className="flex items-start gap-2 flex-grow basis-0">
+                       <div className="flex items-start justify-between gap-2">
+                        <span className="font-medium text-sm flex-grow min-w-0 break-words pr-2">{item.product.name}</span>
+                        <div className="flex items-start gap-2 flex-shrink-0">
                             <span className="font-medium text-sm w-20 text-right">¥{(item.product.price * item.quantity).toLocaleString()}</span>
                             <span className="font-medium text-sm w-20 text-right">¥{(item.product.costPrice * item.quantity).toLocaleString()}</span>
                         </div>
