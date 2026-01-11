@@ -31,7 +31,6 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { UserNav } from '@/components/user-nav';
 import { Icons } from '@/components/icons';
 import { Loader2 } from 'lucide-react';
-import { useIsMobile } from '@/hooks/use-mobile';
 
 const navItems = [
   { href: '/pos', icon: ShoppingCart, label: '廃棄入力', adminOnly: false },
@@ -47,14 +46,6 @@ function MainNav({ userRole, onLinkClick }: { userRole: 'admin' | 'employee', on
 
   return (
     <nav className="grid items-start px-4 text-sm font-medium">
-      <Link
-        href="/pos"
-        className="flex items-center gap-3 rounded-lg bg-primary px-3 py-2 text-primary-foreground transition-all hover:bg-primary/90"
-        onClick={onLinkClick}
-      >
-        <Icons.logo className="h-6 w-6" />
-        <span>廃棄分析ツール</span>
-      </Link>
         {filteredNavItems.map((item) => (
             <Link
                 key={item.href}
@@ -78,7 +69,6 @@ function ProtectedLayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -101,7 +91,7 @@ function ProtectedLayoutContent({ children }: { children: React.ReactNode }) {
     return [{ href: '/', label: '廃棄分析ツール' }, ...items];
   }, [pathname]);
 
-  if (loading || !user || isMobile === undefined) {
+  if (loading || !user) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -124,7 +114,7 @@ function ProtectedLayoutContent({ children }: { children: React.ReactNode }) {
     setIsSheetOpen(false);
   }
 
-  const sidebar = (
+  const sidebarContent = (
      <div className="flex h-full max-h-screen flex-col gap-2">
         <div className="flex h-14 items-center border-b px-6">
           <Link href="/pos" className="flex items-center gap-2 font-semibold" onClick={handleLinkClick}>
@@ -138,24 +128,24 @@ function ProtectedLayoutContent({ children }: { children: React.ReactNode }) {
       </div>
   );
 
-  const mainContent = (
-      <div className="flex flex-col">
-        <header className="flex h-14 items-center gap-4 border-b bg-background px-6">
-           {isMobile && (
-             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-              <SheetTrigger asChild>
-                <Button size="icon" variant="outline">
-                  <PanelLeft className="h-5 w-5" />
-                  <span className="sr-only">メニューを開閉</span>
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-[280px] p-0">
-                 {sidebar}
-              </SheetContent>
-            </Sheet>
-           )}
 
-          {!isMobile && (
+  return (
+    <div className="min-h-screen w-full">
+      <div className="flex flex-col">
+        <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
+           <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+            <SheetTrigger asChild>
+              <Button size="icon" variant="outline" className="shrink-0">
+                <PanelLeft className="h-5 w-5" />
+                <span className="sr-only">メニューを開閉</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[280px] p-0">
+               {sidebarContent}
+            </SheetContent>
+          </Sheet>
+
+          <div className="hidden md:block">
             <Breadcrumb>
               <BreadcrumbList>
                 {breadcrumbItems.map((item, index) => (
@@ -174,7 +164,7 @@ function ProtectedLayoutContent({ children }: { children: React.ReactNode }) {
                 ))}
               </BreadcrumbList>
             </Breadcrumb>
-          )}
+          </div>
 
           <div className="relative ml-auto flex-1 md:grow-0">
             {/* Search can be implemented later */}
@@ -185,18 +175,6 @@ function ProtectedLayoutContent({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
-  );
-  
-  if (isMobile) {
-    return mainContent;
-  }
-
-  return (
-    <div className="grid min-h-screen w-full lg:grid-cols-[280px_1fr]">
-      <div className="hidden border-r bg-background lg:block">
-        {sidebar}
-      </div>
-      {mainContent}
     </div>
   );
 }
