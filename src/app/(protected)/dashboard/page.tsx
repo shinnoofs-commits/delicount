@@ -35,6 +35,7 @@ import {
 import { cn } from "@/lib/utils"
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import holiday_jp from '@holiday-jp/holiday_jp';
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"];
 
@@ -54,11 +55,11 @@ const DateRangePicker = ({ date, setDate }: { date: DateRange | undefined, setDa
           {date?.from ? (
             date.to ? (
               <>
-                {format(date.from, "yyyy/MM/dd")} -{" "}
-                {format(date.to, "yyyy/MM/dd")}
+                {format(date.from, "yyyy年M月d日")} -{" "}
+                {format(date.to, "yyyy年M月d日")}
               </>
             ) : (
-              format(date.from, "yyyy/MM/dd")
+              format(date.from, "yyyy年M月d日")
             )
           ) : (
             <span>日付を選択</span>
@@ -80,7 +81,7 @@ const DateRangePicker = ({ date, setDate }: { date: DateRange | undefined, setDa
   );
 }
 
-const weekdays = [
+const filterOptions = [
   { id: 0, label: '日' },
   { id: 1, label: '月' },
   { id: 2, label: '火' },
@@ -88,6 +89,7 @@ const weekdays = [
   { id: 4, label: '木' },
   { id: 5, label: '金' },
   { id: 6, label: '土' },
+  { id: 7, label: '祝' }
 ];
 
 type WasteData = {
@@ -103,7 +105,7 @@ type WasteData = {
 export default function DashboardPage() {
   const { transactions, wasteEntries } = useTransactions();
   const { products } = useProducts();
-  const [selectedDays, setSelectedDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
+  const [selectedFilters, setSelectedFilters] = useState<number[]>([0, 1, 2, 3, 4, 5, 6, 7]);
 
   const categories = useMemo(() => [...new Set(products.map(p => p.category))] as Category[], [products]);
 
@@ -112,9 +114,9 @@ export default function DashboardPage() {
     to: new Date(),
   });
 
-  const handleDayToggle = (dayId: number) => {
-    setSelectedDays(prev => 
-      prev.includes(dayId) ? prev.filter(d => d !== dayId) : [...prev, dayId]
+  const handleFilterToggle = (filterId: number) => {
+    setSelectedFilters(prev => 
+      prev.includes(filterId) ? prev.filter(d => d !== filterId) : [...prev, filterId]
     );
   };
   
@@ -129,15 +131,32 @@ export default function DashboardPage() {
         if (!isValid(entryDate) || entryDate < fromDate || entryDate > toDate) {
           return false;
         }
+
+        if (selectedFilters.length === filterOptions.length) {
+            return true;
+        }
+        if (selectedFilters.length === 0) {
+            return false;
+        }
+
         const dayOfWeek = getDay(entryDate);
-        return selectedDays.includes(dayOfWeek);
+        const isHoliday = holiday_jp.isHoliday(entryDate);
+
+        const isDaySelected = selectedFilters.includes(dayOfWeek);
+        const isHolidaySelected = selectedFilters.includes(7);
+
+        if (isHoliday) {
+            return isHolidaySelected;
+        }
+        
+        return isDaySelected;
     };
 
     return {
         filteredTransactions: transactions.filter(filterByDateAndDay),
         filteredWasteEntries: wasteEntries.filter(filterByDateAndDay)
     };
-  }, [date, transactions, wasteEntries, selectedDays]);
+  }, [date, transactions, wasteEntries, selectedFilters]);
 
   const wasteAnalysisData: WasteData[] = useMemo(() => {
     const wasteDataMap = new Map<string, WasteData>();
@@ -235,14 +254,14 @@ export default function DashboardPage() {
               </div>
             </div>
             <div>
-                <Label className="text-sm font-medium mb-2 block">曜日を選択</Label>
+                <Label className="text-sm font-medium mb-2 block">曜日・祝日を選択</Label>
                 <div className="flex flex-wrap items-center gap-4">
-                  {weekdays.map(day => (
+                  {filterOptions.map(day => (
                     <div key={day.id} className="flex items-center space-x-2">
                       <Checkbox
                         id={`day-${day.id}`}
-                        checked={selectedDays.includes(day.id)}
-                        onCheckedChange={() => handleDayToggle(day.id)}
+                        checked={selectedFilters.includes(day.id)}
+                        onCheckedChange={() => handleFilterToggle(day.id)}
                       />
                       <Label htmlFor={`day-${day.id}`} className="text-sm font-normal cursor-pointer">{day.label}</Label>
                     </div>
@@ -252,7 +271,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">廃棄ロス（原価）</CardTitle>
@@ -293,7 +312,7 @@ export default function DashboardPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {wasteAnalysisData.map(data => (
+                        {wasteAnalysisData.sort((a,b) => b.totalWasteCost - a.totalWasteCost).map(data => (
                             <TableRow key={data.productId}>
                                 <TableCell className="font-medium">{data.productName}</TableCell>
                                 <TableCell className="text-right">¥{data.price.toLocaleString()}</TableCell>
@@ -352,5 +371,3 @@ export default function DashboardPage() {
     </div>
   )
 }
-
-    
