@@ -71,6 +71,10 @@ export default function PosClient() {
   const totalWasteCost = useMemo(() => {
     return wasteList.reduce((acc, item) => acc + item.product.costPrice * item.quantity, 0);
   }, [wasteList]);
+  
+  const totalWastePrice = useMemo(() => {
+    return wasteList.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
+  }, [wasteList]);
 
   const handleRecordWaste = () => {
     if (wasteList.length === 0) {
@@ -132,7 +136,7 @@ export default function PosClient() {
 
       {/* Waste List Section */}
       <div className="md:col-span-1 lg:col-span-1 sticky top-6">
-        <Card className="flex flex-col h-full max-h-[calc(100vh-theme(spacing.24))]">
+        <Card className="flex flex-col h-auto">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               廃棄商品リスト
@@ -142,8 +146,7 @@ export default function PosClient() {
               </Button>
             </CardTitle>
           </CardHeader>
-          <ScrollArea className="flex-1" style={{height: "40rem"}}>
-            <CardContent>
+          <CardContent>
               {wasteList.length === 0 ? (
                 <div className="text-center text-muted-foreground py-10">
                   <p>廃棄リストは空です。</p>
@@ -165,19 +168,24 @@ export default function PosClient() {
                         <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(item.product.id, item.quantity + 1)}>
                           <Plus className="h-4 w-4" />
                         </Button>
-                        <p className="text-xs text-muted-foreground ml-auto">原価: ¥{item.product.costPrice.toLocaleString()}</p>
+                         <div className="flex-1 text-right text-xs text-muted-foreground">
+                            <span>売: ¥{item.product.price.toLocaleString()}</span> / <span>原: ¥{item.product.costPrice.toLocaleString()}</span>
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
             </CardContent>
-          </ScrollArea>
           <CardFooter className="flex flex-col gap-4 mt-auto !p-6 bg-muted/50">
             <div className="w-full space-y-2 text-sm">
               <Separator />
+               <div className="flex justify-between">
+                  <span>機会損失額 (売価)</span>
+                  <span className="text-destructive">¥{totalWastePrice.toLocaleString()}</span>
+              </div>
               <div className="flex justify-between font-bold text-lg">
-                  <span>廃棄合計額</span>
+                  <span>廃棄合計額 (原価)</span>
                   <span>¥{totalWasteCost.toLocaleString()}</span>
               </div>
             </div>
