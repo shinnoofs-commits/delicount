@@ -105,9 +105,9 @@ export default function PosClient() {
   };
 
   return (
-    <div className="grid flex-1 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
+    <div className="grid flex-1 grid-cols-1 lg:grid-cols-3 gap-4 items-start">
       {/* Product Selection */}
-      <div className="md:col-span-1 lg:col-span-2 flex flex-col gap-4">
+      <div className="lg:col-span-2 flex flex-col gap-4">
         <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
           <ScrollArea className="w-full whitespace-nowrap">
             <TabsList>
@@ -137,7 +137,7 @@ export default function PosClient() {
       </div>
 
       {/* Waste List Section */}
-      <div className="md:col-span-1 lg:col-span-1 sticky top-6">
+      <div className="lg:col-span-1 sticky top-6">
         <Card className="flex flex-col h-auto">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
