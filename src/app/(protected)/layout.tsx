@@ -47,7 +47,7 @@ function MainNav({ userRole }: { userRole: 'admin' | 'employee' }) {
 
   return (
     <>
-      <aside className="fixed inset-y-0 left-0 z-10 hidden w-60 flex-col border-r bg-background sm:flex">
+      <aside className="fixed inset-y-0 left-0 z-10 hidden w-60 flex-col border-r bg-background lg:flex">
         <nav className="flex flex-col gap-2 px-4 sm:py-5">
           <Link
             href="/pos"
@@ -73,7 +73,7 @@ function MainNav({ userRole }: { userRole: 'admin' | 'employee' }) {
       </aside>
       <Sheet>
         <SheetTrigger asChild>
-          <Button size="icon" variant="outline" className="sm:hidden">
+          <Button size="icon" variant="outline" className="lg:hidden">
             <PanelLeft className="h-5 w-5" />
             <span className="sr-only">メニューを開閉</span>
           </Button>
@@ -154,7 +154,7 @@ function ProtectedLayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-60">
+      <div className="flex flex-col sm:gap-4 sm:py-4 lg:pl-60">
         <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
           <MainNav userRole={user.role} />
           <Breadcrumb className="hidden md:flex">
