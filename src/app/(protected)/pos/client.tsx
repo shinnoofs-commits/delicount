@@ -158,7 +158,7 @@ export default function PosClient() {
                   {wasteList.map(item => (
                     <div key={item.product.id} className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="font-medium text-sm flex-1 truncate pr-2">{item.product.name}</span>
+                        <span className="font-medium text-sm flex-1 break-words pr-2">{item.product.name}</span>
                         <div className="flex items-center gap-2">
                             <span className="font-medium text-sm w-20 text-right">¥{(item.product.price * item.quantity).toLocaleString()}</span>
                             <span className="font-medium text-sm w-20 text-right">¥{(item.product.costPrice * item.quantity).toLocaleString()}</span>
