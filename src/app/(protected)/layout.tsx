@@ -31,6 +31,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { UserNav } from '@/components/user-nav';
 import { Icons } from '@/components/icons';
 import { Loader2 } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const navItems = [
   { href: '/pos', icon: ShoppingCart, label: '廃棄入力', adminOnly: false },
@@ -77,6 +78,7 @@ function ProtectedLayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -99,7 +101,7 @@ function ProtectedLayoutContent({ children }: { children: React.ReactNode }) {
     return [{ href: '/', label: '廃棄分析ツール' }, ...items];
   }, [pathname]);
 
-  if (loading || !user) {
+  if (loading || !user || isMobile === undefined) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -122,62 +124,58 @@ function ProtectedLayoutContent({ children }: { children: React.ReactNode }) {
     setIsSheetOpen(false);
   }
 
-  return (
-    <div className="grid min-h-screen w-full lg:grid-cols-[280px_1fr]">
-      <div className="hidden border-r bg-background lg:block">
-        <div className="flex h-full max-h-screen flex-col gap-2">
-          <div className="flex h-14 items-center border-b px-6">
-            <Link href="/pos" className="flex items-center gap-2 font-semibold">
-              <Icons.logo className="h-6 w-6" />
-              <span className="">廃棄分析ツール</span>
-            </Link>
-          </div>
-          <div className="flex-1 overflow-auto py-2">
-            <MainNav userRole={user.role} onLinkClick={() => {}} />
-          </div>
+  const sidebar = (
+     <div className="flex h-full max-h-screen flex-col gap-2">
+        <div className="flex h-14 items-center border-b px-6">
+          <Link href="/pos" className="flex items-center gap-2 font-semibold" onClick={handleLinkClick}>
+            <Icons.logo className="h-6 w-6" />
+            <span className="">廃棄分析ツール</span>
+          </Link>
+        </div>
+        <div className="flex-1 overflow-auto py-2">
+          <MainNav userRole={user.role} onLinkClick={handleLinkClick} />
         </div>
       </div>
+  );
 
+  const mainContent = (
       <div className="flex flex-col">
         <header className="flex h-14 items-center gap-4 border-b bg-background px-6">
-           <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-            <SheetTrigger asChild>
-              <Button size="icon" variant="outline" className="lg:hidden">
-                <PanelLeft className="h-5 w-5" />
-                <span className="sr-only">メニューを開閉</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-[280px] p-0">
-               <div className="flex h-14 items-center border-b px-6">
-                <Link href="/pos" className="flex items-center gap-2 font-semibold">
-                  <Icons.logo className="h-6 w-6" />
-                  <span className="">廃棄分析ツール</span>
-                </Link>
-              </div>
-              <div className="flex-1 overflow-auto py-2">
-                <MainNav userRole={user.role} onLinkClick={handleLinkClick} />
-              </div>
-            </SheetContent>
-          </Sheet>
+           {isMobile && (
+             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+              <SheetTrigger asChild>
+                <Button size="icon" variant="outline">
+                  <PanelLeft className="h-5 w-5" />
+                  <span className="sr-only">メニューを開閉</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[280px] p-0">
+                 {sidebar}
+              </SheetContent>
+            </Sheet>
+           )}
 
-          <Breadcrumb className="hidden lg:flex">
-            <BreadcrumbList>
-              {breadcrumbItems.map((item, index) => (
-                <React.Fragment key={item.href}>
-                  <BreadcrumbItem>
-                    {item.isPage ? (
-                      <BreadcrumbPage>{item.label}</BreadcrumbPage>
-                    ) : (
-                      <BreadcrumbLink asChild>
-                        <Link href={item.href}>{item.label}</Link>
-                      </BreadcrumbLink>
-                    )}
-                  </BreadcrumbItem>
-                  {index < breadcrumbItems.length - 1 && <BreadcrumbSeparator />}
-                </React.Fragment>
-              ))}
-            </BreadcrumbList>
-          </Breadcrumb>
+          {!isMobile && (
+            <Breadcrumb>
+              <BreadcrumbList>
+                {breadcrumbItems.map((item, index) => (
+                  <React.Fragment key={item.href}>
+                    <BreadcrumbItem>
+                      {item.isPage ? (
+                        <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                      ) : (
+                        <BreadcrumbLink asChild>
+                          <Link href={item.href}>{item.label}</Link>
+                        </BreadcrumbLink>
+                      )}
+                    </BreadcrumbItem>
+                    {index < breadcrumbItems.length - 1 && <BreadcrumbSeparator />}
+                  </React.Fragment>
+                ))}
+              </BreadcrumbList>
+            </Breadcrumb>
+          )}
+
           <div className="relative ml-auto flex-1 md:grow-0">
             {/* Search can be implemented later */}
           </div>
@@ -187,6 +185,18 @@ function ProtectedLayoutContent({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
+  );
+  
+  if (isMobile) {
+    return mainContent;
+  }
+
+  return (
+    <div className="grid min-h-screen w-full lg:grid-cols-[280px_1fr]">
+      <div className="hidden border-r bg-background lg:block">
+        {sidebar}
+      </div>
+      {mainContent}
     </div>
   );
 }
