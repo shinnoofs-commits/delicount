@@ -50,6 +50,7 @@ export default function PosClient() {
     toast({
       title: "廃棄リストに追加しました",
       description: `${product.name} をリストに追加しました。`,
+      duration: 500,
     })
   }, [toast]);
 
