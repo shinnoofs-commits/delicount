@@ -1,10 +1,8 @@
 
 import type { Metadata } from 'next';
-import { AuthProvider } from '@/contexts/auth-context';
 import { Toaster } from '@/components/ui/toaster';
 import './globals.css';
-import { TransactionProvider } from '@/contexts/transaction-context';
-import { ProductProvider } from '@/contexts/product-context';
+import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
   title: '廃棄分析ツール',
@@ -27,14 +25,10 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <AuthProvider>
-          <ProductProvider>
-            <TransactionProvider>
-              {children}
-              <Toaster />
-            </TransactionProvider>
-          </ProductProvider>
-        </AuthProvider>
+        <FirebaseClientProvider>
+          {children}
+          <Toaster />
+        </FirebaseClientProvider>
       </body>
     </html>
   );

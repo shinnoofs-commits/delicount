@@ -1,6 +1,8 @@
+
 'use client';
 
-import { useAuth } from '@/hooks/use-auth';
+import { useUser, useAuth } from '@/firebase';
+import { signOut } from 'firebase/auth';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,21 +15,35 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
 
 export function UserNav() {
-  const { user, logout } = useAuth();
+  const { user } = useUser();
+  const auth = useAuth();
   const router = useRouter();
+  const { toast } = useToast();
 
   if (!user) {
     return null;
   }
 
-  const handleLogout = () => {
-    logout();
-    router.push('/login');
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      toast({ title: 'ログアウトしました' });
+      router.push('/login');
+    } catch (error) {
+      console.error('Logout failed', error);
+      toast({
+        variant: 'destructive',
+        title: 'ログアウトに失敗しました',
+        description: 'もう一度お試しください。',
+      });
+    }
   };
   
-  const getInitials = (name: string) => {
+  const getInitials = (name?: string | null) => {
+    if (!name) return 'U';
     const names = name.split(' ');
     const initials = names.map((n) => n[0]).join('');
     return initials.toUpperCase();
@@ -38,15 +54,19 @@ export function UserNav() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-9 w-9">
-            <AvatarImage src={`https://avatar.vercel.sh/${user.id}.png`} alt={`@${user.name}`} />
-            <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+            {user.photoURL ? (
+              <AvatarImage src={user.photoURL} alt={user.displayName || 'User'} />
+            ) : (
+               <AvatarImage src={`https://avatar.vercel.sh/${user.uid}.png`} alt={user.displayName || 'User'} />
+            )}
+            <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user.name}</p>
+            <p className="text-sm font-medium leading-none">{user.displayName || 'User'}</p>
             <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
           </div>
         </DropdownMenuLabel>

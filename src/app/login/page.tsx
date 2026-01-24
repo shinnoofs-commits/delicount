@@ -1,32 +1,46 @@
+
 'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/use-auth';
-import { users } from '@/lib/data';
+import Link from 'next/link';
+import { useAuth } from '@/firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { Icons } from '@/components/icons';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
+
 
 export default function LoginPage() {
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const { login } = useAuth();
+  const auth = useAuth();
   const router = useRouter();
+  const { toast } = useToast();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = () => {
-    if (selectedUserId) {
-      login(selectedUserId);
+  const handleLogin = async () => {
+    setIsLoading(true);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      toast({ title: 'ログインしました' });
       router.push('/pos');
+    } catch (error: any) {
+      console.error(error);
+      toast({
+        variant: 'destructive',
+        title: 'ログインエラー',
+        description: error.message || 'メールアドレスまたはパスワードが正しくありません。',
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
-  
-  const roleToJapanese = (role: 'admin' | 'employee') => {
-    return role === 'admin' ? '管理者' : '従業員';
-  }
-
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -35,31 +49,44 @@ export default function LoginPage() {
           <div className="mx-auto mb-4">
             <Icons.logo className="h-12 w-12 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-headline">廃棄分析ツールへようこそ</CardTitle>
-          <CardDescription>サインインするユーザーを選択してください</CardDescription>
+          <CardTitle className="text-2xl font-headline">ログイン</CardTitle>
+          <CardDescription>メールアドレスとパスワードを入力してください</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="user">ユーザー</Label>
-              <Select onValueChange={setSelectedUserId}>
-                <SelectTrigger id="user">
-                  <SelectValue placeholder="ユーザーを選択" />
-                </SelectTrigger>
-                <SelectContent>
-                  {users.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.name} ({roleToJapanese(user.role)})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Button onClick={handleLogin} disabled={!selectedUserId} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-              サインイン
-            </Button>
+        <CardContent className="grid gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="email">メールアドレス</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="name@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="password">パスワード</Label>
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
           </div>
         </CardContent>
+        <CardFooter className="flex flex-col gap-4">
+          <Button onClick={handleLogin} disabled={isLoading} className="w-full">
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            ログイン
+          </Button>
+           <div className="text-center text-sm">
+            アカウントをお持ちでないですか？{' '}
+            <Link href="/signup" className="underline">
+              アカウント登録
+            </Link>
+          </div>
+        </CardFooter>
       </Card>
     </div>
   );
