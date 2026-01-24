@@ -5,8 +5,10 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     function isAdmin() {
-      // The user must have a document in 'roles_admin' with a 'role' field set to 'admin'.
-      return get(/databases/$(database)/documents/roles_admin/$(request.auth.uid)).data.role == 'admin';
+      // Use get() which returns null for non-existent doc, vs exists() which returns bool
+      // This prevents errors on non-existent documents.
+      return get(/databases/$(database)/documents/roles_admin/$(request.auth.uid)) != null &&
+             get(/databases/$(database)/documents/roles_admin/$(request.auth.uid)).data.role == 'admin';
     }
 
     function isStoreMember(storeId) {
