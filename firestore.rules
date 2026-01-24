@@ -4,9 +4,12 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if the user is an admin.
+    // Helper function to check if the user is an admin by checking the 'role' field.
     function isAdmin() {
-      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      // Use get() to read the user's role document. This is more secure than exists()
+      // as it allows checking the content of the document.
+      // The user must have a document in 'roles_admin' with a 'role' field set to 'admin'.
+      return get(/databases/$(database)/documents/roles_admin/$(request.auth.uid)).data.role == 'admin';
     }
 
     // Rules for the 'roles_admin' collection
