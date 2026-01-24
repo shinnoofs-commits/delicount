@@ -39,7 +39,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [role, setRole] = useState('employee');
+  const [role, setRole] = useState('admin');
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
