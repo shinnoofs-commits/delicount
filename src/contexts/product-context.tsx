@@ -12,6 +12,7 @@ import { useStores } from './store-context';
 interface ProductContextType {
   products: Product[];
   loading: boolean;
+  hasStores: boolean;
   addProduct: (product: Omit<Product, 'id'>) => void;
   updateProduct: (product: Product) => void;
   deleteProduct: (productId: string) => void;
@@ -27,6 +28,8 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
   const { isAdmin, isAdminLoading } = useAdmin();
   const { stores, loading: storesLoading } = useStores();
+
+  const hasStores = stores.length > 0;
 
   // For now, only admin can manage products, and we'll use the first store.
   // This needs to be expanded with a store selector UI for admins.
@@ -46,7 +49,14 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
   const loading = isAdminLoading || storesLoading || isProductsLoading;
 
   const addProduct = useCallback((productData: Omit<Product, 'id'>) => {
-    if (!productsCollection) return;
+    if (!productsCollection) {
+        toast({
+            variant: "destructive",
+            title: "店舗がありません",
+            description: "商品を追加するには、まず店舗を登録してください。",
+        });
+        return;
+    }
     addDoc(productsCollection, productData)
       .then(() => {
         toast({ title: "商品を追加しました", description: `「${productData.name}」を登録しました。` });
@@ -61,7 +71,14 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
   }, [productsCollection, toast]);
 
   const updateProduct = useCallback((productData: Product) => {
-    if (!productsCollection) return;
+    if (!productsCollection) {
+        toast({
+            variant: "destructive",
+            title: "店舗がありません",
+            description: "商品を更新するには、まず店舗を登録してください。",
+        });
+        return;
+    }
     const productRef = doc(productsCollection, productData.id);
     setDoc(productRef, productData, { merge: true })
       .then(() => {
@@ -77,7 +94,14 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
   }, [productsCollection, toast]);
 
   const deleteProduct = useCallback((productId: string) => {
-    if (!productsCollection) return;
+    if (!productsCollection) {
+        toast({
+            variant: "destructive",
+            title: "店舗がありません",
+            description: "商品を削除するには、まず店舗を登録してください。",
+        });
+        return;
+    }
     const productRef = doc(productsCollection, productId);
     deleteDoc(productRef)
       .then(() => {
@@ -147,13 +171,14 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo(() => ({
     products,
     loading,
+    hasStores,
     addProduct,
     updateProduct,
     deleteProduct,
     deleteProducts,
     getProductById,
     importProductsFromCSV
-  }), [products, loading, addProduct, updateProduct, deleteProduct, deleteProducts, getProductById, importProductsFromCSV]);
+  }), [products, loading, hasStores, addProduct, updateProduct, deleteProduct, deleteProducts, getProductById, importProductsFromCSV]);
 
   return (
     <ProductContext.Provider value={value}>

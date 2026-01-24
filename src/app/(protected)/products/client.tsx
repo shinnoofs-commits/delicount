@@ -52,9 +52,10 @@ import { useToast } from "@/hooks/use-toast"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Loader2 } from "lucide-react"
+import Link from "next/link"
 
 export default function ProductsClient() {
-  const { products, addProduct, updateProduct, deleteProducts, importProductsFromCSV, loading } = useProducts();
+  const { products, addProduct, updateProduct, deleteProducts, importProductsFromCSV, loading, hasStores } = useProducts();
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
   const [productToEdit, setProductToEdit] = useState<Product | null>(null)
@@ -246,10 +247,19 @@ export default function ProductsClient() {
                         <Loader2 className="h-6 w-6 animate-spin inline-block" />
                     </TableCell>
                 </TableRow>
+              ) : !hasStores ? (
+                 <TableRow>
+                    <TableCell colSpan={8} className="h-24 text-center">
+                        <p className="mb-2">店舗が登録されていません。</p>
+                        <Button asChild>
+                            <Link href="/stores">店舗を登録する</Link>
+                        </Button>
+                    </TableCell>
+                </TableRow>
               ) : products.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="h-24 text-center">
-                    商品がありません。店舗が登録されているか確認してください。
+                    商品がありません。
                   </TableCell>
                 </TableRow>
               ) : (
