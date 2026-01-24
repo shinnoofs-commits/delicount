@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useUser, useAuth } from '@/firebase';
-import { signOut } from 'firebase/auth';
+import Link from 'next/link';
+import { useUser } from '@/firebase';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,33 +14,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useRouter } from 'next/navigation';
-import { useToast } from '@/hooks/use-toast';
 
 export function UserNav() {
   const { user } = useUser();
-  const auth = useAuth();
-  const router = useRouter();
-  const { toast } = useToast();
 
   if (!user) {
     return null;
   }
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      toast({ title: 'ログアウトしました' });
-      router.replace('/login');
-    } catch (error) {
-      console.error('Logout failed', error);
-      toast({
-        variant: 'destructive',
-        title: 'ログアウトに失敗しました',
-        description: 'もう一度お試しください。',
-      });
-    }
-  };
   
   const getInitials = (name?: string | null) => {
     if (!name) return 'U';
@@ -76,8 +56,8 @@ export function UserNav() {
           <DropdownMenuItem disabled>設定</DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout}>
-          ログアウト
+        <DropdownMenuItem asChild>
+          <Link href="/logout">ログアウト</Link>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
