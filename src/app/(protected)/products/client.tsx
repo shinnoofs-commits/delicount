@@ -51,9 +51,10 @@ import { useProducts } from "@/contexts/product-context"
 import { useToast } from "@/hooks/use-toast"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Loader2 } from "lucide-react"
 
 export default function ProductsClient() {
-  const { products, addProduct, updateProduct, deleteProduct, deleteProducts, setProducts } = useProducts();
+  const { products, addProduct, updateProduct, deleteProducts, importProductsFromCSV, loading } = useProducts();
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
   const [productToEdit, setProductToEdit] = useState<Product | null>(null)
@@ -138,7 +139,6 @@ export default function ProductsClient() {
 
 
             return {
-              id: `prod-${productCode}-${Date.now()}-${index}`,
               name: row['recipe_name'] || row['商品名'],
               productCode: productCode,
               price: isNaN(price) ? 0 : price,
@@ -147,17 +147,13 @@ export default function ProductsClient() {
               pricePattern: pricePattern,
               materials: materials,
               containers: containers,
-            } as Product;
-          }).filter(p => p !== null) as Product[];
+            } as Omit<Product, 'id'>;
+          }).filter(p => p !== null) as Omit<Product, 'id'>[];
 
           if (importedProducts.length > 0) {
-            setProducts(prevProducts => [...prevProducts, ...importedProducts]);
+            importProductsFromCSV(importedProducts);
           }
           
-          toast({
-            title: "CSVインポート完了",
-            description: `${importedProducts.length}件の商品をインポートしました。`,
-          });
           // Reset file input
           event.target.value = '';
         },
@@ -229,6 +225,7 @@ export default function ProductsClient() {
                     checked={selectedProductIds.length > 0 && selectedProductIds.length === products.length}
                     onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
                     aria-label="すべての商品を選択"
+                    disabled={products.length === 0}
                   />
                 </TableHead>
                 <TableHead>名前</TableHead>
@@ -243,7 +240,20 @@ export default function ProductsClient() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {products.map(product => (
+              {loading ? (
+                <TableRow>
+                    <TableCell colSpan={8} className="h-24 text-center">
+                        <Loader2 className="h-6 w-6 animate-spin inline-block" />
+                    </TableCell>
+                </TableRow>
+              ) : products.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="h-24 text-center">
+                    商品がありません。店舗が登録されているか確認してください。
+                  </TableCell>
+                </TableRow>
+              ) : (
+                products.map(product => (
                 <TableRow key={product.id} data-state={selectedProductIds.includes(product.id) && "selected"}>
                    <TableCell padding="checkbox">
                     <Checkbox
@@ -276,7 +286,7 @@ export default function ProductsClient() {
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              ))}
+              )))}
             </TableBody>
           </Table>
         </CardContent>
