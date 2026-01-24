@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
 
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { UserNav } from '@/components/user-nav';
 import { Icons } from '@/components/icons';
 import { Loader2 } from 'lucide-react';
@@ -146,6 +146,12 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
                     </Button>
                   </SheetTrigger>
                   <SheetContent side="left" className="w-[280px] p-0">
+                    <SheetHeader className="sr-only">
+                      <SheetTitle>サイドバーメニュー</SheetTitle>
+                      <SheetDescription>
+                        アプリケーションの各ページに移動するためのナビゲーションメニューです。
+                      </SheetDescription>
+                    </SheetHeader>
                     {sidebarContent}
                   </SheetContent>
                 </Sheet>
