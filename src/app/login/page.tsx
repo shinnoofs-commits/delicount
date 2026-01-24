@@ -1,10 +1,10 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAuth } from '@/firebase';
+import { useAuth, useUser } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 
 import { Button } from '@/components/ui/button';
@@ -23,13 +23,20 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const { user, isUserLoading } = useUser();
+
+  useEffect(() => {
+    if (!isUserLoading && user) {
+      router.replace('/pos');
+    }
+  }, [user, isUserLoading, router]);
 
   const handleLogin = async () => {
     setIsLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
       toast({ title: 'ログインしました' });
-      router.push('/pos');
+      router.replace('/pos');
     } catch (error: any) {
       console.error(error);
       toast({
@@ -41,6 +48,15 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
+  
+  if (isUserLoading || (!isUserLoading && user)) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">

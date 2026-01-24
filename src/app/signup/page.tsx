@@ -1,10 +1,10 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAuth, initializeFirebase } from '@/firebase';
+import { useAuth, initializeFirebase, useUser } from '@/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 
@@ -22,16 +22,31 @@ import { Input } from '@/components/ui/input';
 import { Icons } from '@/components/icons';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 export default function SignupPage() {
   const auth = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+  const { user: currentUser, isUserLoading } = useUser();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [role, setRole] = useState('employee');
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isUserLoading && currentUser) {
+      router.replace('/pos');
+    }
+  }, [currentUser, isUserLoading, router]);
 
   const handleSignup = async () => {
     setIsLoading(true);
@@ -41,16 +56,17 @@ export default function SignupPage() {
       
       await updateProfile(user, { displayName: name });
       
-      const { firestore } = initializeFirebase();
-      const adminRoleData = {
-        name: name,
-        role: 'admin',
-        storeId: 'headquarters',
-      };
-      await setDoc(doc(firestore, 'roles_admin', user.uid), adminRoleData);
+      if (role === 'admin') {
+        const { firestore } = initializeFirebase();
+        const adminRoleData = {
+          name: name,
+          role: 'admin',
+        };
+        await setDoc(doc(firestore, 'roles_admin', user.uid), adminRoleData);
+      }
       
-      toast({ title: 'アカウントを登録しました', description: 'ログインしてください。' });
-      router.push('/login');
+      toast({ title: 'アカウントを登録しました', description: 'ログインページに移動します。' });
+      router.replace('/login');
 
     } catch (error: any) {
       console.error(error);
@@ -63,6 +79,14 @@ export default function SignupPage() {
       setIsLoading(false);
     }
   };
+  
+  if (isUserLoading || (!isUserLoading && currentUser)) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -105,6 +129,18 @@ export default function SignupPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="role">役割</Label>
+            <Select value={role} onValueChange={setRole}>
+              <SelectTrigger id="role">
+                <SelectValue placeholder="役割を選択" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="admin">本部</SelectItem>
+                <SelectItem value="employee">店舗</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">

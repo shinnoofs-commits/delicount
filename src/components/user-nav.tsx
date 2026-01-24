@@ -31,7 +31,7 @@ export function UserNav() {
     try {
       await signOut(auth);
       toast({ title: 'ログアウトしました' });
-      router.push('/login');
+      router.replace('/login');
     } catch (error) {
       console.error('Logout failed', error);
       toast({
