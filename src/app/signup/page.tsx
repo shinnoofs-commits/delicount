@@ -57,12 +57,23 @@ export default function SignupPage() {
       await updateProfile(user, { displayName: name });
       
       if (role === 'admin') {
-        const { firestore } = initializeFirebase();
-        const adminRoleData = {
-          name: name,
-          role: 'admin',
-        };
-        await setDoc(doc(firestore, 'roles_admin', user.uid), adminRoleData);
+        try {
+            const { firestore } = initializeFirebase();
+            const adminRoleData = {
+              name: name,
+              role: 'admin',
+            };
+            await setDoc(doc(firestore, 'roles_admin', user.uid), adminRoleData);
+        } catch (e: any) {
+            console.error("Failed to create admin role:", e);
+            toast({
+                variant: 'destructive',
+                title: '管理者役割の作成失敗',
+                description: `データベースへの書き込みに失敗しました: ${e.message}`,
+            });
+            // Optionally, we could try to clean up the created user here,
+            // but for now, we'll just inform them.
+        }
       }
       
       toast({ title: 'アカウントを登録しました', description: 'ログインページに移動します。' });
