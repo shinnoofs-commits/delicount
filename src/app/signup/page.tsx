@@ -4,8 +4,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAuth } from '@/firebase';
+import { useAuth, initializeFirebase } from '@/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -18,18 +19,9 @@ import {
 } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Icons } from '@/components/icons';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-
-type UserRole = 'headquarters' | 'store';
 
 export default function SignupPage() {
   const auth = useAuth();
@@ -39,19 +31,23 @@ export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [role, setRole] = useState<UserRole>('store');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSignup = async () => {
     setIsLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
       
-      // Update user profile with name and role (role stored as custom claim later)
-      await updateProfile(userCredential.user, { displayName: name });
+      await updateProfile(user, { displayName: name });
       
-      // TODO: Set custom claim for role on the backend
-      // For now, we will proceed without it.
+      const { firestore } = initializeFirebase();
+      const adminRoleData = {
+        name: name,
+        role: 'admin',
+        storeId: 'headquarters',
+      };
+      await setDoc(doc(firestore, 'roles_admin', user.uid), adminRoleData);
       
       toast({ title: 'アカウントを登録しました', description: 'ログインしてください。' });
       router.push('/login');
@@ -109,18 +105,6 @@ export default function SignupPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="role">役割</Label>
-            <Select onValueChange={(value: UserRole) => setRole(value)} defaultValue={role}>
-              <SelectTrigger id="role">
-                <SelectValue placeholder="役割を選択" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="headquarters">本部</SelectItem>
-                <SelectItem value="store">店舗</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">

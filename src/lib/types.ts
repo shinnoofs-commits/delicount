@@ -6,6 +6,19 @@ export type User = {
   role: 'admin' | 'employee';
 };
 
+export type Staff = {
+  id: string;
+  name: string;
+  role: 'admin' | 'employee';
+  storeId: string;
+}
+
+export type Store = {
+  id: string;
+  name: string;
+  location: string;
+}
+
 export type Category = string;
 
 export type Material = {

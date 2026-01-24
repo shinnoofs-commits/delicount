@@ -1,9 +1,33 @@
 
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // By default, deny all reads and writes.
-    // We will add specific rules as we build out the application.
+
+    // Helper function to check if the user is an admin.
+    function isAdmin() {
+      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+
+    // Rules for the 'roles_admin' collection
+    match /roles_admin/{uid} {
+      // A user can create their own admin role document during signup.
+      allow create: if request.auth.uid == uid;
+      // Only existing admins can read or delete other admin roles.
+      allow read, delete: if isAdmin();
+      // Prevent updates to avoid role escalation.
+      allow update: if false;
+    }
+
+    // Rules for the 'stores' collection
+    match /stores/{storeId} {
+      // Only admins can create, update, or delete stores.
+      allow write: if isAdmin();
+      // Admins can read all stores. We will add rules for store employees later.
+      allow read: if isAdmin();
+    }
+    
+    // Fallback rule: Deny all reads and writes by default.
     match /{document=**} {
       allow read, write: if false;
     }
