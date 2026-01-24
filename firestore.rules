@@ -13,8 +13,11 @@ service cloud.firestore {
     match /roles_admin/{uid} {
       // A user can create their own admin role document during signup.
       allow create: if request.auth.uid == uid;
-      // Only existing admins can read or delete other admin roles.
-      allow read, delete: if isAdmin();
+      // A user can read their own role document to verify their admin status.
+      // An existing admin can also read other admin documents.
+      allow read: if request.auth.uid == uid || isAdmin();
+      // Only existing admins can delete other admin roles.
+      allow delete: if isAdmin();
       // Prevent updates to avoid role escalation.
       allow update: if false;
     }
