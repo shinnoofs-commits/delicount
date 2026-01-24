@@ -6,10 +6,10 @@ service cloud.firestore {
 
     // Helper function to check if the user is an admin by checking the 'role' field.
     function isAdmin() {
-      // Use get() to read the user's role document. This is more secure than exists()
-      // as it allows checking the content of the document.
+      // Check for document existence before accessing data to prevent errors.
       // The user must have a document in 'roles_admin' with a 'role' field set to 'admin'.
-      return get(/databases/$(database)/documents/roles_admin/$(request.auth.uid)).data.role == 'admin';
+      let userRoleDoc = get(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      return userRoleDoc != null && userRoleDoc.data.role == 'admin';
     }
 
     // Rules for the 'roles_admin' collection
