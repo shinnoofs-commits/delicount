@@ -6,6 +6,7 @@ import React, { createContext, useState, useContext, useCallback, useMemo } from
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc, addDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { useAdmin } from '@/hooks/use-admin';
 
 interface StoreContextType {
   stores: Store[];
@@ -21,18 +22,26 @@ export const StoreContext = createContext<StoreContextType | undefined>(undefine
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const { isAdmin, isAdminLoading } = useAdmin();
 
   const storesCollection = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, 'stores');
-  }, [firestore]);
+    if (firestore && isAdmin) {
+      return collection(firestore, 'stores');
+    }
+    return null;
+  }, [firestore, isAdmin]);
 
-  const { data: stores, isLoading: loading } = useCollection<Omit<Store, 'id'>>(storesCollection);
+  const { data: storeData, isLoading: isStoresLoading } = useCollection<Omit<Store, 'id'>>(storesCollection);
+
+  const stores = isAdmin ? (storeData || []) : [];
+  
+  const loading = isAdminLoading || (isAdmin && isStoresLoading);
 
   const addStore = useCallback(async (storeData: Omit<Store, 'id'>) => {
-    if (!storesCollection) return;
+    if (!firestore || !isAdmin) return;
+    const adminStoresCollection = collection(firestore, 'stores');
     try {
-      await addDoc(storesCollection, {
+      await addDoc(adminStoresCollection, {
           ...storeData,
           createdAt: serverTimestamp(),
       });
@@ -40,10 +49,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     } catch (error: any) {
         toast({ variant: 'destructive', title: "エラー", description: error.message });
     }
-  }, [storesCollection, toast]);
+  }, [firestore, toast, isAdmin]);
 
   const updateStore = useCallback(async (storeData: Store) => {
-    if (!firestore) return;
+    if (!firestore || !isAdmin) return;
     const storeRef = doc(firestore, 'stores', storeData.id);
     try {
         await setDoc(storeRef, {
@@ -53,10 +62,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     } catch (error: any) {
         toast({ variant: 'destructive', title: "エラー", description: error.message });
     }
-  }, [firestore, toast]);
+  }, [firestore, toast, isAdmin]);
 
   const deleteStore = useCallback(async (storeId: string) => {
-    if (!firestore) return;
+    if (!firestore || !isAdmin) return;
     const storeRef = doc(firestore, 'stores', storeId);
     try {
         await deleteDoc(storeRef);
@@ -64,14 +73,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     } catch (error: any) {
         toast({ variant: 'destructive', title: "エラー", description: error.message });
     }
-  }, [firestore, toast]);
+  }, [firestore, toast, isAdmin]);
 
   const getStoreById = useCallback((storeId: string) => {
-      return stores?.find(s => s.id === storeId);
+      return stores.find(s => s.id === storeId);
   }, [stores]);
   
   const value = useMemo(() => ({
-    stores: stores || [],
+    stores: stores,
     loading,
     addStore,
     updateStore,
