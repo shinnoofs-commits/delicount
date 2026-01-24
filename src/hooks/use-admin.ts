@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
@@ -13,9 +12,9 @@ export function useAdmin() {
     return doc(firestore, 'roles_admin', user.uid);
   }, [user, firestore]);
 
-  const { data: adminRole, isLoading: isAdminLoading } = useDoc(adminRoleRef);
+  const { data: adminRole, isLoading: isAdminLoading } = useDoc<{role: string}>(adminRoleRef);
 
   const isLoading = isUserLoading || isAdminLoading;
 
-  return { isAdmin: !!adminRole, isAdminLoading: isLoading };
+  return { isAdmin: adminRole?.role === 'admin', isAdminLoading: isLoading };
 }
