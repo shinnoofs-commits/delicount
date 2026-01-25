@@ -37,11 +37,17 @@ export default function LoginPage() {
       toast({ title: 'ログインしました' });
       router.replace('/pos');
     } catch (error: any) {
-      console.error(error);
+      let description = 'メールアドレスまたはパスワードが正しくありません。';
+      if (error.code === 'auth/invalid-email') {
+        description = 'メールアドレスの形式が正しくありません。';
+      } else if (error.code === 'auth/user-disabled') {
+        description = 'このアカウントは無効になっています。';
+      }
+      
       toast({
         variant: 'destructive',
         title: 'ログインエラー',
-        description: error.message || 'メールアドレスまたはパスワードが正しくありません。',
+        description: description,
       });
     } finally {
       setIsLoading(false);

@@ -95,9 +95,10 @@ export default function SignupPage() {
         description = 'このメールアドレスは既に使用されています。';
       } else if (error.code === 'auth/weak-password') {
         description = 'パスワードは6文字以上である必要があります。';
-      } else if (error.message) {
-        description = error.message;
+      } else if (error.code === 'auth/invalid-email') {
+        description = 'メールアドレスの形式が正しくありません。'
       }
+      
       toast({
         variant: 'destructive',
         title: '登録エラー',
