@@ -9,7 +9,8 @@ service cloud.firestore {
     }
 
     match /roles_admin/{uid} {
-      allow read: if isAdmin() || request.auth.uid == uid;
+      allow get: if isAdmin() || request.auth.uid == uid;
+      allow list: if isAdmin();
       allow create, delete: if isAdmin();
       allow update: if false;
     }
