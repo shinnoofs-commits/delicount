@@ -12,7 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useTransactions } from '@/contexts/transaction-context';
-import { useAuth } from '@/hooks/use-auth';
+import { useUser } from '@/firebase';
 import { useProducts } from '@/contexts/product-context';
 
 type WasteListItem = {
@@ -21,7 +21,7 @@ type WasteListItem = {
 };
 
 export default function PosClient() {
-  const { user } = useAuth();
+  const { user } = useUser();
   const { addWasteEntry } = useTransactions();
   const { products: allProducts, getProductById } = useProducts();
   const [selectedCategory, setSelectedCategory] = useState('すべて');

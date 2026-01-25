@@ -1,13 +1,13 @@
 'use client';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/firebase';
+import { useFirebase } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function LogoutPage() {
-    const auth = useAuth();
+    const { auth } = useFirebase();
     const router = useRouter();
     const { toast } = useToast();
 

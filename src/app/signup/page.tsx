@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAuth, initializeFirebase, useUser } from '@/firebase';
+import { useFirebase, initializeFirebase } from '@/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 
@@ -24,10 +24,9 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
 export default function SignupPage() {
-  const auth = useAuth();
+  const { auth, user: currentUser, isUserLoading } = useFirebase();
   const router = useRouter();
   const { toast } = useToast();
-  const { user: currentUser, isUserLoading } = useUser();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

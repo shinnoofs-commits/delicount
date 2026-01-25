@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAuth, useUser } from '@/firebase';
+import { useFirebase } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 
 import { Button } from '@/components/ui/button';
@@ -17,13 +17,12 @@ import { Loader2 } from 'lucide-react';
 
 
 export default function LoginPage() {
-  const auth = useAuth();
+  const { auth, user, isUserLoading } = useFirebase();
   const router = useRouter();
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { user, isUserLoading } = useUser();
 
   useEffect(() => {
     if (!isUserLoading && user) {
