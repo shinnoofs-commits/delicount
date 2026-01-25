@@ -233,13 +233,17 @@ export default function ProductsClient() {
                 選択した{selectedProductIds.length}件を削除
               </Button>
             )}
-            <Button asChild variant="outline" size="sm">
-                <label htmlFor="csv-upload" className="cursor-pointer">
-                    <Upload className="h-4 w-4 mr-2" />
-                    CSVインポート
-                </label>
-            </Button>
-            <Input id="csv-upload" type="file" accept=".csv" onChange={handleCsvImport} className="hidden" />
+            {isAdmin && (
+              <>
+                <Button asChild variant="outline" size="sm">
+                    <label htmlFor="csv-upload" className="cursor-pointer">
+                        <Upload className="h-4 w-4 mr-2" />
+                        CSVインポート
+                    </label>
+                </Button>
+                <Input id="csv-upload" type="file" accept=".csv" onChange={handleCsvImport} className="hidden" />
+              </>
+            )}
             
             {isAdmin && (
                <Button variant="outline" size="sm" onClick={handleCsvDownload}>
