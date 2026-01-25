@@ -132,7 +132,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Store",
       "type": "object",
-      "description": "Represents a store location.",
+      "description": "Represents a store location with its own login credentials.",
       "properties": {
         "id": {
           "type": "string",
@@ -142,15 +142,21 @@
           "type": "string",
           "description": "Name of the store."
         },
-        "location": {
+        "email": {
           "type": "string",
-          "description": "Location of the store (e.g., address)."
+          "description": "Login email for the store.",
+          "format": "email"
+        },
+        "userId": {
+          "type": "string",
+          "description": "The Firebase Auth UID for this store's login."
         }
       },
       "required": [
         "id",
         "name",
-        "location"
+        "email",
+        "userId"
       ]
     },
     "AdminRole": {

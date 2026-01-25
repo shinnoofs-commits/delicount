@@ -82,20 +82,16 @@ export default function StoresClient() {
   const confirmDelete = () => {
     if (storeToDelete) {
       deleteStore(storeToDelete.id)
-      toast({
-        title: "店舗が削除されました",
-        description: `「${storeToDelete.name}」を削除しました。`,
-      })
     }
     setIsDeleteConfirmOpen(false)
     setStoreToDelete(null)
   }
 
-  const handleFormSubmit = (storeData: Omit<Store, 'id'> & { id?: string }) => {
+  const handleFormSubmit = (storeData: Partial<Store> & { password?: string }) => {
     if (storeData.id) {
       updateStore(storeData as Store)
     } else {
-      addStore(storeData)
+      addStore(storeData as Omit<Store, 'id' | 'userId'> & { password?: string });
     }
     setIsFormOpen(false)
     setStoreToEdit(null)
@@ -112,14 +108,14 @@ export default function StoresClient() {
       <Card>
         <CardHeader>
           <CardTitle>店舗一覧</CardTitle>
-          <CardDescription>事業全体の店舗を管理します。</CardDescription>
+          <CardDescription>事業全体の店舗を管理します。店舗アカウントの作成もここで行います。</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>店舗名</TableHead>
-                <TableHead>所在地</TableHead>
+                <TableHead>ログイン用メールアドレス</TableHead>
                 <TableHead>
                   <span className="sr-only">アクション</span>
                 </TableHead>
@@ -136,7 +132,7 @@ export default function StoresClient() {
                 stores.map((store) => (
                   <TableRow key={store.id}>
                     <TableCell className="font-medium">{store.name}</TableCell>
-                    <TableCell>{store.location}</TableCell>
+                    <TableCell>{store.email}</TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -176,7 +172,7 @@ export default function StoresClient() {
             <DialogDescription>
               {storeToEdit
                 ? "店舗の詳細を更新します。"
-                : "新しい店舗を追加します。"}
+                : "新しい店舗と、その店舗用のログインアカウントを作成します。"}
             </DialogDescription>
           </DialogHeader>
           <StoreForm
@@ -196,7 +192,7 @@ export default function StoresClient() {
             <AlertDialogTitle>よろしいですか？</AlertDialogTitle>
             <AlertDialogDescription>
               この操作は元に戻せません。「{storeToDelete?.name}
-              」を完全に削除します。
+              」を完全に削除します。関連するログインアカウントは自動では削除されません。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

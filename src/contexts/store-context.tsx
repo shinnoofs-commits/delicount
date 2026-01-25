@@ -7,11 +7,15 @@ import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc, addDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useAdmin } from '@/hooks/use-admin';
+import { initializeApp, deleteApp } from 'firebase/app';
+import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import { firebaseConfig } from '@/firebase/config';
+
 
 interface StoreContextType {
   stores: Store[];
   loading: boolean;
-  addStore: (store: Omit<Store, 'id'>) => void;
+  addStore: (store: Omit<Store, 'id' | 'userId'> & { password?: string }) => void;
   updateStore: (store: Store) => void;
   deleteStore: (storeId: string) => void;
   getStoreById: (storeId: string) => Store | undefined;
@@ -31,32 +35,57 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return null;
   }, [firestore, isAdmin]);
 
-  const { data: storeData, isLoading: isStoresLoading } = useCollection<Omit<Store, 'id'>>(storesCollection);
+  const { data: storeData, isLoading: isStoresLoading } = useCollection<Store>(storesCollection);
 
   const stores = isAdmin ? (storeData || []) : [];
   
   const loading = isAdminLoading || (isAdmin && isStoresLoading);
 
-  const addStore = useCallback(async (storeData: Omit<Store, 'id'>) => {
+  const addStore = useCallback(async (storeData: { name: string; email: string; password?: string }) => {
     if (!firestore || !isAdmin) return;
-    const adminStoresCollection = collection(firestore, 'stores');
+
+    if (!storeData.password) {
+      toast({ variant: 'destructive', title: 'エラー', description: 'パスワードが指定されていません。' });
+      return;
+    }
+
+    const secondaryAppName = `store-creation-${Date.now()}`;
+    const secondaryApp = initializeApp(firebaseConfig, secondaryAppName);
+    const secondaryAuth = getAuth(secondaryApp);
+
     try {
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, storeData.email, storeData.password);
+      const newUserId = userCredential.user.uid;
+
+      const adminStoresCollection = collection(firestore, 'stores');
       await addDoc(adminStoresCollection, {
-          ...storeData,
-          createdAt: serverTimestamp(),
+        name: storeData.name,
+        email: storeData.email,
+        userId: newUserId,
+        createdAt: serverTimestamp(),
       });
+      
       toast({ title: "店舗を追加しました", description: `「${storeData.name}」を登録しました。` });
+
     } catch (error: any) {
-        toast({ variant: 'destructive', title: "エラー", description: error.message });
+      let description = '店舗アカウントの作成に失敗しました。';
+      if (error.code === 'auth/email-already-in-use') {
+        description = 'このメールアドレスは既に使用されています。';
+      } else if (error.code === 'auth/weak-password') {
+        description = 'パスワードは6文字以上である必要があります。';
+      }
+      toast({ variant: 'destructive', title: "エラー", description });
+    } finally {
+      await deleteApp(secondaryApp);
     }
   }, [firestore, toast, isAdmin]);
 
-  const updateStore = useCallback(async (storeData: Store) => {
+  const updateStore = useCallback(async (storeData: Partial<Store> & { id: string }) => {
     if (!firestore || !isAdmin) return;
     const storeRef = doc(firestore, 'stores', storeData.id);
     try {
         await setDoc(storeRef, {
-            ...storeData
+            name: storeData.name
         }, { merge: true });
         toast({ title: "店舗情報を更新しました", description: `「${storeData.name}」を更新しました。` });
     } catch (error: any) {
@@ -69,7 +98,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const storeRef = doc(firestore, 'stores', storeId);
     try {
         await deleteDoc(storeRef);
-        toast({ title: "店舗を削除しました" });
+        toast({ 
+          title: "店舗を削除しました",
+          description: "店舗データのみ削除されました。ログインアカウントの削除はFirebaseコンソールから手動で行う必要があります。"
+        });
     } catch (error: any) {
         toast({ variant: 'destructive', title: "エラー", description: error.message });
     }

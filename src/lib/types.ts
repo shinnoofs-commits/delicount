@@ -9,7 +9,8 @@ export type User = {
 export type Store = {
   id: string;
   name: string;
-  location: string;
+  email: string;
+  userId: string;
 }
 
 export type Category = string;

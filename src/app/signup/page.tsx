@@ -22,13 +22,6 @@ import { Input } from '@/components/ui/input';
 import { Icons } from '@/components/icons';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 
 export default function SignupPage() {
   const auth = useAuth();
@@ -39,7 +32,6 @@ export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [role, setRole] = useState('admin');
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -56,24 +48,20 @@ export default function SignupPage() {
       
       await updateProfile(user, { displayName: name });
       
-      if (role === 'admin') {
-        try {
-            const { firestore } = initializeFirebase();
-            const adminRoleData = {
-              name: name,
-              role: 'admin',
-            };
-            await setDoc(doc(firestore, 'roles_admin', user.uid), adminRoleData);
-        } catch (e: any) {
-            console.error("Failed to create admin role:", e);
-            toast({
-                variant: 'destructive',
-                title: '管理者役割の作成失敗',
-                description: `データベースへの書き込みに失敗しました: ${e.message}`,
-            });
-            // Optionally, we could try to clean up the created user here,
-            // but for now, we'll just inform them.
-        }
+      try {
+          const { firestore } = initializeFirebase();
+          const adminRoleData = {
+            name: name,
+            role: 'admin',
+          };
+          await setDoc(doc(firestore, 'roles_admin', user.uid), adminRoleData);
+      } catch (e: any) {
+          console.error("Failed to create admin role:", e);
+          toast({
+              variant: 'destructive',
+              title: '管理者役割の作成失敗',
+              description: `データベースへの書き込みに失敗しました: ${e.message}`,
+          });
       }
       
       toast({ title: 'アカウントを登録しました', description: 'ログインページに移動します。' });
@@ -106,8 +94,8 @@ export default function SignupPage() {
           <div className="mx-auto mb-4">
             <Icons.logo className="h-12 w-12 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-headline">アカウント登録</CardTitle>
-          <CardDescription>情報を入力して新しいアカウントを作成します</CardDescription>
+          <CardTitle className="text-2xl font-headline">本部アカウント登録</CardTitle>
+          <CardDescription>管理者（本部）としてシステムを利用するアカウントを作成します。</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="grid gap-2">
@@ -140,18 +128,6 @@ export default function SignupPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="role">役割</Label>
-            <Select value={role} onValueChange={setRole}>
-              <SelectTrigger id="role">
-                <SelectValue placeholder="役割を選択" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="admin">本部</SelectItem>
-                <SelectItem value="employee">店舗</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">

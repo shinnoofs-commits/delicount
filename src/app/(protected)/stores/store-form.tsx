@@ -20,8 +20,19 @@ import { Input } from '@/components/ui/input'
 const formSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, { message: '店舗名は必須です。' }),
-  location: z.string().min(1, { message: '所在地は必須です。' }),
-})
+  email: z.string().email({ message: '有効なメールアドレスを入力してください。' }),
+  password: z.string().optional(),
+}).superRefine((data, ctx) => {
+  if (!data.id) { // This is a new store
+    if (!data.password || data.password.length < 6) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '6文字以上の初期パスワードが必須です。',
+        path: ['password'],
+      });
+    }
+  }
+});
 
 type FormValues = z.infer<typeof formSchema>
 
@@ -36,7 +47,8 @@ export function StoreForm({ store, onSubmit, onCancel }: StoreFormProps) {
     resolver: zodResolver(formSchema),
     defaultValues: store || {
       name: '',
-      location: '',
+      email: '',
+      password: ''
     },
   })
 
@@ -58,17 +70,33 @@ export function StoreForm({ store, onSubmit, onCancel }: StoreFormProps) {
         />
         <FormField
           control={form.control}
-          name="location"
+          name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>所在地</FormLabel>
+              <FormLabel>ログイン用メールアドレス</FormLabel>
               <FormControl>
-                <Input placeholder="例：東京都千代田区" {...field} />
+                <Input type="email" placeholder="store@example.com" {...field} disabled={!!store} />
               </FormControl>
+               {!!store && <p className="text-xs text-muted-foreground">セキュリティ上の理由により、メールアドレスは変更できません。</p>}
               <FormMessage />
             </FormItem>
           )}
         />
+        {!store && (
+            <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>初期パスワード</FormLabel>
+                <FormControl>
+                    <Input type="password" placeholder="6文字以上" {...field} />
+                </FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+        )}
         <div className="flex justify-end gap-2 pt-4">
           <Button type="button" variant="outline" onClick={onCancel}>
             キャンセル
