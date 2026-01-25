@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useFirebase, initializeFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, collection, addDoc } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Icons } from '@/components/icons';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 export default function SignupPage() {
   const { auth, user: currentUser, isUserLoading } = useFirebase();
@@ -31,6 +32,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [role, setRole] = useState('admin');
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -48,30 +50,57 @@ export default function SignupPage() {
       await updateProfile(user, { displayName: name });
       
       const { firestore } = initializeFirebase();
-      const adminRoleData = {
-        name: name,
-        role: 'admin',
-        email: email,
+
+      // Always create a store entry for the new user
+      const storeData = {
+          name: name, // Using user's name as store name
+          email: email,
+          userId: user.uid,
       };
-      const adminRoleDocRef = doc(firestore, 'roles_admin', user.uid);
-      
-      setDoc(adminRoleDocRef, adminRoleData).catch((e) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: adminRoleDocRef.path,
-            operation: 'create',
-            requestResourceData: adminRoleData
-        }));
+      const storesCollection = collection(firestore, 'stores');
+      addDoc(storesCollection, storeData).catch((e) => {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({
+              path: storesCollection.path,
+              operation: 'create',
+              requestResourceData: storeData
+          }));
       });
+
+      // If the role is admin, create an admin role document
+      if (role === 'admin') {
+          const adminRoleData = {
+              name: name,
+              role: 'admin',
+              email: email,
+          };
+          const adminRoleDocRef = doc(firestore, 'roles_admin', user.uid);
+          
+          setDoc(adminRoleDocRef, adminRoleData).catch((e) => {
+              errorEmitter.emit('permission-error', new FirestorePermissionError({
+                  path: adminRoleDocRef.path,
+                  operation: 'create',
+                  requestResourceData: adminRoleData
+              }));
+          });
+      }
       
       toast({ title: 'アカウントを登録しました', description: 'ログインページに移動します。' });
       router.replace('/login');
 
     } catch (error: any) {
       console.error(error);
+      let description = 'アカウント登録に失敗しました。';
+      if (error.code === 'auth/email-already-in-use') {
+        description = 'このメールアドレスは既に使用されています。';
+      } else if (error.code === 'auth/weak-password') {
+        description = 'パスワードは6文字以上である必要があります。';
+      } else if (error.message) {
+        description = error.message;
+      }
       toast({
         variant: 'destructive',
         title: '登録エラー',
-        description: error.message || 'アカウント登録に失敗しました。',
+        description,
       });
     } finally {
       setIsLoading(false);
@@ -94,11 +123,11 @@ export default function SignupPage() {
             <Icons.logo className="h-12 w-12 text-primary" />
           </div>
           <CardTitle className="text-2xl font-headline">アカウント登録</CardTitle>
-          <CardDescription>新しいアカウントを作成します。作成されたアカウントは初期状態では「管理者」です。</CardDescription>
+          <CardDescription>新しいアカウントを作成します。役割を選択してください。</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="grid gap-2">
-            <Label htmlFor="name">名前</Label>
+            <Label htmlFor="name">名前（店舗名）</Label>
             <Input
               id="name"
               placeholder="山田 太郎"
@@ -127,6 +156,23 @@ export default function SignupPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
+          </div>
+          <div className="grid gap-2">
+            <Label>役割</Label>
+            <RadioGroup
+                value={role}
+                onValueChange={setRole}
+                className="flex gap-4 pt-1"
+            >
+                <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="admin" id="role-admin" />
+                    <Label htmlFor="role-admin" className="font-normal">本部</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="store" id="role-store" />
+                    <Label htmlFor="role-store" className="font-normal">店舗</Label>
+                </div>
+            </RadioGroup>
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
