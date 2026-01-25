@@ -5,7 +5,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     function isAdmin() {
-      return request.auth != null && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      return request.auth != null && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)) && get(/databases/$(database)/documents/roles_admin/$(request.auth.uid)).data.role == 'admin';
     }
 
     match /roles_admin/{uid} {
@@ -15,7 +15,8 @@ service cloud.firestore {
     }
 
     match /stores/{storeId} {
-      allow read, write: if isAdmin();
+      allow read: if isAdmin() || resource.data.userId == request.auth.uid;
+      allow write: if isAdmin();
 
       match /products/{productId} {
         allow read, write: if isAdmin() || get(/databases/$(database)/documents/stores/$(storeId)).data.userId == request.auth.uid;

@@ -1,10 +1,9 @@
-
 'use client';
 
 import type { Store, AdminRole } from '@/lib/types';
 import React, { createContext, useContext, useCallback, useMemo } from 'react';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { collection, doc, addDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, addDoc, setDoc, deleteDoc, serverTimestamp, query, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useAdmin } from '@/hooks/use-admin';
 import { initializeApp, deleteApp } from 'firebase/app';
@@ -31,14 +30,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const { user } = useUser();
   const { isAdmin, isAdminLoading } = useAdmin();
 
-  const storesCollection = useMemoFirebase(() => {
-    if (firestore) { // Fetch stores for all users to find their own
-      return collection(firestore, 'stores');
-    }
-    return null;
-  }, [firestore]);
+  const storesQuery = useMemoFirebase(() => {
+    if (!firestore || isAdminLoading || !user) return null;
 
-  const { data: storeData, isLoading: isStoresLoading } = useCollection<Store>(storesCollection);
+    if (isAdmin) {
+      return collection(firestore, 'stores');
+    } else {
+      return query(collection(firestore, 'stores'), where('userId', '==', user.uid));
+    }
+  }, [firestore, user, isAdmin, isAdminLoading]);
+
+  const { data: storeData, isLoading: isStoresLoading } = useCollection<Store>(storesQuery);
 
   const adminRolesCollection = useMemoFirebase(() => {
     if (firestore && isAdmin) {
