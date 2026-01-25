@@ -1,8 +1,9 @@
+
 'use client';
 
 import type { Store, AdminRole } from '@/lib/types';
 import React, { createContext, useContext, useCallback, useMemo } from 'react';
-import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, doc, addDoc, setDoc, deleteDoc, serverTimestamp, query, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useAdmin } from '@/hooks/use-admin';
@@ -16,7 +17,7 @@ interface StoreContextType {
   adminRoles: AdminRole[];
   loading: boolean;
   addStore: (store: Omit<Store, 'id' | 'userId'> & { password?: string }) => void;
-  updateStore: (store: Store) => void;
+  updateStore: (store: Omit<Store, 'userId' | 'email'>) => void;
   deleteStore: (storeId: string) => void;
   getStoreById: (storeId: string) => Store | undefined;
   toggleAdminRole: (store: Store) => void;
@@ -78,18 +79,29 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const newUserId = userCredential.user.uid;
       
       const rolesAdminCollection = collection(firestore, 'roles_admin');
-      await setDoc(doc(rolesAdminCollection, newUserId), {
+      const roleDocRef = doc(rolesAdminCollection, newUserId);
+      const roleData = {
         name: storeData.name,
         email: storeData.email,
         role: 'admin',
+      };
+      setDoc(roleDocRef, roleData).catch((e) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: roleDocRef.path, operation: 'create', requestResourceData: roleData,
+        }));
       });
 
       const adminStoresCollection = collection(firestore, 'stores');
-      await addDoc(adminStoresCollection, {
+      const storeDataForFirestore = {
         name: storeData.name,
         email: storeData.email,
         userId: newUserId,
         createdAt: serverTimestamp(),
+      };
+      addDoc(adminStoresCollection, storeDataForFirestore).catch((e) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: adminStoresCollection.path, operation: 'create', requestResourceData: storeDataForFirestore,
+        }));
       });
       
       toast({ title: "店舗アカウントを追加しました", description: `「${storeData.name}」を管理者として登録しました。` });
@@ -107,38 +119,43 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   }, [firestore, toast]);
 
-  const updateStore = useCallback(async (storeData: Partial<Store> & { id: string }) => {
+  const updateStore = useCallback((storeData: Omit<Store, 'userId' | 'email'>) => {
     if (!firestore || !isAdmin) return;
     const storeRef = doc(firestore, 'stores', storeData.id);
-    try {
-        await setDoc(storeRef, {
-            name: storeData.name
-        }, { merge: true });
+    const dataToUpdate = { name: storeData.name };
+    setDoc(storeRef, dataToUpdate, { merge: true })
+      .then(() => {
         toast({ title: "店舗情報を更新しました", description: `「${storeData.name}」を更新しました。` });
-    } catch (error: any) {
-        toast({ variant: 'destructive', title: "エラー", description: error.message });
-    }
+      })
+      .catch((error: any) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: storeRef.path, operation: 'update', requestResourceData: dataToUpdate
+        }));
+      });
   }, [firestore, toast, isAdmin]);
 
-  const deleteStore = useCallback(async (storeId: string) => {
+  const deleteStore = useCallback((storeId: string) => {
     if (!firestore || !isAdmin) return;
     const storeRef = doc(firestore, 'stores', storeId);
-    try {
-        await deleteDoc(storeRef);
+    deleteDoc(storeRef)
+      .then(() => {
         toast({ 
           title: "店舗を削除しました",
           description: "店舗データのみ削除されました。ログインアカウントの削除はFirebaseコンソールから手動で行う必要があります。"
         });
-    } catch (error: any) {
-        toast({ variant: 'destructive', title: "エラー", description: error.message });
-    }
+      })
+      .catch((error: any) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: storeRef.path, operation: 'delete'
+        }));
+      });
   }, [firestore, toast, isAdmin]);
 
   const getStoreById = useCallback((storeId: string) => {
       return stores.find(s => s.id === storeId);
   }, [stores]);
   
-  const toggleAdminRole = useCallback(async (store: Store) => {
+  const toggleAdminRole = useCallback((store: Store) => {
     if (!firestore || !isAdmin) return;
     if (store.userId === user?.uid) {
       toast({ variant: 'destructive', title: '操作不可', description: '自分自身の役割は変更できません。'});
@@ -148,20 +165,34 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const roleDocRef = doc(firestore, 'roles_admin', store.userId);
     const isAdminNow = adminRoles.some(r => r.id === store.userId);
 
-    try {
-        if (isAdminNow) {
-            await deleteDoc(roleDocRef);
+    if (isAdminNow) {
+        deleteDoc(roleDocRef)
+          .then(() => {
             toast({ title: '役割が変更されました', description: `「${store.name}」は店舗アカウントになりました。` });
-        } else {
-            await setDoc(roleDocRef, {
-                name: store.name,
-                email: store.email,
-                role: 'admin',
-            });
+          })
+          .catch((e) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+              path: roleDocRef.path,
+              operation: 'delete'
+            }));
+          });
+    } else {
+        const roleData = {
+            name: store.name,
+            email: store.email,
+            role: 'admin',
+        };
+        setDoc(roleDocRef, roleData)
+          .then(() => {
             toast({ title: '役割が変更されました', description: `「${store.name}」は管理者アカウントになりました。` });
-        }
-    } catch (error: any) {
-        toast({ variant: 'destructive', title: "エラー", description: error.message });
+          })
+          .catch((e) => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+              path: roleDocRef.path,
+              operation: 'create',
+              requestResourceData: roleData
+            }));
+          });
     }
   }, [firestore, isAdmin, toast, adminRoles, user]);
 

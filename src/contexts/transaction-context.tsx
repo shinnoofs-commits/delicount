@@ -14,7 +14,7 @@ interface TransactionContextType {
   transactions: Transaction[];
   wasteEntries: WasteEntry[];
   loading: boolean;
-  addWasteEntry: (wasteEntry: Omit<WasteEntry, 'id' | 'date'>) => Promise<void>;
+  addWasteEntry: (wasteEntry: Omit<WasteEntry, 'id' | 'date'>) => void;
 }
 
 export const TransactionContext = createContext<TransactionContextType | undefined>(undefined);
@@ -76,7 +76,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   }, [firestore, isAdmin, userStore, selectedStoreIds]);
 
 
-  const addWasteEntry = useCallback(async (wasteEntryData: Omit<WasteEntry, 'id' | 'date'>) => {
+  const addWasteEntry = useCallback((wasteEntryData: Omit<WasteEntry, 'id' | 'date'>) => {
     if (!firestore || !user) return;
 
     const wasteCollection = collection(firestore, 'stores', wasteEntryData.storeId, 'waste');
@@ -86,21 +86,22 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
       userId: user.uid,
     };
     
-    try {
-      await addDoc(wasteCollection, newEntry);
-      toast({ title: '廃棄を記録しました', description: `合計廃棄額 ¥${wasteEntryData.totalWasteCost.toLocaleString()} が記録されました` });
-    } catch (e) {
-      console.error(e);
-       errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: wasteCollection.path, operation: 'create', requestResourceData: newEntry,
-      }));
-    }
+    addDoc(wasteCollection, newEntry)
+      .then(() => {
+        toast({ title: '廃棄を記録しました', description: `合計廃棄額 ¥${wasteEntryData.totalWasteCost.toLocaleString()} が記録されました` });
+      })
+      .catch((e) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: wasteCollection.path, 
+          operation: 'create', 
+          requestResourceData: newEntry,
+        }));
+      });
   }, [firestore, user, toast]);
 
 
   const value = useMemo(() => ({ 
     transactions: [], // Not used currently
-    addTransaction: async () => {}, // Not used
     wasteEntries, 
     loading,
     addWasteEntry 

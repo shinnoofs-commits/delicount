@@ -13,10 +13,10 @@ import { useStoreSelection } from './store-selection-context';
 interface ProductContextType {
   products: Product[];
   loading: boolean;
-  addProduct: (storeId: string, product: Omit<Product, 'id' | 'storeId'>) => Promise<void>;
-  updateProduct: (storeId: string, product: Product) => Promise<void>;
-  deleteProducts: (storeId: string, productIds: string[]) => Promise<void>;
-  importProductsFromCSV: (storeId: string, products: Omit<Product, 'id' | 'storeId'>[]) => Promise<void>;
+  addProduct: (storeId: string, product: Omit<Product, 'id' | 'storeId'>) => void;
+  updateProduct: (storeId: string, product: Product) => void;
+  deleteProducts: (storeId: string, productIds: string[]) => void;
+  importProductsFromCSV: (storeId: string, products: Omit<Product, 'id' | 'storeId'>[]) => void;
 }
 
 export const ProductContext = createContext<ProductContextType | undefined>(undefined);
@@ -70,34 +70,36 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
   }, [firestore, isAdmin, userStore, selectedStoreIds]);
 
 
-  const addProduct = useCallback(async (storeId: string, productData: Omit<Product, 'id' | 'storeId'>) => {
+  const addProduct = useCallback((storeId: string, productData: Omit<Product, 'id' | 'storeId'>) => {
     if (!firestore) return;
     const productsCollection = collection(firestore, 'stores', storeId, 'products');
-    try {
-      await addDoc(productsCollection, productData);
-      toast({ title: "商品を追加しました", description: `「${productData.name}」を登録しました。` });
-    } catch(e) {
+    addDoc(productsCollection, productData)
+      .then(() => {
+        toast({ title: "商品を追加しました", description: `「${productData.name}」を登録しました。` });
+      })
+      .catch(e => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: productsCollection.path, operation: 'create', requestResourceData: productData,
         }));
-    }
+    });
   }, [firestore, toast]);
 
-  const updateProduct = useCallback(async (storeId: string, productData: Product) => {
+  const updateProduct = useCallback((storeId: string, productData: Product) => {
     if (!firestore) return;
     const { id, ...data } = productData;
     const productRef = doc(firestore, 'stores', storeId, 'products', id);
-    try {
-      await setDoc(productRef, data, { merge: true });
-      toast({ title: "商品を更新しました", description: `「${productData.name}」を更新しました。` });
-    } catch(e) {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: productRef.path, operation: 'update', requestResourceData: data,
-      }));
-    }
+    setDoc(productRef, data, { merge: true })
+      .then(() => {
+        toast({ title: "商品を更新しました", description: `「${productData.name}」を更新しました。` });
+      })
+      .catch(e => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: productRef.path, operation: 'update', requestResourceData: data,
+        }));
+      });
   }, [firestore, toast]);
 
-  const deleteProducts = useCallback(async (storeId: string, productIds: string[]) => {
+  const deleteProducts = useCallback((storeId: string, productIds: string[]) => {
     if (!firestore) return;
     const productsCollection = collection(firestore, 'stores', storeId, 'products');
     const batch = writeBatch(firestore);
@@ -105,17 +107,18 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
       const productRef = doc(productsCollection, productId);
       batch.delete(productRef);
     });
-    try {
-      await batch.commit();
-      toast({ title: `${productIds.length}件の商品を削除しました` });
-    } catch (e) {
-       errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: productsCollection.path, operation: 'write', 
-       }));
-    }
+    batch.commit()
+      .then(() => {
+        toast({ title: `${productIds.length}件の商品を削除しました` });
+      })
+      .catch(e => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: productsCollection.path, operation: 'write', 
+        }));
+      });
   }, [firestore, toast]);
   
-  const importProductsFromCSV = useCallback(async (storeId: string, newProducts: Omit<Product, 'id' | 'storeId'>[]) => {
+  const importProductsFromCSV = useCallback((storeId: string, newProducts: Omit<Product, 'id' | 'storeId'>[]) => {
     if (!firestore) return;
     const productsCollection = collection(firestore, 'stores', storeId, 'products');
     const batch = writeBatch(firestore);
@@ -124,12 +127,13 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
         batch.set(docRef, product);
     });
 
-    try {
-      await batch.commit();
-      toast({ title: "CSVインポート完了", description: `${newProducts.length}件の商品をインポートしました。` });
-    } catch (e) {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: productsCollection.path, operation: 'write'}));
-    }
+    batch.commit()
+      .then(() => {
+        toast({ title: "CSVインポート完了", description: `${newProducts.length}件の商品をインポートしました。` });
+      })
+      .catch(e => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: productsCollection.path, operation: 'write'}));
+      });
   }, [firestore, toast]);
 
   const value = useMemo(() => ({

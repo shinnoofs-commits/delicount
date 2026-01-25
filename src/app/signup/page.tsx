@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useFirebase, initializeFirebase } from '@/firebase';
+import { useFirebase, initializeFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 
@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Icons } from '@/components/icons';
+import { Icons } from '@/components/ui/icons';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
@@ -47,22 +47,21 @@ export default function SignupPage() {
       
       await updateProfile(user, { displayName: name });
       
-      try {
-          const { firestore } = initializeFirebase();
-          const adminRoleData = {
-            name: name,
-            role: 'admin',
-            email: email,
-          };
-          await setDoc(doc(firestore, 'roles_admin', user.uid), adminRoleData);
-      } catch (e: any) {
-          console.error("Failed to create admin role:", e);
-          toast({
-              variant: 'destructive',
-              title: '管理者役割の作成失敗',
-              description: `データベースへの書き込みに失敗しました: ${e.message}`,
-          });
-      }
+      const { firestore } = initializeFirebase();
+      const adminRoleData = {
+        name: name,
+        role: 'admin',
+        email: email,
+      };
+      const adminRoleDocRef = doc(firestore, 'roles_admin', user.uid);
+      
+      setDoc(adminRoleDocRef, adminRoleData).catch((e) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: adminRoleDocRef.path,
+            operation: 'create',
+            requestResourceData: adminRoleData
+        }));
+      });
       
       toast({ title: 'アカウントを登録しました', description: 'ログインページに移動します。' });
       router.replace('/login');
