@@ -140,26 +140,38 @@ export default function ProductsClient() {
             const productCode = row['label_number'] || row['商品コード'];
             if (!productCode || productCode.trim() === '') return null;
             
-            let materials, containers;
-            if (row.materials_json) { try { materials = JSON.parse(row.materials_json); } catch (e) { console.error(`Error parsing materials_json for product code ${productCode}:`, e); } }
-            if (row.containers_json) { try { containers = JSON.parse(row.containers_json); } catch (e) { console.error(`Error parsing containers_json for product code ${productCode}:`, e); } }
-
-            const csvCategory = row['category'] || row['カテゴリー'];
             const price = parseFloat(row['selling_price'] || row['価格']);
             const costPrice = parseFloat(row['total_cost'] || row['原価額']);
-            const pricePattern = row['price_pattern_label'] || '';
-
-            return {
+            
+            const productData: any = {
               name: row['recipe_name'] || row['商品名'],
               productCode: productCode,
               price: isNaN(price) ? 0 : price,
               costPrice: isNaN(costPrice) ? 0 : costPrice,
-              category: csvCategory,
-              pricePattern: pricePattern,
-              materials: materials,
-              containers: containers,
-            } as Omit<Product, 'id' | 'storeId'>;
-          }).filter(p => p !== null) as Omit<Product, 'id' | 'storeId'>[];
+              category: row['category'] || row['カテゴリー'],
+              pricePattern: row['price_pattern_label'] || '',
+            };
+            
+            if (!productData.name || !productData.category) return null;
+
+            if (row.materials_json) {
+              try {
+                productData.materials = JSON.parse(row.materials_json);
+              } catch (e) { 
+                console.error(`Error parsing materials_json for product code ${productCode}:`, e); 
+              }
+            }
+            if (row.containers_json) {
+              try {
+                productData.containers = JSON.parse(row.containers_json);
+              } catch (e) { 
+                console.error(`Error parsing containers_json for product code ${productCode}:`, e); 
+              }
+            }
+
+            return productData;
+          }).filter(Boolean) as Omit<Product, 'id' | 'storeId'>[];
+
 
           if (importedProducts.length > 0) {
             importProductsFromCSV(managedStoreId, importedProducts);

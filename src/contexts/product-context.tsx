@@ -121,15 +121,42 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
   const importProductsFromCSV = useCallback((storeId: string, newProducts: Omit<Product, 'id' | 'storeId'>[]) => {
     if (!firestore) return;
     const productsCollection = collection(firestore, 'stores', storeId, 'products');
-    const batch = writeBatch(firestore);
-    newProducts.forEach(product => {
-        const docRef = doc(productsCollection);
-        batch.set(docRef, product);
-    });
 
-    batch.commit()
-      .then(() => {
-        toast({ title: "CSVインポート完了", description: `${newProducts.length}件の商品をインポートしました。` });
+    getDocs(productsCollection)
+      .then(existingProductsSnap => {
+        const existingProductMap = new Map<string, string>(); // Map productCode to docId
+        existingProductsSnap.forEach(doc => {
+          const data = doc.data();
+          if (data.productCode) {
+            existingProductMap.set(data.productCode, doc.id);
+          }
+        });
+
+        const batch = writeBatch(firestore);
+        let newCount = 0;
+        let updateCount = 0;
+        
+        newProducts.forEach(product => {
+            if (!product.productCode) return;
+            const existingId = existingProductMap.get(product.productCode);
+            if (existingId) {
+                const docRef = doc(productsCollection, existingId);
+                batch.update(docRef, product as { [x: string]: any });
+                updateCount++;
+            } else {
+                const docRef = doc(productsCollection);
+                batch.set(docRef, product);
+                newCount++;
+            }
+        });
+
+        return batch.commit().then(() => ({ newCount, updateCount }));
+      })
+      .then(({ newCount, updateCount }) => {
+        toast({ 
+          title: "CSVインポート完了", 
+          description: `新規${newCount}件、更新${updateCount}件の商品を処理しました。`
+        });
       })
       .catch(e => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: productsCollection.path, operation: 'write'}));
