@@ -23,7 +23,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 interface ProductFormProps {
-  product: Product | null;
+  product: Omit<Product, 'storeId'> | null;
   onSubmit: (data: FormValues) => void;
   onCancel: () => void;
 }

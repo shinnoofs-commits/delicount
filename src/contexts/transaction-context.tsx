@@ -2,33 +2,112 @@
 'use client';
 
 import type { Transaction, WasteEntry } from '@/lib/types';
-import { transactions as initialTransactions } from '@/lib/data';
-import React, { createContext, useState, useContext, useCallback } from 'react';
+import React, { createContext, useState, useContext, useCallback, useEffect, useMemo } from 'react';
+import { useFirestore, errorEmitter, FirestorePermissionError, useUser } from '@/firebase';
+import { useAdmin } from '@/hooks/use-admin';
+import { useStores } from './store-context';
+import { useStoreSelection } from './store-selection-context';
+import { collection, addDoc, serverTimestamp, onSnapshot, Unsubscribe } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 interface TransactionContextType {
   transactions: Transaction[];
-  addTransaction: (transaction: Transaction) => void;
   wasteEntries: WasteEntry[];
-  addWasteEntry: (wasteEntry: WasteEntry) => void;
+  loading: boolean;
+  addWasteEntry: (wasteEntry: Omit<WasteEntry, 'id' | 'date'>) => Promise<void>;
 }
 
 export const TransactionContext = createContext<TransactionContextType | undefined>(undefined);
 
 export function TransactionProvider({ children }: { children: React.ReactNode }) {
-  const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
+  const firestore = useFirestore();
+  const { user } = useUser();
+  const { toast } = useToast();
+  const { isAdmin } = useAdmin();
+  const { userStore } = useStores();
+  const { selectedStoreIds } = useStoreSelection();
+  
   const [wasteEntries, setWasteEntries] = useState<WasteEntry[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const addTransaction = useCallback((transaction: Transaction) => {
-    setTransactions(prevTransactions => [...prevTransactions, transaction]);
-  }, []);
+  useEffect(() => {
+    if (!firestore) return;
+    
+    setLoading(true);
+    const storeIdsToFetch = isAdmin ? selectedStoreIds : (userStore ? [userStore.id] : []);
+    
+    if (storeIdsToFetch.length === 0) {
+      setWasteEntries([]);
+      setLoading(false);
+      return;
+    }
+    
+    const unsubscribes: Unsubscribe[] = [];
+    const allWasteEntries: { [storeId: string]: WasteEntry[] } = {};
 
-  const addWasteEntry = useCallback((wasteEntry: WasteEntry) => {
-    setWasteEntries(prevEntries => [...prevEntries, wasteEntry]);
-  }, []);
+    storeIdsToFetch.forEach(storeId => {
+      const wasteCollection = collection(firestore, 'stores', storeId, 'waste');
+      const unsubscribe = onSnapshot(wasteCollection, snapshot => {
+        const storeWaste = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return { 
+            id: doc.id,
+            ...data,
+            date: data.date.toDate(),
+           } as WasteEntry
+        });
 
+        allWasteEntries[storeId] = storeWaste;
+        const flattenedWaste = Object.values(allWasteEntries).flat();
+        setWasteEntries(flattenedWaste);
+        setLoading(false);
+
+      }, (error) => {
+        console.error(`Error fetching waste entries for store ${storeId}:`, error);
+        setLoading(false);
+      });
+      unsubscribes.push(unsubscribe);
+    });
+
+    return () => {
+      unsubscribes.forEach(unsub => unsub());
+    }
+
+  }, [firestore, isAdmin, userStore, selectedStoreIds]);
+
+
+  const addWasteEntry = useCallback(async (wasteEntryData: Omit<WasteEntry, 'id' | 'date'>) => {
+    if (!firestore || !user) return;
+
+    const wasteCollection = collection(firestore, 'stores', wasteEntryData.storeId, 'waste');
+    const newEntry = {
+      ...wasteEntryData,
+      date: serverTimestamp(),
+      userId: user.uid,
+    };
+    
+    try {
+      await addDoc(wasteCollection, newEntry);
+      toast({ title: '廃棄を記録しました', description: `合計廃棄額 ¥${wasteEntryData.totalWasteCost.toLocaleString()} が記録されました` });
+    } catch (e) {
+      console.error(e);
+       errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: wasteCollection.path, operation: 'create', requestResourceData: newEntry,
+      }));
+    }
+  }, [firestore, user, toast]);
+
+
+  const value = useMemo(() => ({ 
+    transactions: [], // Not used currently
+    addTransaction: async () => {}, // Not used
+    wasteEntries, 
+    loading,
+    addWasteEntry 
+  }), [wasteEntries, loading, addWasteEntry]);
 
   return (
-    <TransactionContext.Provider value={{ transactions, addTransaction, wasteEntries, addWasteEntry }}>
+    <TransactionContext.Provider value={value}>
       {children}
     </TransactionContext.Provider>
   );

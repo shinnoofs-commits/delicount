@@ -1,3 +1,4 @@
+
 import type { User, Product, Transaction, Category } from './types';
 
 export const users: User[] = [
@@ -5,17 +6,5 @@ export const users: User[] = [
   { id: 'user-2', name: '従業員ユーザー', email: 'employee@swiftpos.com', role: 'employee' },
 ];
 
-const productDefinitions: Omit<Product, 'id' | 'pricePattern'>[] = [];
-
-export const initialProducts: Product[] = productDefinitions.map((p, index) => ({
-    ...p,
-    id: `prod-${p.productCode || (index + 1)}-${new Date().getTime()}`,
-    pricePattern: '',
-}));
-
-
-export const products: Product[] = initialProducts;
-
+export const products: Product[] = [];
 export const transactions: Transaction[] = [];
-
-    

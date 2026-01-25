@@ -36,6 +36,8 @@ import { cn } from "@/lib/utils"
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import holiday_jp from '@holiday-jp/holiday_jp';
+import { StoreSelector } from "@/components/ui/store-selector";
+import { useAdmin } from "@/hooks/use-admin";
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"];
 
@@ -105,6 +107,7 @@ type WasteData = {
 export default function DashboardPage() {
   const { transactions, wasteEntries } = useTransactions();
   const { products } = useProducts();
+  const { isAdmin } = useAdmin();
   const [selectedFilters, setSelectedFilters] = useState<number[]>([0, 1, 2, 3, 4, 5, 6, 7]);
 
   const categories = useMemo(() => [...new Set(products.map(p => p.category))] as Category[], [products]);
@@ -161,23 +164,24 @@ export default function DashboardPage() {
   const wasteAnalysisData: WasteData[] = useMemo(() => {
     const wasteDataMap = new Map<string, WasteData>();
 
-    products.forEach(product => {
-        wasteDataMap.set(product.id, {
-            productId: product.id,
-            productName: product.name,
-            wasteCount: 0,
-            costPrice: product.costPrice,
-            price: product.price,
-            totalWasteCost: 0,
-            opportunityLoss: 0,
-        });
-    });
-
     filteredWasteEntries.forEach(entry => {
         entry.items.forEach(item => {
+            const product = products.find(p => p.id === item.productId);
+            if (!product) return;
+
             const data = wasteDataMap.get(item.productId);
             if (data) {
                 data.wasteCount += item.quantity;
+            } else {
+                wasteDataMap.set(item.productId, {
+                    productId: product.id,
+                    productName: product.name,
+                    wasteCount: item.quantity,
+                    costPrice: product.costPrice,
+                    price: product.price,
+                    totalWasteCost: 0,
+                    opportunityLoss: 0,
+                });
             }
         });
     });
@@ -188,7 +192,7 @@ export default function DashboardPage() {
         opportunityLoss: data.wasteCount * data.price,
     })).filter(d => d.wasteCount > 0);
 
-  }, [products, filteredTransactions, filteredWasteEntries]);
+  }, [products, filteredWasteEntries]);
   
   const totalWasteCost = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.totalWasteCost, 0), [wasteAnalysisData]);
   const totalOpportunityLoss = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.opportunityLoss, 0), [wasteAnalysisData]);
@@ -243,6 +247,10 @@ export default function DashboardPage() {
        <div className="flex flex-col gap-4 p-4 border rounded-lg">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
             <div>
+              <Label className="text-sm font-medium mb-2 block">分析対象の店舗</Label>
+              {isAdmin ? <StoreSelector /> : <p className="text-sm text-muted-foreground">自店舗のデータのみ表示</p>}
+            </div>
+            <div>
               <Label className="text-sm font-medium mb-2 block">期間を選択</Label>
               <div className="flex flex-wrap items-center gap-2">
                 <DateRangePicker date={date} setDate={setDate} />
@@ -253,20 +261,20 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
-            <div>
-                <Label className="text-sm font-medium mb-2 block">曜日・祝日を選択</Label>
-                <div className="flex flex-wrap items-center gap-4">
-                  {filterOptions.map(day => (
-                    <div key={day.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`day-${day.id}`}
-                        checked={selectedFilters.includes(day.id)}
-                        onCheckedChange={() => handleFilterToggle(day.id)}
-                      />
-                      <Label htmlFor={`day-${day.id}`} className="text-sm font-normal cursor-pointer">{day.label}</Label>
-                    </div>
-                  ))}
+        </div>
+        <div className="border-t pt-4">
+            <Label className="text-sm font-medium mb-2 block">曜日・祝日を選択</Label>
+            <div className="flex flex-wrap items-center gap-4">
+              {filterOptions.map(day => (
+                <div key={day.id} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`day-${day.id}`}
+                    checked={selectedFilters.includes(day.id)}
+                    onCheckedChange={() => handleFilterToggle(day.id)}
+                  />
+                  <Label htmlFor={`day-${day.id}`} className="text-sm font-normal cursor-pointer">{day.label}</Label>
                 </div>
+              ))}
             </div>
         </div>
       </div>

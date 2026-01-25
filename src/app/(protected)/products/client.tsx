@@ -1,11 +1,11 @@
 
 'use client'
 
-import { useState } from "react"
-import { MoreHorizontal, PlusCircle, Upload, Trash2 } from "lucide-react"
+import { useState, useMemo, useEffect } from "react"
+import { MoreHorizontal, PlusCircle, Upload, Trash2, Download, Loader2 } from "lucide-react"
 import Papa from "papaparse"
 
-import type { Product } from "@/lib/types"
+import type { Product, Store } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -51,11 +51,18 @@ import { useProducts } from "@/contexts/product-context"
 import { useToast } from "@/hooks/use-toast"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Loader2 } from "lucide-react"
 import Link from "next/link"
+import { useStores } from "@/contexts/store-context"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useAdmin } from "@/hooks/use-admin"
 
 export default function ProductsClient() {
-  const { products, addProduct, updateProduct, deleteProducts, importProductsFromCSV, loading, hasStores } = useProducts();
+  const { stores, loading: storesLoading } = useStores();
+  const { isAdmin } = useAdmin();
+  const { products: allProducts, addProduct, updateProduct, deleteProducts, importProductsFromCSV, loading: productsLoading } = useProducts();
+  
+  const [managedStoreId, setManagedStoreId] = useState<string | undefined>(stores[0]?.id);
+  
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
   const [productToEdit, setProductToEdit] = useState<Product | null>(null)
@@ -63,6 +70,19 @@ export default function ProductsClient() {
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([])
 
   const { toast } = useToast()
+  
+  useEffect(() => {
+    if (!managedStoreId && stores.length > 0) {
+      setManagedStoreId(stores[0].id);
+    }
+  }, [stores, managedStoreId]);
+
+  const products = useMemo(() => {
+    if (!managedStoreId) return [];
+    return allProducts.filter(p => p.storeId === managedStoreId);
+  }, [allProducts, managedStoreId]);
+
+  const loading = productsLoading || storesLoading;
 
   const handleAdd = () => {
     setProductToEdit(null)
@@ -84,9 +104,9 @@ export default function ProductsClient() {
     setIsDeleteConfirmOpen(true)
   }
 
-  const confirmDelete = () => {
-    if (productsToDelete.length > 0) {
-        deleteProducts(productsToDelete);
+  const confirmDelete = async () => {
+    if (productsToDelete.length > 0 && managedStoreId) {
+        await deleteProducts(managedStoreId, productsToDelete);
         const singular = productsToDelete.length === 1;
         const productName = singular ? `「${products.find(p => p.id === productsToDelete[0])?.name}」` : `${productsToDelete.length}件の商品`;
         toast({ title: `商品が削除されました`, description: `${productName}を削除しました。` });
@@ -96,11 +116,13 @@ export default function ProductsClient() {
     setSelectedProductIds([])
   }
 
-  const handleFormSubmit = (productData: Omit<Product, 'id'> & { id?: string }) => {
+  const handleFormSubmit = async (productData: Omit<Product, 'id' | 'storeId'> & { id?: string }) => {
+    if (!managedStoreId) return;
+
     if (productData.id) {
-      updateProduct(productData as Product);
+      await updateProduct(managedStoreId, { ...productData, storeId: managedStoreId } as Product);
     } else {
-      addProduct(productData);
+      await addProduct(managedStoreId, productData);
     }
     setIsFormOpen(false)
     setProductToEdit(null)
@@ -108,36 +130,24 @@ export default function ProductsClient() {
 
   const handleCsvImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
+    if (!file || !managedStoreId) return;
+
       Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
         complete: (results) => {
-          const importedProducts = results.data.map((row: any, index: number) => {
+          const importedProducts = results.data.map((row: any) => {
             const productCode = row['label_number'] || row['商品コード'];
             if (!productCode || productCode.trim() === '') return null;
             
             let materials, containers;
-            if (row.materials_json) {
-                try {
-                    materials = JSON.parse(row.materials_json);
-                } catch (e) {
-                    console.error(`Error parsing materials_json for product code ${productCode}:`, e);
-                }
-            }
-            if (row.containers_json) {
-                try {
-                    containers = JSON.parse(row.containers_json);
-                } catch (e) {
-                    console.error(`Error parsing containers_json for product code ${productCode}:`, e);
-                }
-            }
+            if (row.materials_json) { try { materials = JSON.parse(row.materials_json); } catch (e) { console.error(`Error parsing materials_json for product code ${productCode}:`, e); } }
+            if (row.containers_json) { try { containers = JSON.parse(row.containers_json); } catch (e) { console.error(`Error parsing containers_json for product code ${productCode}:`, e); } }
 
             const csvCategory = row['category'] || row['カテゴリー'];
             const price = parseFloat(row['selling_price'] || row['価格']);
             const costPrice = parseFloat(row['total_cost'] || row['原価額']);
             const pricePattern = row['price_pattern_label'] || '';
-
 
             return {
               name: row['recipe_name'] || row['商品名'],
@@ -148,26 +158,37 @@ export default function ProductsClient() {
               pricePattern: pricePattern,
               materials: materials,
               containers: containers,
-            } as Omit<Product, 'id'>;
-          }).filter(p => p !== null) as Omit<Product, 'id'>[];
+            } as Omit<Product, 'id' | 'storeId'>;
+          }).filter(p => p !== null) as Omit<Product, 'id' | 'storeId'>[];
 
           if (importedProducts.length > 0) {
-            importProductsFromCSV(importedProducts);
+            importProductsFromCSV(managedStoreId, importedProducts);
           }
           
-          // Reset file input
           event.target.value = '';
         },
         error: (error) => {
-            toast({
-                variant: 'destructive',
-                title: "CSVインポートエラー",
-                description: `ファイルの読み込みに失敗しました: ${error.message}`,
-            })
+            toast({ variant: 'destructive', title: "CSVインポートエラー", description: `ファイルの読み込みに失敗しました: ${error.message}` })
         }
       });
-    }
   };
+  
+  const handleCsvDownload = () => {
+    if (products.length === 0) {
+      toast({ variant: 'destructive', title: 'エクスポートするデータがありません' });
+      return;
+    }
+    const csv = Papa.unparse(products.map(({ id, storeId, ...rest }) => rest));
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    const storeName = stores.find(s => s.id === managedStoreId)?.name || 'products';
+    link.setAttribute('download', `${storeName}_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -187,35 +208,51 @@ export default function ProductsClient() {
 
   return (
     <>
-      <div className="flex items-center justify-end gap-2 mb-4">
-         {selectedProductIds.length > 0 && (
-          <Button variant="destructive" size="sm" onClick={handleDeleteSelected}>
-            <Trash2 className="h-4 w-4 mr-2" />
-            選択した{selectedProductIds.length}件を削除
-          </Button>
-        )}
-        <Button asChild variant="outline" size="sm">
-            <label htmlFor="csv-upload" className="cursor-pointer">
-                <Upload className="h-4 w-4 mr-2" />
-                CSVで商品をインポート
-            </label>
-        </Button>
-        <Input 
-            id="csv-upload"
-            type="file"
-            accept=".csv"
-            onChange={handleCsvImport}
-            className="hidden"
-        />
-        <Button size="sm" onClick={handleAdd}>
-          <PlusCircle className="h-4 w-4 mr-2" />
-          商品を追加
-        </Button>
-      </div>
       <Card>
-        <CardHeader>
-          <CardTitle>商品</CardTitle>
-          <CardDescription>商品の管理ができます。</CardDescription>
+        <CardHeader className="flex-row items-center justify-between">
+          <div>
+            <CardTitle>商品</CardTitle>
+            <CardDescription>商品の管理ができます。</CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            {isAdmin && stores.length > 0 && (
+                <Select value={managedStoreId} onValueChange={setManagedStoreId}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="管理対象の店舗を選択" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stores.map(store => (
+                      <SelectItem key={store.id} value={store.id}>{store.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+            )}
+             {selectedProductIds.length > 0 && (
+              <Button variant="destructive" size="sm" onClick={handleDeleteSelected}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                選択した{selectedProductIds.length}件を削除
+              </Button>
+            )}
+            <Button asChild variant="outline" size="sm">
+                <label htmlFor="csv-upload" className="cursor-pointer">
+                    <Upload className="h-4 w-4 mr-2" />
+                    CSVインポート
+                </label>
+            </Button>
+            <Input id="csv-upload" type="file" accept=".csv" onChange={handleCsvImport} className="hidden" />
+            
+            {isAdmin && (
+               <Button variant="outline" size="sm" onClick={handleCsvDownload}>
+                  <Download className="h-4 w-4 mr-2" />
+                  CSVエクスポート
+              </Button>
+            )}
+
+            <Button size="sm" onClick={handleAdd}>
+              <PlusCircle className="h-4 w-4 mr-2" />
+              商品を追加
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -247,7 +284,7 @@ export default function ProductsClient() {
                         <Loader2 className="h-6 w-6 animate-spin inline-block" />
                     </TableCell>
                 </TableRow>
-              ) : !hasStores ? (
+              ) : !isAdmin && stores.length === 0 ? (
                  <TableRow>
                     <TableCell colSpan={8} className="h-24 text-center">
                         <p className="mb-2">店舗が登録されていません。</p>

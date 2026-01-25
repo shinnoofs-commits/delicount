@@ -34,6 +34,7 @@ import { Loader2 } from 'lucide-react';
 import { TransactionProvider } from '@/contexts/transaction-context';
 import { ProductProvider } from '@/contexts/product-context';
 import { StoreProvider } from '@/contexts/store-context';
+import { StoreSelectionProvider } from '@/contexts/store-selection-context';
 
 
 const navItems = [
@@ -130,62 +131,64 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
 
   return (
     <StoreProvider>
-      <ProductProvider>
-        <TransactionProvider>
-          <div className="min-h-screen w-full">
-            <div className="flex flex-col">
-              <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
-                <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-                  <SheetTrigger asChild>
-                    <Button size="icon" variant="outline" className="shrink-0">
-                      <PanelLeft className="h-5 w-5" />
-                      <span className="sr-only">メニューを開閉</span>
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent side="left" className="w-[280px] p-0">
-                    <SheetHeader className="sr-only">
-                      <SheetTitle>サイドバーメニュー</SheetTitle>
-                      <SheetDescription>
-                        アプリケーションの各ページに移動するためのナビゲーションメニューです。
-                      </SheetDescription>
-                    </SheetHeader>
-                    {sidebarContent}
-                  </SheetContent>
-                </Sheet>
+      <StoreSelectionProvider>
+        <ProductProvider>
+          <TransactionProvider>
+            <div className="min-h-screen w-full">
+              <div className="flex flex-col">
+                <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
+                  <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+                    <SheetTrigger asChild>
+                      <Button size="icon" variant="outline" className="shrink-0">
+                        <PanelLeft className="h-5 w-5" />
+                        <span className="sr-only">メニューを開閉</span>
+                      </Button>
+                    </SheetTrigger>
+                    <SheetContent side="left" className="w-[280px] p-0">
+                      <SheetHeader className="sr-only">
+                        <SheetTitle>サイドバーメニュー</SheetTitle>
+                        <SheetDescription>
+                          アプリケーションの各ページに移動するためのナビゲーションメニューです。
+                        </SheetDescription>
+                      </SheetHeader>
+                      {sidebarContent}
+                    </SheetContent>
+                  </Sheet>
 
-                <div className="hidden md:block">
-                  <Breadcrumb>
-                    <BreadcrumbList>
-                      {breadcrumbItems.map((item, index) => (
-                        <React.Fragment key={item.href}>
-                          <BreadcrumbItem>
-                            {item.isPage ? (
-                              <BreadcrumbPage>{item.label}</BreadcrumbPage>
-                            ) : (
-                              <BreadcrumbLink asChild>
-                                <Link href={item.href}>{item.label}</Link>
-                              </BreadcrumbLink>
-                            )}
-                          </BreadcrumbItem>
-                          {index < breadcrumbItems.length - 1 && <BreadcrumbSeparator />}
-                        </React.Fragment>
-                      ))}
-                    </BreadcrumbList>
-                  </Breadcrumb>
-                </div>
+                  <div className="hidden md:block">
+                    <Breadcrumb>
+                      <BreadcrumbList>
+                        {breadcrumbItems.map((item, index) => (
+                          <React.Fragment key={item.href}>
+                            <BreadcrumbItem>
+                              {item.isPage ? (
+                                <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                              ) : (
+                                <BreadcrumbLink asChild>
+                                  <Link href={item.href}>{item.label}</Link>
+                                </BreadcrumbLink>
+                              )}
+                            </BreadcrumbItem>
+                            {index < breadcrumbItems.length - 1 && <BreadcrumbSeparator />}
+                          </React.Fragment>
+                        ))}
+                      </BreadcrumbList>
+                    </Breadcrumb>
+                  </div>
 
-                <div className="relative ml-auto flex-1 md:grow-0">
-                  {/* Search can be implemented later */}
-                </div>
-                <UserNav />
-              </header>
-              <main className="flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6">
-                {children}
-              </main>
+                  <div className="relative ml-auto flex-1 md:grow-0">
+                    {/* Search can be implemented later */}
+                  </div>
+                  <UserNav />
+                </header>
+                <main className="flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6">
+                  {children}
+                </main>
+              </div>
             </div>
-          </div>
-        </TransactionProvider>
-      </ProductProvider>
+          </TransactionProvider>
+        </ProductProvider>
+      </StoreSelectionProvider>
     </StoreProvider>
   );
 }

@@ -13,6 +13,7 @@ import { firebaseConfig } from '@/firebase/config';
 
 interface StoreContextType {
   stores: Store[];
+  userStore: Store | undefined;
   adminRoles: AdminRole[];
   loading: boolean;
   addStore: (store: Omit<Store, 'id' | 'userId'> & { password?: string }) => void;
@@ -31,11 +32,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const { isAdmin, isAdminLoading } = useAdmin();
 
   const storesCollection = useMemoFirebase(() => {
-    if (firestore && isAdmin) {
+    if (firestore) { // Fetch stores for all users to find their own
       return collection(firestore, 'stores');
     }
     return null;
-  }, [firestore, isAdmin]);
+  }, [firestore]);
 
   const { data: storeData, isLoading: isStoresLoading } = useCollection<Store>(storesCollection);
 
@@ -48,13 +49,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const { data: adminRolesData, isLoading: isAdminRolesLoading } = useCollection<AdminRole>(adminRolesCollection);
 
-  const stores = isAdmin ? (storeData || []) : [];
-  const adminRoles = isAdmin ? (adminRolesData || []) : [];
+  const stores = storeData || [];
+  const adminRoles = adminRolesData || [];
   
-  const loading = isAdminLoading || (isAdmin && (isStoresLoading || isAdminRolesLoading));
+  const userStore = useMemo(() => {
+    if (isAdmin || !user || !stores) return undefined;
+    return stores.find(s => s.userId === user.uid);
+  }, [isAdmin, user, stores]);
+
+  const loading = isStoresLoading || isAdminLoading || (isAdmin && isAdminRolesLoading);
 
   const addStore = useCallback(async (storeData: { name: string; email: string; password?: string }) => {
-    if (!firestore || !isAdmin) return;
+    if (!firestore) return;
 
     if (!storeData.password) {
       toast({ variant: 'destructive', title: 'エラー', description: 'パスワードが指定されていません。' });
@@ -97,7 +103,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     } finally {
       await deleteApp(secondaryApp);
     }
-  }, [firestore, toast, isAdmin]);
+  }, [firestore, toast]);
 
   const updateStore = useCallback(async (storeData: Partial<Store> & { id: string }) => {
     if (!firestore || !isAdmin) return;
@@ -160,6 +166,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo(() => ({
     stores,
+    userStore,
     adminRoles,
     loading,
     addStore,
@@ -167,7 +174,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     deleteStore,
     getStoreById,
     toggleAdminRole,
-  }), [stores, adminRoles, loading, addStore, updateStore, deleteStore, getStoreById, toggleAdminRole]);
+  }), [stores, userStore, adminRoles, loading, addStore, updateStore, deleteStore, getStoreById, toggleAdminRole]);
 
   return (
     <StoreContext.Provider value={value}>

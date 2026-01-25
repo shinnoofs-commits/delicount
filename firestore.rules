@@ -5,33 +5,27 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     function isAdmin() {
-      // A user is an admin if their UID exists in the roles_admin collection
-      // and their document has the 'role' field set to 'admin'.
-      let roles_path = /databases/$(database)/documents/roles_admin/$(request.auth.uid);
-      return request.auth != null && exists(roles_path) && get(roles_path).data.role == 'admin';
+      return request.auth != null && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
 
     match /roles_admin/{uid} {
-      allow create: if isAdmin() || request.auth.uid == uid;
       allow read: if isAdmin() || request.auth.uid == uid;
-      allow delete: if isAdmin();
+      allow create, delete: if isAdmin();
       allow update: if false;
     }
 
     match /stores/{storeId} {
-      // Admins can read and write to any store document.
       allow read, write: if isAdmin();
 
-      // Rules for products subcollection
       match /products/{productId} {
-        // Admins can manage products.
-        allow read, write: if isAdmin();
+        allow read, write: if isAdmin() || get(/databases/$(database)/documents/stores/$(storeId)).data.userId == request.auth.uid;
       }
-
-    }
-    
-    match /{document=**} {
-      allow read, write: if false;
+      
+      match /waste/{wasteId} {
+         allow read: if isAdmin() || get(/databases/$(database)/documents/stores/$(storeId)).data.userId == request.auth.uid;
+         allow create: if request.auth.uid == request.resource.data.userId;
+         allow update, delete: if isAdmin() || get(/databases/$(database)/documents/stores/$(storeId)).data.userId == request.auth.uid;
+      }
     }
   }
 }

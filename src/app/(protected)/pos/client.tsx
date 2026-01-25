@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { X, Plus, Minus, Trash2 } from 'lucide-react';
+import { X, Plus, Minus, Trash2, Loader2 } from 'lucide-react';
 import type { Product, WasteItem, WasteEntry } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -12,8 +12,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useTransactions } from '@/contexts/transaction-context';
-import { useUser } from '@/firebase';
 import { useProducts } from '@/contexts/product-context';
+import { useStores } from '@/contexts/store-context';
+import { useAdmin } from '@/hooks/use-admin';
 
 type WasteListItem = {
   product: Product;
@@ -21,9 +22,11 @@ type WasteListItem = {
 };
 
 export default function PosClient() {
-  const { user } = useUser();
-  const { addWasteEntry } = useTransactions();
-  const { products: allProducts, getProductById } = useProducts();
+  const { addWasteEntry, loading: wasteLoading } = useTransactions();
+  const { products: allProducts, loading: productsLoading } = useProducts();
+  const { userStore, loading: storesLoading } = useStores();
+  const { isAdmin } = useAdmin();
+  
   const [selectedCategory, setSelectedCategory] = useState('すべて');
   const [wasteList, setWasteList] = useState<WasteListItem[]>([]);
   const { toast } = useToast();
@@ -77,7 +80,7 @@ export default function PosClient() {
     return wasteList.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
   }, [wasteList]);
 
-  const handleRecordWaste = () => {
+  const handleRecordWaste = async () => {
     if (wasteList.length === 0) {
       toast({
         variant: "destructive",
@@ -86,9 +89,18 @@ export default function PosClient() {
       });
       return;
     }
+    
+    if (!userStore) {
+        toast({
+            variant: "destructive",
+            title: "店舗が設定されていません",
+            description: "このアカウントには店舗が紐付いていません。管理者に連絡してください。",
+        });
+        return;
+    }
 
-    const newWasteEntry: Omit<WasteEntry, 'id'> = {
-      date: new Date(),
+    const newWasteEntry: Omit<WasteEntry, 'id' | 'date'> = {
+      storeId: userStore.id,
       items: wasteList.map(item => ({
         productId: item.product.id,
         name: item.product.name,
@@ -98,10 +110,45 @@ export default function PosClient() {
       totalWasteCost,
     };
 
-    addWasteEntry(newWasteEntry);
-    toast({ title: '廃棄を記録しました', description: `合計廃棄額 ¥${totalWasteCost.toLocaleString()} が記録されました` });
+    await addWasteEntry(newWasteEntry);
     clearWasteList();
   };
+
+  const isLoading = productsLoading || storesLoading;
+
+  if (isAdmin) {
+    return (
+        <div className="flex items-center justify-center h-full">
+            <Card className="w-full max-w-md text-center">
+                <CardHeader>
+                    <CardTitle>管理者アカウント</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-muted-foreground">廃棄入力は店舗アカウントで行ってください。</p>
+                </CardContent>
+            </Card>
+        </div>
+    )
+  }
+
+  if (isLoading) {
+    return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  }
+  
+  if (!isLoading && !userStore) {
+    return (
+        <div className="flex items-center justify-center h-full">
+            <Card className="w-full max-w-md text-center">
+                <CardHeader>
+                    <CardTitle>店舗が紐付いていません</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-muted-foreground">このアカウントには店舗が紐付いていません。管理者に連絡して店舗を割り当ててもらってください。</p>
+                </CardContent>
+            </Card>
+        </div>
+    )
+  }
 
   return (
     <div className="grid flex-1 grid-cols-1 gap-4 items-start lg:grid-cols-3">
@@ -195,8 +242,9 @@ export default function PosClient() {
                   <span>¥{totalWasteCost.toLocaleString()}</span>
               </div>
             </div>
-            <Button className="w-full bg-destructive hover:bg-destructive/90 text-destructive-foreground" size="lg" disabled={wasteList.length === 0} onClick={handleRecordWaste}>
-               <Trash2 className="mr-2 h-5 w-5"/> 廃棄を記録
+            <Button className="w-full bg-destructive hover:bg-destructive/90 text-destructive-foreground" size="lg" disabled={wasteList.length === 0 || wasteLoading} onClick={handleRecordWaste}>
+               {wasteLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <Trash2 className="mr-2 h-5 w-5"/>}
+               廃棄を記録
             </Button>
           </CardFooter>
         </Card>

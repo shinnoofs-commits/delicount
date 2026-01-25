@@ -34,6 +34,7 @@ export type Container = {
 
 export type Product = {
   id: string;
+  storeId: string;
   name: string;
   price: number;
   costPrice: number;
@@ -59,6 +60,7 @@ export type TransactionItem = {
 
 export type Transaction = {
   id: string;
+  storeId: string;
   date: Date;
   items: TransactionItem[];
   totalAmount: number;
@@ -79,6 +81,8 @@ export type WasteItem = {
 
 export type WasteEntry = {
   id: string;
+  storeId: string;
+  userId: string;
   date: Date;
   items: WasteItem[];
   totalWasteCost: number;

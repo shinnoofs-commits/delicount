@@ -33,6 +33,8 @@ import {
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge";
+import { StoreSelector } from "@/components/ui/store-selector";
+import { useAdmin } from "@/hooks/use-admin";
 
 const DateRangePicker = ({ date, setDate }: { date: DateRange | undefined, setDate: (date: DateRange | undefined) => void }) => {
   return (
@@ -98,30 +100,26 @@ type AbcDataItem = {
 
 
 export default function AbcAnalysisPage() {
-  const { transactions, wasteEntries } = useTransactions();
-  const { products } = useProducts();
+  const { wasteEntries, loading: wasteLoading } = useTransactions();
+  const { products, loading: productsLoading } = useProducts();
+  const { isAdmin } = useAdmin();
 
   const [date, setDate] = useState<DateRange | undefined>({
     from: subDays(new Date(), 6),
     to: new Date(),
   });
 
-  const { filteredTransactions, filteredWasteEntries } = useMemo(() => {
-    if (!date || !date.from) return { filteredTransactions: [], filteredWasteEntries: [] };
+  const filteredWasteEntries = useMemo(() => {
+    if (!date || !date.from) return [];
     
     const fromDate = startOfDay(date.from);
     const toDate = date.to ? endOfDay(date.to) : endOfDay(date.from);
 
-    const filterByDate = (entry: { date: Date }) => {
+    return wasteEntries.filter(entry => {
         const entryDate = new Date(entry.date);
         return isValid(entryDate) && entryDate >= fromDate && entryDate <= toDate;
-    };
-
-    return {
-        filteredTransactions: transactions.filter(filterByDate),
-        filteredWasteEntries: wasteEntries.filter(filterByDate)
-    };
-  }, [date, transactions, wasteEntries]);
+    });
+  }, [date, wasteEntries]);
 
   const wasteAnalysisData: WasteData[] = useMemo(() => {
     const wasteDataMap = new Map<string, WasteData>();
@@ -140,9 +138,22 @@ export default function AbcAnalysisPage() {
 
     filteredWasteEntries.forEach(entry => {
         entry.items.forEach(item => {
+            const product = products.find(p => p.id === item.productId);
+            if (!product) return;
+
             const data = wasteDataMap.get(item.productId);
             if (data) {
                 data.wasteCount += item.quantity;
+            } else {
+                 wasteDataMap.set(item.productId, {
+                    productId: product.id,
+                    productName: product.name,
+                    wasteCount: item.quantity,
+                    costPrice: product.costPrice,
+                    price: product.price,
+                    totalWasteCost: 0, // calculated later
+                    opportunityLoss: 0, // calculated later
+                });
             }
         });
     });
@@ -153,7 +164,7 @@ export default function AbcAnalysisPage() {
         opportunityLoss: data.wasteCount * data.price,
     })).filter(d => d.wasteCount > 0);
     
-  }, [products, filteredTransactions, filteredWasteEntries]);
+  }, [products, filteredWasteEntries]);
   
   const abcAnalysisData: AbcDataItem[] = useMemo(() => {
     const sortedByWasteCost = wasteAnalysisData
@@ -200,14 +211,26 @@ export default function AbcAnalysisPage() {
 
   return (
     <div className="flex flex-col gap-4">
-       <div className="flex flex-wrap items-center gap-4">
-        <DateRangePicker date={date} setDate={setDate} />
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setDatePreset('today')}>今日</Button>
-          <Button variant="outline" size="sm" onClick={() => setDatePreset('last_7_days')}>過去7日間</Button>
-          <Button variant="outline" size="sm" onClick={() => setDatePreset('this_month')}>今月</Button>
+       <div className="flex flex-col gap-4 p-4 border rounded-lg">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+            <div>
+              <p className="text-sm font-medium mb-2">分析対象の店舗</p>
+              {isAdmin ? <StoreSelector /> : <p className="text-sm text-muted-foreground">自店舗のデータのみ表示</p>}
+            </div>
+            <div>
+              <p className="text-sm font-medium mb-2">期間を選択</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <DateRangePicker date={date} setDate={setDate} />
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setDatePreset('today')}>今日</Button>
+                  <Button variant="outline" size="sm" onClick={() => setDatePreset('last_7_days')}>過去7日間</Button>
+                  <Button variant="outline" size="sm" onClick={() => setDatePreset('this_month')}>今月</Button>
+                </div>
+              </div>
+            </div>
         </div>
       </div>
+
 
       <Card>
         <CardHeader>
