@@ -52,6 +52,7 @@ export default function SignupPage() {
           const adminRoleData = {
             name: name,
             role: 'admin',
+            email: email,
           };
           await setDoc(doc(firestore, 'roles_admin', user.uid), adminRoleData);
       } catch (e: any) {
@@ -93,8 +94,8 @@ export default function SignupPage() {
           <div className="mx-auto mb-4">
             <Icons.logo className="h-12 w-12 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-headline">本部アカウント登録</CardTitle>
-          <CardDescription>管理者（本部）としてシステムを利用するアカウントを作成します。</CardDescription>
+          <CardTitle className="text-2xl font-headline">アカウント登録</CardTitle>
+          <CardDescription>新しいアカウントを作成します。作成されたアカウントは初期状態では「管理者」です。</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="grid gap-2">

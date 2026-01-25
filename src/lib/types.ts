@@ -13,6 +13,13 @@ export type Store = {
   userId: string;
 }
 
+export type AdminRole = {
+  id: string; // This will be the user's UID
+  name: string;
+  email: string;
+  role: 'admin';
+}
+
 export type Category = string;
 
 export type Material = {

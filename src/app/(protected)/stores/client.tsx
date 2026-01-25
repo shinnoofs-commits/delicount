@@ -1,11 +1,12 @@
 
 'use client'
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { MoreHorizontal, PlusCircle, Building, Trash2 } from "lucide-react"
 
 import type { Store } from "@/lib/types"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import {
   Card,
   CardContent,
@@ -27,6 +28,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import {
   Dialog,
@@ -49,16 +51,20 @@ import {
 import { useStores } from "@/contexts/store-context"
 import { useToast } from "@/hooks/use-toast"
 import { useAdmin } from "@/hooks/use-admin"
+import { useUser } from "@/firebase"
 
 export default function StoresClient() {
-  const { stores, addStore, updateStore, deleteStore } = useStores()
+  const { stores, addStore, updateStore, deleteStore, adminRoles, toggleAdminRole } = useStores()
   const { isAdmin, isAdminLoading } = useAdmin()
+  const { user } = useUser()
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
   const [storeToEdit, setStoreToEdit] = useState<Store | null>(null)
   const [storeToDelete, setStoreToDelete] = useState<Store | null>(null)
 
   const { toast } = useToast()
+
+  const adminUids = useMemo(() => new Set(adminRoles.map(role => role.id)), [adminRoles]);
 
   if (isAdminLoading || !isAdmin) {
     return null
@@ -97,6 +103,11 @@ export default function StoresClient() {
     setStoreToEdit(null)
   }
 
+  const handleToggleAdminRole = (store: Store) => {
+    toggleAdminRole(store);
+  };
+
+
   return (
     <>
       <div className="flex items-center justify-end gap-2 mb-4">
@@ -107,15 +118,16 @@ export default function StoresClient() {
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>店舗一覧</CardTitle>
-          <CardDescription>事業全体の店舗を管理します。店舗アカウントの作成もここで行います。</CardDescription>
+          <CardTitle>店舗・アカウント一覧</CardTitle>
+          <CardDescription>アカウントの管理・役割の変更ができます。</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>店舗名</TableHead>
+                <TableHead>店舗名 / アカウント名</TableHead>
                 <TableHead>ログイン用メールアドレス</TableHead>
+                <TableHead>役割</TableHead>
                 <TableHead>
                   <span className="sr-only">アクション</span>
                 </TableHead>
@@ -124,8 +136,8 @@ export default function StoresClient() {
             <TableBody>
               {stores.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="h-24 text-center">
-                    まだ店舗が登録されていません。
+                  <TableCell colSpan={4} className="h-24 text-center">
+                    まだ店舗アカウントが登録されていません。
                   </TableCell>
                 </TableRow>
               ) : (
@@ -133,6 +145,9 @@ export default function StoresClient() {
                   <TableRow key={store.id}>
                     <TableCell className="font-medium">{store.name}</TableCell>
                     <TableCell>{store.email}</TableCell>
+                    <TableCell>
+                      {adminUids.has(store.userId) ? <Badge>管理者</Badge> : <Badge variant="secondary">店舗</Badge>}
+                    </TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -144,8 +159,12 @@ export default function StoresClient() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>アクション</DropdownMenuLabel>
                           <DropdownMenuItem onClick={() => handleEdit(store)}>
-                            編集
+                            店舗名を編集
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleToggleAdminRole(store)} disabled={store.userId === user?.uid}>
+                            {adminUids.has(store.userId) ? '店舗アカウントに変更' : '管理者に変更'}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem
                             onClick={() => handleDelete(store)}
                             className="text-destructive"
@@ -167,12 +186,12 @@ export default function StoresClient() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {storeToEdit ? "店舗を編集" : "店舗を追加"}
+              {storeToEdit ? "店舗を編集" : "店舗アカウントを追加"}
             </DialogTitle>
             <DialogDescription>
               {storeToEdit
-                ? "店舗の詳細を更新します。"
-                : "新しい店舗と、その店舗用のログインアカウントを作成します。"}
+                ? "店舗の名称を更新します。"
+                : "新しい店舗アカウントを作成します。作成されたアカウントは初期状態では「管理者」です。"}
             </DialogDescription>
           </DialogHeader>
           <StoreForm

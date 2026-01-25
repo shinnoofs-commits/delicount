@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Product": {
@@ -169,6 +170,11 @@
           "type": "string",
           "description": "Name of the admin user."
         },
+        "email": {
+          "type": "string",
+          "description": "Email of the admin user.",
+          "format": "email"
+        },
         "role": {
           "type": "string",
           "description": "Should be 'admin'.",
@@ -179,7 +185,8 @@
       },
       "required": [
         "name",
-        "role"
+        "role",
+        "email"
       ]
     }
   },
