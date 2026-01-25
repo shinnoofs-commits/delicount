@@ -7,7 +7,8 @@ service cloud.firestore {
     function isAdmin() {
       // A user is an admin if their UID exists in the roles_admin collection
       // and their document has the 'role' field set to 'admin'.
-      return request.auth != null && get(/databases/$(database)/documents/roles_admin/$(request.auth.uid)).data.role == 'admin';
+      let roles_path = /databases/$(database)/documents/roles_admin/$(request.auth.uid);
+      return request.auth != null && exists(roles_path) && get(roles_path).data.role == 'admin';
     }
 
     function isStoreMember(storeId) {
