@@ -14,7 +14,6 @@ import {
   PieChart,
   BookText,
   Building,
-  Users,
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -42,7 +41,6 @@ const navItems = [
   { href: '/abc-analysis', icon: PieChart, label: 'ABC分析', adminOnly: true },
   { href: '/products', icon: Package, label: '商品', adminOnly: true },
   { href: '/stores', icon: Building, label: '店舗一覧', adminOnly: true },
-  { href: '/staff', icon: Users, label: 'スタッフ管理', adminOnly: true },
   { href: '/manual', icon: BookText, label: '操作説明', adminOnly: false },
 ];
 

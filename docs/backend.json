@@ -83,10 +83,6 @@
           "items": {
             "type": "string"
           }
-        },
-        "staffId": {
-          "type": "string",
-          "description": "Reference to Staff. (Relationship: Staff 1:N Transaction)"
         }
       },
       "required": [
@@ -94,8 +90,7 @@
         "dateTime",
         "paymentMethod",
         "totalAmount",
-        "soldItems",
-        "staffId"
+        "soldItems"
       ]
     },
     "SoldItem": {
@@ -133,36 +128,6 @@
         "unitPrice"
       ]
     },
-    "Staff": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Staff",
-      "type": "object",
-      "description": "Represents a staff member.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the staff member."
-        },
-        "name": {
-          "type": "string",
-          "description": "Name of the staff member."
-        },
-        "role": {
-          "type": "string",
-          "description": "Role of the staff member (e.g., Admin, Employee)."
-        },
-        "storeId": {
-          "type": "string",
-          "description": "Reference to Store. (Relationship: Store 1:N Staff)"
-        }
-      },
-      "required": [
-        "id",
-        "name",
-        "role",
-        "storeId"
-      ]
-    },
     "Store": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Store",
@@ -187,6 +152,29 @@
         "name",
         "location"
       ]
+    },
+    "AdminRole": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AdminRole",
+      "type": "object",
+      "description": "Represents an admin role document.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the admin user."
+        },
+        "role": {
+          "type": "string",
+          "description": "Should be 'admin'.",
+          "enum": [
+            "admin"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "role"
+      ]
     }
   },
   "auth": {
@@ -209,26 +197,6 @@
             {
               "name": "storeId",
               "description": "Unique identifier for the store."
-            }
-          ]
-        }
-      },
-      {
-        "path": "stores/{storeId}/staff/{staffId}",
-        "definition": {
-          "entityName": "Staff",
-          "schema": {
-            "$ref": "#/backend/entities/Staff"
-          },
-          "description": "Staff subcollection under each store. Each document contains the staff member's role within the store.",
-          "params": [
-            {
-              "name": "storeId",
-              "description": "Unique identifier for the store."
-            },
-            {
-              "name": "staffId",
-              "description": "Unique identifier for the staff member."
             }
           ]
         }
@@ -260,7 +228,7 @@
           "schema": {
             "$ref": "#/backend/entities/Transaction"
           },
-          "description": "Transactions subcollection under each store. Includes denormalized 'storeId' and 'staffId' for authorization independence.",
+          "description": "Transactions subcollection under each store. Includes denormalized 'storeId' for authorization independence.",
           "params": [
             {
               "name": "storeId",
@@ -302,7 +270,7 @@
         "definition": {
           "entityName": "admin_role",
           "schema": {
-            "$ref": "#/backend/entities/Staff"
+            "$ref": "#/backend/entities/AdminRole"
           },
           "description": "Admin roles collection, existence of a document grants admin privileges.",
           "params": [
@@ -314,6 +282,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to support the SwiftPOS application's requirements for product management, sales tracking, user/permission management, and reporting. The core principle is Authorization Independence, achieved through denormalization where necessary.  The structure leverages path-based ownership and membership maps to simplify security rules and enable QAPs. Specifically, the `stores/{storeId}` collection holds store-specific data.  Staff are located at `stores/{storeId}/staff/{staffId}` to associate them with a store, and each staff document will contain a `role` field. Products are also located at `stores/{storeId}/products/{productId}` to associate them with a store.  Transactions are located at `stores/{storeId}/transactions/{transactionId}` and reference the staff ID and the sold product IDs. To support the requirement that store staff can only see their store's data, the staffId is used within the transactions, and the `storeId` is also denormalized into the transaction. The main collections and subcollections are used to maintain data segregation by store. This design enables straightforward security rules that prevent unauthorized access to data.  Finally, to easily show a dashboard with all the transactions, the `transactions` collection will also contain the storeId so that the dashboard can filter by store ID, and global admins will have access to all transactions.  To support listing products and transactions securely (QAPs), each collection is scoped to a store. This structure allows us to write security rules that check the user's role within the store and grant access accordingly, ensuring that only authorized users can access the data."
+    "reasoning": "The Firestore structure is designed to support the SwiftPOS application's requirements for product management, sales tracking, user/permission management, and reporting. The core principle is Authorization Independence, achieved through denormalization where necessary. The structure leverages path-based ownership and membership maps to simplify security rules and enable QAPs. Specifically, the `stores/{storeId}` collection holds store-specific data. Products are located at `stores/{storeId}/products/{productId}` to associate them with a store. Transactions are located at `stores/{storeId}/transactions/{transactionId}`. The `storeId` is denormalized into the transaction. The main collections and subcollections are used to maintain data segregation by store. This design enables straightforward security rules that prevent unauthorized access to data. Finally, to easily show a dashboard with all the transactions, the `transactions` collection will also contain the storeId so that the dashboard can filter by store ID, and global admins will have access to all transactions. To support listing products and transactions securely (QAPs), each collection is scoped to a store. This structure allows us to write security rules that check the user's role and grant access accordingly, ensuring that only authorized users can access the data."
   }
 }

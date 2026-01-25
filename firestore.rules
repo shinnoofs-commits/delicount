@@ -11,10 +11,6 @@ service cloud.firestore {
       return request.auth != null && exists(roles_path) && get(roles_path).data.role == 'admin';
     }
 
-    function isStoreMember(storeId) {
-      return exists(/databases/$(database)/documents/stores/$(storeId)/staff/$(request.auth.uid));
-    }
-
     match /roles_admin/{uid} {
       allow create: if request.auth.uid == uid;
       allow read: if request.auth.uid == uid;
@@ -28,15 +24,10 @@ service cloud.firestore {
 
       // Rules for products subcollection
       match /products/{productId} {
-        // Admins can manage products. Store members can view them.
-        allow read: if isAdmin() || isStoreMember(storeId);
-        allow write: if isAdmin();
-      }
-
-      // Rules for staff subcollection
-      match /staff/{staffId} {
+        // Admins can manage products.
         allow read, write: if isAdmin();
       }
+
     }
     
     match /{document=**} {

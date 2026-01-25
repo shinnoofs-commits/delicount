@@ -87,8 +87,7 @@ export default function PosClient() {
       return;
     }
 
-    const newWasteEntry: WasteEntry = {
-      id: `waste-${Date.now()}`,
+    const newWasteEntry: Omit<WasteEntry, 'id'> = {
       date: new Date(),
       items: wasteList.map(item => ({
         productId: item.product.id,
@@ -97,7 +96,6 @@ export default function PosClient() {
         costPrice: item.product.costPrice,
       })),
       totalWasteCost,
-      staffId: user?.id || 'unknown',
     };
 
     addWasteEntry(newWasteEntry);

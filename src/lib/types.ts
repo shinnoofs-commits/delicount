@@ -6,13 +6,6 @@ export type User = {
   role: 'admin' | 'employee';
 };
 
-export type Staff = {
-  id: string;
-  name: string;
-  role: 'admin' | 'employee';
-  storeId: string;
-}
-
 export type Store = {
   id: string;
   name: string;
@@ -67,7 +60,6 @@ export type Transaction = {
   } | null;
   finalAmount: number;
   paymentMethod: 'Cash' | 'Credit Card' | 'E-Money' | 'QR Code' | 'Points';
-  staffId: string;
 };
 
 export type WasteItem = {
@@ -82,5 +74,4 @@ export type WasteEntry = {
   date: Date;
   items: WasteItem[];
   totalWasteCost: number;
-  staffId: string;
 };
