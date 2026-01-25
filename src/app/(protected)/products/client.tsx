@@ -130,7 +130,7 @@ export default function ProductsClient() {
 
   const handleCsvImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || !managedStoreId) return;
+    if (!file) return;
 
       Papa.parse(file, {
         header: true,
@@ -174,7 +174,7 @@ export default function ProductsClient() {
 
 
           if (importedProducts.length > 0) {
-            importProductsFromCSV(managedStoreId, importedProducts);
+            importProductsFromCSV(importedProducts);
           }
           
           event.target.value = '';

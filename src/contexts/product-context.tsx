@@ -16,7 +16,7 @@ interface ProductContextType {
   addProduct: (storeId: string, product: Omit<Product, 'id' | 'storeId'>) => void;
   updateProduct: (storeId: string, product: Product) => void;
   deleteProducts: (storeId: string, productIds: string[]) => void;
-  importProductsFromCSV: (storeId: string, products: Omit<Product, 'id' | 'storeId'>[]) => void;
+  importProductsFromCSV: (products: Omit<Product, 'id' | 'storeId'>[]) => void;
 }
 
 export const ProductContext = createContext<ProductContextType | undefined>(undefined);
@@ -25,7 +25,7 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
   const firestore = useFirestore();
   const { toast } = useToast();
   const { isAdmin } = useAdmin();
-  const { userStore } = useStores();
+  const { userStore, stores } = useStores();
   const { selectedStoreIds } = useStoreSelection();
   
   const [products, setProducts] = useState<Product[]>([]);
@@ -118,12 +118,26 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
       });
   }, [firestore, toast]);
   
-  const importProductsFromCSV = useCallback((storeId: string, newProducts: Omit<Product, 'id' | 'storeId'>[]) => {
-    if (!firestore) return;
-    const productsCollection = collection(firestore, 'stores', storeId, 'products');
+  const importProductsFromCSV = useCallback(async (newProducts: Omit<Product, 'id' | 'storeId'>[]) => {
+    if (!firestore || !isAdmin || stores.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'インポート失敗',
+        description: '対象となる店舗がありません。'
+      });
+      return;
+    }
 
-    getDocs(productsCollection)
-      .then(existingProductsSnap => {
+    let totalNewCount = 0;
+    let totalUpdateCount = 0;
+    const failedStores: string[] = [];
+    const processingToast = toast({ title: 'CSVインポート処理中...', description: `全${stores.length}店舗の商品データを更新しています。` });
+
+    await Promise.all(stores.map(async (store) => {
+      try {
+        const productsCollection = collection(firestore, 'stores', store.id, 'products');
+        const existingProductsSnap = await getDocs(productsCollection);
+        
         const existingProductMap = new Map<string, string>(); // Map productCode to docId
         existingProductsSnap.forEach(doc => {
           const data = doc.data();
@@ -139,29 +153,45 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
         newProducts.forEach(product => {
             if (!product.productCode) return;
             const existingId = existingProductMap.get(product.productCode);
+            
+            const productDataForStore = { ...product };
+
             if (existingId) {
                 const docRef = doc(productsCollection, existingId);
-                batch.update(docRef, product as { [x: string]: any });
+                batch.update(docRef, productDataForStore as { [x: string]: any });
                 updateCount++;
             } else {
                 const docRef = doc(productsCollection);
-                batch.set(docRef, product);
+                batch.set(docRef, productDataForStore);
                 newCount++;
             }
         });
 
-        return batch.commit().then(() => ({ newCount, updateCount }));
-      })
-      .then(({ newCount, updateCount }) => {
-        toast({ 
-          title: "CSVインポート完了", 
-          description: `新規${newCount}件、更新${updateCount}件の商品を処理しました。`
-        });
-      })
-      .catch(e => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: productsCollection.path, operation: 'write'}));
+        await batch.commit();
+        totalNewCount += newCount;
+        totalUpdateCount += updateCount;
+      } catch (error) {
+        console.error(`Failed to import products for store ${store.name}:`, error);
+        failedStores.push(store.name);
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `stores/${store.id}/products`, operation: 'write'}));
+      }
+    }));
+
+    processingToast.dismiss();
+
+    if (failedStores.length > 0) {
+      toast({
+        variant: 'destructive',
+        title: "CSVインポート一部失敗",
+        description: `次の店舗への反映に失敗しました: ${failedStores.join(', ')}。`
       });
-  }, [firestore, toast]);
+    } else {
+      toast({ 
+        title: "CSVインポート完了", 
+        description: `全${stores.length}店舗に商品を反映しました。合計で新規${totalNewCount}件、更新${totalUpdateCount}件を処理しました。`
+      });
+    }
+  }, [firestore, isAdmin, stores, toast]);
 
   const value = useMemo(() => ({
     products,
