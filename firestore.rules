@@ -11,13 +11,16 @@ service cloud.firestore {
     match /roles_admin/{uid} {
       allow get: if isAdmin() || request.auth.uid == uid;
       allow list: if isAdmin();
-      allow create, delete: if isAdmin();
+      allow create: if request.auth.uid == uid;
+      allow delete: if isAdmin();
       allow update: if false;
     }
 
     match /stores/{storeId} {
       allow read: if isAdmin() || resource.data.userId == request.auth.uid;
-      allow write: if isAdmin();
+      allow create: if request.auth.uid == request.resource.data.userId;
+      allow update: if isAdmin() || get(/databases/$(database)/documents/stores/$(storeId)).data.userId == request.auth.uid;
+      allow delete: if isAdmin();
 
       match /products/{productId} {
         allow read, write: if isAdmin() || get(/databases/$(database)/documents/stores/$(storeId)).data.userId == request.auth.uid;
