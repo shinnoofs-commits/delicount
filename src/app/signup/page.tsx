@@ -58,12 +58,13 @@ export default function SignupPage() {
           userId: user.uid,
       };
       const storesCollection = collection(firestore, 'stores');
-      addDoc(storesCollection, storeData).catch((e) => {
-          errorEmitter.emit('permission-error', new FirestorePermissionError({
+      addDoc(storesCollection, storeData).catch(async (serverError) => {
+          const permissionError = new FirestorePermissionError({
               path: storesCollection.path,
               operation: 'create',
               requestResourceData: storeData
-          }));
+          });
+          errorEmitter.emit('permission-error', permissionError);
       });
 
       // If the role is admin, create an admin role document
@@ -75,12 +76,13 @@ export default function SignupPage() {
           };
           const adminRoleDocRef = doc(firestore, 'roles_admin', user.uid);
           
-          setDoc(adminRoleDocRef, adminRoleData).catch((e) => {
-              errorEmitter.emit('permission-error', new FirestorePermissionError({
+          setDoc(adminRoleDocRef, adminRoleData).catch(async (serverError) => {
+              const permissionError = new FirestorePermissionError({
                   path: adminRoleDocRef.path,
                   operation: 'create',
                   requestResourceData: adminRoleData
-              }));
+              });
+              errorEmitter.emit('permission-error', permissionError);
           });
       }
       
@@ -88,7 +90,6 @@ export default function SignupPage() {
       router.replace('/login');
 
     } catch (error: any) {
-      console.error(error);
       let description = 'アカウント登録に失敗しました。';
       if (error.code === 'auth/email-already-in-use') {
         description = 'このメールアドレスは既に使用されています。';
