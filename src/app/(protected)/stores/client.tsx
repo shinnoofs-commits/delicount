@@ -1,9 +1,8 @@
 
 'use client'
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { MoreHorizontal, PlusCircle, Building, Trash2 } from "lucide-react"
-import { useRouter } from "next/navigation"
 
 import type { Store } from "@/lib/types"
 import { Button } from "@/components/ui/button"
@@ -54,24 +53,12 @@ import { useAdmin } from "@/hooks/use-admin"
 export default function StoresClient() {
   const { stores, addStore, updateStore, deleteStore } = useStores()
   const { isAdmin, isAdminLoading } = useAdmin()
-  const router = useRouter()
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
   const [storeToEdit, setStoreToEdit] = useState<Store | null>(null)
   const [storeToDelete, setStoreToDelete] = useState<Store | null>(null)
 
   const { toast } = useToast()
-
-  useEffect(() => {
-    if (!isAdminLoading && !isAdmin) {
-      toast({
-        variant: "destructive",
-        title: "アクセス権限がありません",
-        description: "このページにアクセスする権限がありません。",
-      })
-      router.replace("/pos")
-    }
-  }, [isAdmin, isAdminLoading, router, toast])
 
   if (isAdminLoading || !isAdmin) {
     return null

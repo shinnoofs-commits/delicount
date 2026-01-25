@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useUser } from '@/firebase';
@@ -47,9 +46,8 @@ const navItems = [
   { href: '/manual', icon: BookText, label: '操作説明', adminOnly: false },
 ];
 
-function MainNav({ onLinkClick }: { onLinkClick: () => void }) {
+function MainNav({ onLinkClick, isAdmin }: { onLinkClick: () => void, isAdmin: boolean }) {
   const pathname = usePathname();
-  const { isAdmin } = useAdmin();
   
   const filteredNavItems = useMemo(() => {
     if (isAdmin) return navItems;
@@ -125,7 +123,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
           </Link>
         </div>
         <div className="flex-1 overflow-auto py-2">
-          <MainNav onLinkClick={handleLinkClick} />
+          <MainNav onLinkClick={handleLinkClick} isAdmin={isAdmin} />
         </div>
       </div>
   );

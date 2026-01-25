@@ -2,21 +2,11 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAdmin } from "@/hooks/use-admin";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 
 
 export default function StaffPage() {
     const { isAdmin, isAdminLoading } = useAdmin();
-    const router = useRouter();
-
-    useEffect(() => {
-        // Redirect if loading is finished and the user is not an admin.
-        if (!isAdminLoading && !isAdmin) {
-            router.replace('/pos');
-        }
-    }, [isAdmin, isAdminLoading, router]);
 
     // Show a loader while checking for admin status.
     if (isAdminLoading) {
@@ -28,7 +18,6 @@ export default function StaffPage() {
     }
     
     // This part will be rendered only for admins after loading is complete.
-    // The redirect in useEffect handles non-admins.
     if (isAdmin) {
         return (
             <Card>
@@ -43,6 +32,6 @@ export default function StaffPage() {
         );
     }
 
-    // Render nothing while the redirect for non-admins is in progress.
+    // Render nothing for non-admins. The menu filtering should prevent them from getting here.
     return null;
 }
