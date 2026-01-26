@@ -85,11 +85,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         email: storeData.email,
         role: 'admin',
       };
-      setDoc(roleDocRef, roleData).catch((e) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: roleDocRef.path, operation: 'create', requestResourceData: roleData,
-        }));
-      });
+      await setDoc(roleDocRef, roleData);
 
       const adminStoresCollection = collection(firestore, 'stores');
       const storeDataForFirestore = {
@@ -98,11 +94,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         userId: newUserId,
         createdAt: serverTimestamp(),
       };
-      addDoc(adminStoresCollection, storeDataForFirestore).catch((e) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: adminStoresCollection.path, operation: 'create', requestResourceData: storeDataForFirestore,
-        }));
-      });
+      await addDoc(adminStoresCollection, storeDataForFirestore);
       
       toast({ title: "店舗アカウントを追加しました", description: `「${storeData.name}」を管理者として登録しました。` });
 
@@ -112,6 +104,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         description = 'このメールアドレスは既に使用されています。';
       } else if (error.code === 'auth/weak-password') {
         description = 'パスワードは6文字以上である必要があります。';
+      } else if (error.code === 'permission-denied') {
+        description = 'データベースへの書き込み権限がありません。';
       }
       toast({ variant: 'destructive', title: "エラー", description });
     } finally {

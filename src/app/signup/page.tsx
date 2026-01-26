@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useFirebase, initializeFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useFirebase, initializeFirebase } from '@/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc, collection, addDoc } from 'firebase/firestore';
 
@@ -58,14 +58,7 @@ export default function SignupPage() {
           userId: user.uid,
       };
       const storesCollection = collection(firestore, 'stores');
-      addDoc(storesCollection, storeData).catch(async (serverError) => {
-          const permissionError = new FirestorePermissionError({
-              path: storesCollection.path,
-              operation: 'create',
-              requestResourceData: storeData
-          });
-          errorEmitter.emit('permission-error', permissionError);
-      });
+      await addDoc(storesCollection, storeData);
 
       // If the role is admin, create an admin role document
       if (role === 'admin') {
@@ -76,18 +69,11 @@ export default function SignupPage() {
           };
           const adminRoleDocRef = doc(firestore, 'roles_admin', user.uid);
           
-          setDoc(adminRoleDocRef, adminRoleData).catch(async (serverError) => {
-              const permissionError = new FirestorePermissionError({
-                  path: adminRoleDocRef.path,
-                  operation: 'create',
-                  requestResourceData: adminRoleData
-              });
-              errorEmitter.emit('permission-error', permissionError);
-          });
+          await setDoc(adminRoleDocRef, adminRoleData);
       }
       
-      toast({ title: 'アカウントを登録しました', description: 'ログインページに移動します。' });
-      router.replace('/login');
+      toast({ title: 'アカウントを登録しました', description: 'アプリケーションに移動します。' });
+      // No need to redirect to /login, useEffect will handle redirect to /pos
 
     } catch (error: any) {
       let description = 'アカウント登録に失敗しました。';
