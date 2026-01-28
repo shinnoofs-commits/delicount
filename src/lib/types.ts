@@ -11,6 +11,7 @@ export type Store = {
   name: string;
   email: string;
   userId: string;
+  isAdmin?: boolean;
 }
 
 export type AdminRole = {

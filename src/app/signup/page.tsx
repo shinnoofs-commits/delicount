@@ -56,6 +56,7 @@ export default function SignupPage() {
           name: name, // Using user's name as store name
           email: email,
           userId: user.uid,
+          isAdmin: role === 'admin',
       };
       const storesCollection = collection(firestore, 'stores');
       await addDoc(storesCollection, storeData);

@@ -54,7 +54,7 @@ import { useAdmin } from "@/hooks/use-admin"
 import { useUser } from "@/firebase"
 
 export default function StoresClient() {
-  const { stores, addStore, updateStore, deleteStore, adminRoles, toggleAdminRole } = useStores()
+  const { stores, addStore, updateStore, deleteStore, toggleAdminRole } = useStores()
   const { isAdmin, isAdminLoading } = useAdmin()
   const { user } = useUser()
   const [isFormOpen, setIsFormOpen] = useState(false)
@@ -63,8 +63,6 @@ export default function StoresClient() {
   const [storeToDelete, setStoreToDelete] = useState<Store | null>(null)
 
   const { toast } = useToast()
-
-  const adminUids = useMemo(() => new Set(adminRoles.map(role => role.id)), [adminRoles]);
 
   if (isAdminLoading || !isAdmin) {
     return null
@@ -97,7 +95,7 @@ export default function StoresClient() {
     if (storeData.id) {
       updateStore(storeData as Store)
     } else {
-      addStore(storeData as Omit<Store, 'id' | 'userId'> & { password?: string });
+      addStore(storeData as Omit<Store, 'id' | 'userId' | 'isAdmin'> & { password?: string });
     }
     setIsFormOpen(false)
     setStoreToEdit(null)
@@ -146,7 +144,7 @@ export default function StoresClient() {
                     <TableCell className="font-medium">{store.name}</TableCell>
                     <TableCell>{store.email}</TableCell>
                     <TableCell>
-                      {adminUids.has(store.userId) ? <Badge>管理者</Badge> : <Badge variant="secondary">店舗</Badge>}
+                      {store.isAdmin ? <Badge>管理者</Badge> : <Badge variant="secondary">店舗</Badge>}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
@@ -162,7 +160,7 @@ export default function StoresClient() {
                             店舗名を編集
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleToggleAdminRole(store)} disabled={store.userId === user?.uid}>
-                            {adminUids.has(store.userId) ? '店舗アカウントに変更' : '管理者に変更'}
+                            {store.isAdmin ? '店舗アカウントに変更' : '管理者に変更'}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem

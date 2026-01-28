@@ -4,7 +4,7 @@
 import type { Store, AdminRole } from '@/lib/types';
 import React, { createContext, useContext, useCallback, useMemo } from 'react';
 import { useCollection, useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, doc, addDoc, setDoc, deleteDoc, serverTimestamp, query, where } from 'firebase/firestore';
+import { collection, doc, addDoc, setDoc, deleteDoc, serverTimestamp, query, where, writeBatch, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useAdmin } from '@/hooks/use-admin';
 import { initializeApp, deleteApp } from 'firebase/app';
@@ -14,10 +14,9 @@ import { firebaseConfig } from '@/firebase/config';
 interface StoreContextType {
   stores: Store[];
   userStore: Store | undefined;
-  adminRoles: AdminRole[];
   loading: boolean;
-  addStore: (store: Omit<Store, 'id' | 'userId'> & { password?: string }) => void;
-  updateStore: (store: Omit<Store, 'userId' | 'email'>) => void;
+  addStore: (store: Omit<Store, 'id' | 'userId' | 'isAdmin'> & { password?: string }) => void;
+  updateStore: (store: Omit<Store, 'userId' | 'email' | 'isAdmin'>) => void;
   deleteStore: (storeId: string) => void;
   getStoreById: (storeId: string) => Store | undefined;
   toggleAdminRole: (store: Store) => void;
@@ -43,24 +42,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const { data: storeData, isLoading: isStoresLoading } = useCollection<Store>(storesQuery);
 
-  const adminRolesCollection = useMemoFirebase(() => {
-    if (firestore && isAdmin) {
-      return collection(firestore, 'roles_admin');
-    }
-    return null;
-  }, [firestore, isAdmin]);
-
-  const { data: adminRolesData, isLoading: isAdminRolesLoading } = useCollection<AdminRole>(adminRolesCollection);
-
   const stores = storeData || [];
-  const adminRoles = adminRolesData || [];
   
   const userStore = useMemo(() => {
     if (isAdmin || !user || !stores) return undefined;
     return stores.find(s => s.userId === user.uid);
   }, [isAdmin, user, stores]);
 
-  const loading = isStoresLoading || isAdminLoading || (isAdmin && isAdminRolesLoading);
+  const loading = isStoresLoading || isAdminLoading;
 
   const addStore = useCallback(async (storeData: { name: string; email: string; password?: string }) => {
     if (!firestore) return;
@@ -93,6 +82,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         email: storeData.email,
         userId: newUserId,
         createdAt: serverTimestamp(),
+        isAdmin: true,
       };
       await addDoc(adminStoresCollection, storeDataForFirestore);
       
@@ -113,7 +103,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   }, [firestore, toast]);
 
-  const updateStore = useCallback((storeData: Omit<Store, 'userId' | 'email'>) => {
+  const updateStore = useCallback((storeData: Omit<Store, 'userId' | 'email' | 'isAdmin'>) => {
     if (!firestore || !isAdmin) return;
     const storeRef = doc(firestore, 'stores', storeData.id);
     const dataToUpdate = { name: storeData.name };
@@ -149,7 +139,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       return stores.find(s => s.id === storeId);
   }, [stores]);
   
-  const toggleAdminRole = useCallback((store: Store) => {
+  const toggleAdminRole = useCallback(async (store: Store) => {
     if (!firestore || !isAdmin) return;
     if (store.userId === user?.uid) {
       toast({ variant: 'destructive', title: '操作不可', description: '自分自身の役割は変更できません。'});
@@ -157,51 +147,49 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
 
     const roleDocRef = doc(firestore, 'roles_admin', store.userId);
-    const isAdminNow = adminRoles.some(r => r.id === store.userId);
+    const storeDocRef = doc(firestore, 'stores', store.id);
 
-    if (isAdminNow) {
-        deleteDoc(roleDocRef)
-          .then(() => {
-            toast({ title: '役割が変更されました', description: `「${store.name}」は店舗アカウントになりました。` });
-          })
-          .catch((e) => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-              path: roleDocRef.path,
-              operation: 'delete'
-            }));
-          });
-    } else {
+    try {
+      const isNowAdmin = store.isAdmin;
+      const batch = writeBatch(firestore);
+
+      if (isNowAdmin) {
+        // From Admin to Store user
+        batch.delete(roleDocRef);
+        batch.update(storeDocRef, { isAdmin: false });
+        await batch.commit();
+        toast({ title: '役割が変更されました', description: `「${store.name}」は店舗アカウントになりました。` });
+      } else {
+        // From Store user to Admin
         const roleData = {
             name: store.name,
             email: store.email,
             role: 'admin',
         };
-        setDoc(roleDocRef, roleData)
-          .then(() => {
-            toast({ title: '役割が変更されました', description: `「${store.name}」は管理者アカウントになりました。` });
-          })
-          .catch((e) => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-              path: roleDocRef.path,
-              operation: 'create',
-              requestResourceData: roleData
-            }));
-          });
+        batch.set(roleDocRef, roleData);
+        batch.update(storeDocRef, { isAdmin: true });
+        await batch.commit();
+        toast({ title: '役割が変更されました', description: `「${store.name}」は管理者アカウントになりました。` });
+      }
+    } catch (e) {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: roleDocRef.path,
+        operation: 'write',
+      }));
     }
-  }, [firestore, isAdmin, toast, adminRoles, user]);
+  }, [firestore, isAdmin, user, toast]);
 
 
   const value = useMemo(() => ({
     stores,
     userStore,
-    adminRoles,
     loading,
     addStore,
     updateStore,
     deleteStore,
     getStoreById,
     toggleAdminRole,
-  }), [stores, userStore, adminRoles, loading, addStore, updateStore, deleteStore, getStoreById, toggleAdminRole]);
+  }), [stores, userStore, loading, addStore, updateStore, deleteStore, getStoreById, toggleAdminRole]);
 
   return (
     <StoreContext.Provider value={value}>
