@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { Store, AdminRole } from '@/lib/types';
@@ -150,10 +149,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const storeDocRef = doc(firestore, 'stores', store.id);
 
     try {
-      const isNowAdmin = store.isAdmin;
+      const roleDocSnap = await getDoc(roleDocRef);
+      const isCurrentlyAdmin = roleDocSnap.exists();
       const batch = writeBatch(firestore);
 
-      if (isNowAdmin) {
+      if (isCurrentlyAdmin) {
         // From Admin to Store user
         batch.delete(roleDocRef);
         batch.update(storeDocRef, { isAdmin: false });
