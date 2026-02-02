@@ -13,8 +13,8 @@ import { useStoreSelection } from './store-selection-context';
 interface ProductContextType {
   products: Product[];
   loading: boolean;
-  addProduct: (storeId: string, product: Omit<Product, 'id' | 'storeId'>) => void;
-  updateProduct: (storeId: string, product: Product) => void;
+  addProduct: (storeId: string, product: Omit<Product, 'id' | 'storeId'>) => Promise<void>;
+  updateProduct: (storeId: string, product: Product) => Promise<void>;
   deleteProducts: (storeId: string, productIds: string[]) => void;
   importProductsFromCSV: (products: Omit<Product, 'id' | 'storeId'>[]) => void;
 }
@@ -69,35 +69,84 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
     };
   }, [firestore, isAdmin, userStore, selectedStoreIds]);
 
+  const saveAdminProduct = useCallback(async (productData: Omit<Product, 'id' | 'storeId'>) => {
+    if (!firestore || !stores || stores.length === 0) return;
+    if (!productData.productCode) {
+        toast({ variant: 'destructive', title: '商品コードがありません', description: '同期には商品コードが必須です。'});
+        return;
+    }
+    
+    const processingToast = toast({ title: '全店舗の商品を同期中...' });
+    
+    try {
+        const batch = writeBatch(firestore);
 
-  const addProduct = useCallback((storeId: string, productData: Omit<Product, 'id' | 'storeId'>) => {
-    if (!firestore) return;
-    const productsCollection = collection(firestore, 'stores', storeId, 'products');
-    addDoc(productsCollection, productData)
-      .then(() => {
-        toast({ title: "商品を追加しました", description: `「${productData.name}」を登録しました。` });
-      })
-      .catch(e => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: productsCollection.path, operation: 'create', requestResourceData: productData,
-        }));
-    });
-  }, [firestore, toast]);
+        for (const store of stores) {
+            const productsCollection = collection(firestore, 'stores', store.id, 'products');
+            const q = query(productsCollection, where('productCode', '==', productData.productCode));
+            const querySnapshot = await getDocs(q);
 
-  const updateProduct = useCallback((storeId: string, productData: Product) => {
-    if (!firestore) return;
-    const { id, ...data } = productData;
-    const productRef = doc(firestore, 'stores', storeId, 'products', id);
-    setDoc(productRef, data, { merge: true })
-      .then(() => {
-        toast({ title: "商品を更新しました", description: `「${productData.name}」を更新しました。` });
-      })
-      .catch(e => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: productRef.path, operation: 'update', requestResourceData: data,
-        }));
-      });
-  }, [firestore, toast]);
+            if (querySnapshot.empty) {
+                // Add new
+                const newDocRef = doc(productsCollection);
+                batch.set(newDocRef, productData);
+            } else {
+                // Update existing
+                querySnapshot.forEach(docToUpdate => {
+                    batch.update(docToUpdate.ref, productData as {[x: string]: any});
+                });
+            }
+        }
+
+        await batch.commit();
+        processingToast.dismiss();
+        toast({ title: "商品を全店舗で同期しました", description: `「${productData.name}」の情報が全店舗に反映されました。` });
+    } catch(e) {
+        processingToast.dismiss();
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'stores/{storeId}/products', operation: 'write', requestResourceData: productData }));
+    }
+  }, [firestore, stores, toast]);
+
+
+  const addProduct = useCallback(async (storeId: string, productData: Omit<Product, 'id' | 'storeId'>) => {
+    if (isAdmin) {
+        await saveAdminProduct(productData);
+    } else {
+        if (!firestore) return;
+        const productsCollection = collection(firestore, 'stores', storeId, 'products');
+        addDoc(productsCollection, productData)
+          .then(() => {
+            toast({ title: "商品を追加しました", description: `「${productData.name}」を登録しました。` });
+          })
+          .catch(e => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+              path: productsCollection.path, operation: 'create', requestResourceData: productData,
+            }));
+        });
+    }
+  }, [firestore, toast, isAdmin, saveAdminProduct]);
+
+
+  const updateProduct = useCallback(async (storeId: string, productData: Product) => {
+    if (isAdmin) {
+        const { id, storeId: _storeId, ...dataToSync } = productData;
+        await saveAdminProduct(dataToSync);
+    } else {
+        if (!firestore) return;
+        const { id, ...data } = productData;
+        const productRef = doc(firestore, 'stores', storeId, 'products', id);
+        setDoc(productRef, data, { merge: true })
+          .then(() => {
+            toast({ title: "商品を更新しました", description: `「${productData.name}」を更新しました。` });
+          })
+          .catch(e => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+              path: productRef.path, operation: 'update', requestResourceData: data,
+            }));
+          });
+    }
+  }, [firestore, toast, isAdmin, saveAdminProduct]);
+
 
   const deleteProducts = useCallback((storeId: string, productIds: string[]) => {
     if (!firestore) return;
