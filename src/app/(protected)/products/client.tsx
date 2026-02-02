@@ -1,8 +1,7 @@
-
 'use client'
 
 import { useState, useMemo, useEffect } from "react"
-import { MoreHorizontal, PlusCircle, Upload, Trash2, Download, Loader2 } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Upload, Trash2, Download, Loader2, RefreshCw } from "lucide-react"
 import Papa from "papaparse"
 
 import type { Product, Store } from "@/lib/types"
@@ -59,12 +58,13 @@ import { useAdmin } from "@/hooks/use-admin"
 export default function ProductsClient() {
   const { stores, loading: storesLoading } = useStores();
   const { isAdmin } = useAdmin();
-  const { products: allProducts, addProduct, updateProduct, deleteProducts, importProductsFromCSV, loading: productsLoading } = useProducts();
+  const { products: allProducts, addProduct, updateProduct, deleteProducts, importProductsFromCSV, syncAllProducts, loading: productsLoading } = useProducts();
   
   const [managedStoreId, setManagedStoreId] = useState<string | undefined>(stores[0]?.id);
   
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
+  const [isSyncing, setIsSyncing] = useState(false)
   const [productToEdit, setProductToEdit] = useState<Product | null>(null)
   const [productsToDelete, setProductsToDelete] = useState<string[]>([]);
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([])
@@ -218,6 +218,20 @@ export default function ProductsClient() {
     }
   }
 
+  const handleSyncAll = async () => {
+    if (!managedStoreId) {
+      toast({
+        variant: 'destructive',
+        title: '同期元の店舗が選択されていません',
+        description: '同期の基準となる店舗を選択してください。',
+      });
+      return;
+    }
+    setIsSyncing(true);
+    await syncAllProducts(managedStoreId);
+    setIsSyncing(false);
+  }
+
   return (
     <>
       <Card>
@@ -261,6 +275,13 @@ export default function ProductsClient() {
                <Button variant="outline" size="sm" onClick={handleCsvDownload}>
                   <Download className="h-4 w-4 mr-2" />
                   CSVエクスポート
+              </Button>
+            )}
+
+            {isAdmin && (
+              <Button variant="outline" size="sm" onClick={handleSyncAll} disabled={isSyncing}>
+                  {isSyncing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                  現在の設定で全店舗を同期
               </Button>
             )}
 

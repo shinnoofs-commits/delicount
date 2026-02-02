@@ -17,6 +17,7 @@ interface ProductContextType {
   updateProduct: (storeId: string, product: Product) => Promise<void>;
   deleteProducts: (storeId: string, productIds: string[]) => void;
   importProductsFromCSV: (products: Omit<Product, 'id' | 'storeId'>[]) => void;
+  syncAllProducts: (sourceStoreId: string) => Promise<void>;
 }
 
 export const ProductContext = createContext<ProductContextType | undefined>(undefined);
@@ -242,14 +243,106 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
     }
   }, [firestore, isAdmin, stores, toast]);
 
+  const syncAllProducts = useCallback(async (sourceStoreId: string) => {
+    if (!firestore || !isAdmin) return;
+    
+    if (stores.length <= 1) {
+        toast({
+            variant: 'default',
+            title: '同期不要',
+            description: '管理対象の店舗が1つしかないため、同期処理は不要です。'
+        });
+        return;
+    }
+
+    const sourceProducts = products.filter(p => p.storeId === sourceStoreId);
+    if (sourceProducts.length === 0) {
+        toast({
+            variant: 'destructive',
+            title: '同期失敗',
+            description: '同期元となる店舗に商品が登録されていません。'
+        });
+        return;
+    }
+
+    const targetStores = stores.filter(s => s.id !== sourceStoreId);
+    let totalUpdateCount = 0;
+    let totalNewCount = 0;
+    const failedStores: string[] = [];
+    const processingToast = toast({ title: '全店舗へ商品データを同期中...', description: `処理が完了するまでお待ちください...` });
+
+    await Promise.all(targetStores.map(async (store) => {
+        try {
+            const productsCollection = collection(firestore, 'stores', store.id, 'products');
+            const existingProductsSnap = await getDocs(productsCollection);
+            
+            const existingProductMap = new Map<string, string>(); // Map productCode to docId
+            existingProductsSnap.forEach(doc => {
+                const data = doc.data();
+                if (data.productCode) {
+                    existingProductMap.set(data.productCode, doc.id);
+                }
+            });
+
+            const batch = writeBatch(firestore);
+            let newCount = 0;
+            let updateCount = 0;
+            
+            sourceProducts.forEach(product => {
+                if (!product.productCode) return;
+                
+                const existingId = existingProductMap.get(product.productCode);
+                
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                const { id, storeId, ...productDataForStore } = product;
+
+                if (existingId) {
+                    const docRef = doc(productsCollection, existingId);
+                    batch.update(docRef, productDataForStore as { [x: string]: any });
+                    updateCount++;
+                } else {
+                    const newDocRef = doc(productsCollection);
+                    batch.set(newDocRef, productDataForStore);
+                    newCount++;
+                }
+            });
+
+            await batch.commit();
+            totalNewCount += newCount;
+            totalUpdateCount += updateCount;
+        } catch (error) {
+            console.error(`Failed to sync products to store ${store.name}:`, error);
+            failedStores.push(store.name);
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `stores/${store.id}/products`, operation: 'write'}));
+        }
+    }));
+
+    processingToast.dismiss();
+
+    if (failedStores.length > 0) {
+        toast({
+            variant: 'destructive',
+            title: "一括同期が一部失敗しました",
+            description: `次の店舗への同期に失敗しました: ${failedStores.join(', ')}。`
+        });
+    } else {
+        toast({ 
+            title: "一括同期が完了しました", 
+            description: `${targetStores.length}店舗に商品を同期しました。合計で新規${totalNewCount}件、更新${totalUpdateCount}件を処理しました。`
+        });
+    }
+  }, [firestore, isAdmin, stores, products, toast]);
+
+
   const value = useMemo(() => ({
     products,
     loading,
     addProduct,
     updateProduct,
     deleteProducts,
-    importProductsFromCSV
-  }), [products, loading, addProduct, updateProduct, deleteProducts, importProductsFromCSV]);
+    importProductsFromCSV,
+    syncAllProducts,
+  }), [products, loading, addProduct, updateProduct, deleteProducts, importProductsFromCSV, syncAllProducts]);
 
   return (
     <ProductContext.Provider value={value}>
