@@ -101,12 +101,6 @@ export default function LoginPage() {
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             ログイン
           </Button>
-           <div className="text-center text-sm">
-            アカウントをお持ちでないですか？{' '}
-            <Link href="/signup" className="underline">
-              アカウント登録
-            </Link>
-          </div>
         </CardFooter>
       </Card>
     </div>

@@ -58,7 +58,7 @@ import { useAdmin } from "@/hooks/use-admin"
 export default function ProductsClient() {
   const { stores, loading: storesLoading } = useStores();
   const { isAdmin } = useAdmin();
-  const { products: allProducts, addProduct, updateProduct, deleteProducts, importProductsFromCSV, syncAllProducts, loading: productsLoading } = useProducts();
+  const { products: allProducts, addProduct, updateProduct, deleteProducts, importProductsFromCSV, syncAllProducts, loading: productsLoading, refetchProducts } = useProducts();
   
   const [managedStoreId, setManagedStoreId] = useState<string | undefined>(stores[0]?.id);
   
@@ -259,6 +259,10 @@ export default function ProductsClient() {
                 選択した{selectedProductIds.length}件を削除
               </Button>
             )}
+            <Button variant="outline" size="sm" onClick={refetchProducts} disabled={loading}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                商品情報を更新
+            </Button>
             {isAdmin && (
               <>
                 <Button asChild variant="outline" size="sm">
