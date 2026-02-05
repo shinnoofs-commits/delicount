@@ -19,7 +19,7 @@ service cloud.firestore {
     match /stores/{storeId} {
       allow get: if isAdmin() || resource.data.userId == request.auth.uid;
       allow list: if isAdmin();
-      allow create: if isAdmin();
+      allow create: if isAdmin() || request.auth.uid == request.resource.data.userId;
       allow update: if isAdmin() || get(/databases/$(database)/documents/stores/$(storeId)).data.userId == request.auth.uid;
       allow delete: if isAdmin();
 
