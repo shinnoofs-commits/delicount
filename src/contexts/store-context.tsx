@@ -57,8 +57,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const fetchedStores = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Store));
         setStores(fetchedStores);
       } catch (e) {
-        console.error("Failed to fetch stores: ", e);
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'stores', operation: 'list' }));
+        if (e instanceof Error && ((e as any).code === 'permission-denied')) {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'stores',
+                operation: 'list'
+            }));
+        }
       } finally {
         setLoading(false);
       }
@@ -89,26 +93,27 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const userCredential = await createUserWithEmailAndPassword(secondaryAuth, storeData.email, storeData.password);
       const newUserId = userCredential.user.uid;
       
-      const rolesAdminCollection = collection(firestore, 'roles_admin');
-      const roleDocRef = doc(rolesAdminCollection, newUserId);
-      const roleData = {
-        name: storeData.name,
-        email: storeData.email,
-      };
-      await setDoc(roleDocRef, roleData);
-
-      const adminStoresCollection = collection(firestore, 'stores');
+      const storesCollection = collection(firestore, 'stores');
       const storeDataForFirestore = {
         name: storeData.name,
         email: storeData.email,
         userId: newUserId,
         createdAt: serverTimestamp(),
-        isAdmin: true,
+        isAdmin: false,
       };
-      await addDoc(adminStoresCollection, storeDataForFirestore);
       
-      refetchStores();
-      toast({ title: "店舗アカウントを追加しました", description: `「${storeData.name}」を管理者として登録しました。` });
+      addDoc(storesCollection, storeDataForFirestore)
+        .then(() => {
+          refetchStores();
+          toast({ title: "店舗アカウントを追加しました", description: `「${storeData.name}」を登録しました。` });
+        })
+        .catch(() => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: storesCollection.path,
+                operation: 'create',
+                requestResourceData: storeDataForFirestore,
+            }));
+        });
 
     } catch (error: any) {
       let description = '店舗アカウントの作成に失敗しました。';
@@ -116,12 +121,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         description = 'このメールアドレスは既に使用されています。';
       } else if (error.code === 'auth/weak-password') {
         description = 'パスワードは6文字以上である必要があります。';
-      } else if (error.code === 'permission-denied') {
-        description = 'データベースへの書き込み権限がありません。';
       }
-      toast({ variant: 'destructive', title: "エラー", description });
+      toast({ variant: 'destructive', title: "認証エラー", description });
     } finally {
-      await deleteApp(secondaryApp);
+      deleteApp(secondaryApp);
     }
   }, [firestore, toast, refetchStores]);
 
@@ -134,7 +137,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         refetchStores();
         toast({ title: "店舗情報を更新しました", description: `「${storeData.name}」を更新しました。` });
       })
-      .catch((error: any) => {
+      .catch(() => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: storeRef.path, operation: 'update', requestResourceData: dataToUpdate
         }));
@@ -152,7 +155,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           description: "店舗データのみ削除されました。ログインアカウントの削除はFirebaseコンソールから手動で行う必要があります。"
         });
       })
-      .catch((error: any) => {
+      .catch(() => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: storeRef.path, operation: 'delete'
         }));
@@ -179,24 +182,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const batch = writeBatch(firestore);
 
       if (isCurrentlyAdmin) {
-        // From Admin to Store user
         batch.delete(roleDocRef);
         batch.update(storeDocRef, { isAdmin: false });
-        await batch.commit();
-        refetchStores();
-        toast({ title: '役割が変更されました', description: `「${store.name}」は店舗アカウントになりました。` });
       } else {
-        // From Store user to Admin
         const roleData = {
             name: store.name,
             email: store.email,
+            role: 'admin',
         };
         batch.set(roleDocRef, roleData);
         batch.update(storeDocRef, { isAdmin: true });
-        await batch.commit();
-        refetchStores();
-        toast({ title: '役割が変更されました', description: `「${store.name}」は管理者アカウントになりました。` });
       }
+      
+      await batch.commit();
+      refetchStores();
+      const newRole = isCurrentlyAdmin ? '店舗アカウント' : '管理者';
+      toast({ title: '役割が変更されました', description: `「${store.name}」は${newRole}になりました。` });
+
     } catch (e) {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
         path: roleDocRef.path,

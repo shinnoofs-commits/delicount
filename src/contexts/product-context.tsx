@@ -65,8 +65,7 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
         setProducts(allProducts);
 
       } catch (error) {
-        console.error("Error fetching products:", error);
-        if (error instanceof Error && error.message.includes("permission-denied")) {
+        if (error instanceof Error && (error.message.includes('permission-denied') || (error as any).code === 'permission-denied')) {
            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'stores/{storeId}/products', operation: 'list' }));
         }
       } finally {
@@ -233,7 +232,6 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
         totalNewCount += newCount;
         totalUpdateCount += updateCount;
       } catch (error) {
-        console.error(`Failed to import products for store ${store.name}:`, error);
         failedStores.push(store.name);
         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `stores/${store.id}/products`, operation: 'write'}));
       }
@@ -324,7 +322,6 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
             totalNewCount += newCount;
             totalUpdateCount += updateCount;
         } catch (error) {
-            console.error(`Failed to sync products to store ${store.name}:`, error);
             failedStores.push(store.name);
             errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `stores/${store.id}/products`, operation: 'write'}));
         }
