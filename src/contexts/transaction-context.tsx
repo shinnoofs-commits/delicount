@@ -14,7 +14,7 @@ interface TransactionContextType {
   transactions: Transaction[];
   wasteEntries: WasteEntry[];
   loading: boolean;
-  addWasteEntry: (wasteEntry: Omit<WasteEntry, 'id' | 'date'>) => void;
+  addWasteEntry: (wasteEntry: Omit<WasteEntry, 'id' | 'userId'>) => void;
 }
 
 export const TransactionContext = createContext<TransactionContextType | undefined>(undefined);
@@ -76,13 +76,12 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   }, [firestore, isAdmin, userStore, selectedStoreIds]);
 
 
-  const addWasteEntry = useCallback((wasteEntryData: Omit<WasteEntry, 'id' | 'date'>) => {
+  const addWasteEntry = useCallback((wasteEntryData: Omit<WasteEntry, 'id' | 'userId'>) => {
     if (!firestore || !user) return;
 
     const wasteCollection = collection(firestore, 'stores', wasteEntryData.storeId, 'waste');
     const newEntry = {
       ...wasteEntryData,
-      date: serverTimestamp(),
       userId: user.uid,
     };
     

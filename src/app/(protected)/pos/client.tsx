@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { X, Plus, Minus, Trash2, Loader2 } from 'lucide-react';
+import { X, Plus, Minus, Trash2, Loader2, CalendarIcon } from 'lucide-react';
 import type { Product, WasteItem, WasteEntry } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -15,6 +15,11 @@ import { useTransactions } from '@/contexts/transaction-context';
 import { useProducts } from '@/contexts/product-context';
 import { useStores } from '@/contexts/store-context';
 import { useAdmin } from '@/hooks/use-admin';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { ja } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 type WasteListItem = {
   product: Product;
@@ -29,6 +34,7 @@ export default function PosClient() {
   
   const [selectedCategory, setSelectedCategory] = useState('すべて');
   const [wasteList, setWasteList] = useState<WasteListItem[]>([]);
+  const [date, setDate] = useState<Date>(new Date());
   const { toast } = useToast();
 
   const categories = useMemo(() => ['すべて', ...Array.from(new Set(allProducts.map(p => p.category)))], [allProducts]);
@@ -99,8 +105,9 @@ export default function PosClient() {
         return;
     }
 
-    const newWasteEntry: Omit<WasteEntry, 'id' | 'date'> = {
+    const newWasteEntry: Omit<WasteEntry, 'id' | 'userId'> = {
       storeId: userStore.id,
+      date: date,
       items: wasteList.map(item => ({
         productId: item.product.id,
         name: item.product.name,
@@ -193,6 +200,33 @@ export default function PosClient() {
                   <span className="sr-only">リストをクリア</span>
               </Button>
             </CardTitle>
+            <div className="flex items-center gap-2 pt-2 text-sm">
+                <p className="font-medium">廃棄日:</p>
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button
+                            variant={"outline"}
+                            className={cn(
+                                "w-[200px] justify-start text-left font-normal",
+                                !date && "text-muted-foreground"
+                            )}
+                        >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {date ? format(date, "PPP", { locale: ja }) : <span>日付を選択</span>}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                        <Calendar
+                            mode="single"
+                            selected={date}
+                            onSelect={(d) => { if(d) setDate(d) }}
+                            initialFocus
+                            locale={ja}
+                            disabled={(d) => d > new Date() || d < new Date("2000-01-01")}
+                        />
+                    </PopoverContent>
+                </Popover>
+            </div>
           </CardHeader>
           <div className="flex-grow">
             <div className="p-6">
