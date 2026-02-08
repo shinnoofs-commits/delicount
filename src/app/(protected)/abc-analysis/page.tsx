@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -112,26 +111,32 @@ export default function AbcAnalysisPage() {
   }, [date, wasteEntries]);
 
   const abcAnalysisData: AbcDataItem[] = useMemo(() => {
+    // A map to hold aggregated waste data, keyed by productCode
     const wasteDataByProductCode = new Map<string, { name: string; wasteCost: number }>();
 
     filteredWasteEntries.forEach(entry => {
-        entry.items.forEach(item => {
-            let productCode = item.productCode;
-            let productName = item.name;
+      entry.items.forEach(item => {
+        // Always find the corresponding product from the master list using productId.
+        // This is the single source of truth for product details like name and productCode.
+        const product = products.find(p => p.id === item.productId);
 
-            if (!productCode) {
-                const product = products.find(p => p.id === item.productId);
-                if (product && product.productCode) {
-                    productCode = product.productCode;
-                } else {
-                    return; 
-                }
-            }
-            
-            const currentData = wasteDataByProductCode.get(productCode) || { name: productName, wasteCost: 0 };
-            currentData.wasteCost += item.quantity * item.costPrice;
-            wasteDataByProductCode.set(productCode, currentData);
-        });
+        // If product is not found (e.g., it was deleted) or it doesn't have a product code,
+        // we cannot reliably include it in a cross-store analysis. So we skip it.
+        if (!product || !product.productCode) {
+          return;
+        }
+
+        // Use the product master's code and name for aggregation and display.
+        const { productCode, name } = product;
+
+        // Use the cost price recorded at the time of waste for accuracy.
+        const { costPrice, quantity } = item;
+
+        // Aggregate waste cost by product code.
+        const currentData = wasteDataByProductCode.get(productCode) || { name, wasteCost: 0 };
+        currentData.wasteCost += quantity * costPrice;
+        wasteDataByProductCode.set(productCode, currentData);
+      });
     });
 
     const sortedByWasteCost = Array.from(wasteDataByProductCode.entries())
