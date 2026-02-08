@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useMemo, useState } from "react";
@@ -41,6 +40,59 @@ import { useAdmin } from "@/hooks/use-admin";
 import { StoreSelector } from "@/components/ui/store-selector";
 import { cn } from "@/lib/utils";
 import type { Product, WasteEntry } from "@/lib/types";
+
+const DateRangePicker = ({ date, setDate }: { date: DateRange | undefined, setDate: (date: DateRange | undefined) => void }) => {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          id="date"
+          variant={"outline"}
+          className={cn(
+            "w-[300px] justify-start text-left font-normal",
+            !date && "text-muted-foreground"
+          )}
+        >
+          <CalendarIcon className="mr-2 h-4 w-4" />
+          {date?.from ? (
+            date.to ? (
+              <>
+                {format(date.from, "yyyy年M月d日")} -{" "}
+                {format(date.to, "yyyy年M月d日")}
+              </>
+            ) : (
+              format(date.from, "yyyy年M月d日")
+            )
+          ) : (
+            <span>日付を選択</span>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          initialFocus
+          mode="range"
+          defaultMonth={date?.from}
+          selected={date}
+          onSelect={setDate}
+          numberOfMonths={2}
+          locale={ja}
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+const filterOptions = [
+  { id: 0, label: '日' },
+  { id: 1, label: '月' },
+  { id: 2, label: '火' },
+  { id: 3, label: '水' },
+  { id: 4, label: '木' },
+  { id: 5, label: '金' },
+  { id: 6, label: '土' },
+  { id: 7, label: '祝' }
+];
 
 type AbcAnalysisData = {
     rank: 'A' | 'B' | 'C';
