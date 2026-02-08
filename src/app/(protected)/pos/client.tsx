@@ -110,6 +110,7 @@ export default function PosClient() {
       date: date,
       items: wasteList.map(item => ({
         productId: item.product.id,
+        productCode: item.product.productCode,
         name: item.product.name,
         quantity: item.quantity,
         costPrice: item.product.costPrice,

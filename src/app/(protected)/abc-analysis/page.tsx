@@ -78,16 +78,6 @@ const DateRangePicker = ({ date, setDate }: { date: DateRange | undefined, setDa
   );
 }
 
-type WasteData = {
-    productId: string;
-    productName: string;
-    wasteCount: number;
-    costPrice: number;
-    price: number;
-    totalWasteCost: number;
-    opportunityLoss: number;
-};
-
 type AbcRank = 'A' | 'B' | 'C';
 
 type AbcDataItem = {
@@ -121,82 +111,64 @@ export default function AbcAnalysisPage() {
     });
   }, [date, wasteEntries]);
 
-  const wasteAnalysisData: WasteData[] = useMemo(() => {
-    const wasteDataMap = new Map<string, WasteData>();
-
-    products.forEach(product => {
-        wasteDataMap.set(product.id, {
-            productId: product.id,
-            productName: product.name,
-            wasteCount: 0,
-            costPrice: product.costPrice,
-            price: product.price,
-            totalWasteCost: 0,
-            opportunityLoss: 0,
-        });
-    });
+  const abcAnalysisData: AbcDataItem[] = useMemo(() => {
+    const wasteDataByProductCode = new Map<string, { name: string; wasteCost: number }>();
 
     filteredWasteEntries.forEach(entry => {
         entry.items.forEach(item => {
-            const product = products.find(p => p.id === item.productId);
-            if (!product) return;
+            let productCode = item.productCode;
+            let productName = item.name;
 
-            const data = wasteDataMap.get(item.productId);
-            if (data) {
-                data.wasteCount += item.quantity;
-            } else {
-                 wasteDataMap.set(item.productId, {
-                    productId: product.id,
-                    productName: product.name,
-                    wasteCount: item.quantity,
-                    costPrice: product.costPrice,
-                    price: product.price,
-                    totalWasteCost: 0, // calculated later
-                    opportunityLoss: 0, // calculated later
-                });
+            if (!productCode) {
+                const product = products.find(p => p.id === item.productId);
+                if (product && product.productCode) {
+                    productCode = product.productCode;
+                } else {
+                    return; 
+                }
             }
+            
+            const currentData = wasteDataByProductCode.get(productCode) || { name: productName, wasteCost: 0 };
+            currentData.wasteCost += item.quantity * item.costPrice;
+            wasteDataByProductCode.set(productCode, currentData);
         });
     });
-    
-    return Array.from(wasteDataMap.values()).map(data => ({
-        ...data,
-        totalWasteCost: data.wasteCount * data.costPrice,
-        opportunityLoss: data.wasteCount * data.price,
-    })).filter(d => d.wasteCount > 0);
-    
-  }, [products, filteredWasteEntries]);
-  
-  const abcAnalysisData: AbcDataItem[] = useMemo(() => {
-    const sortedByWasteCost = wasteAnalysisData
-      .filter(p => p.totalWasteCost > 0)
-      .sort((a, b) => b.totalWasteCost - a.totalWasteCost);
 
-    const totalWasteCost = sortedByWasteCost.reduce((sum, p) => sum + p.totalWasteCost, 0);
+    const sortedByWasteCost = Array.from(wasteDataByProductCode.entries())
+        .map(([code, data]) => ({
+            productCode: code,
+            productName: data.name,
+            wasteCost: data.wasteCost,
+        }))
+        .filter(p => p.wasteCost > 0)
+        .sort((a, b) => b.wasteCost - a.wasteCost);
+
+    const totalWasteCost = sortedByWasteCost.reduce((sum, p) => sum + p.wasteCost, 0);
     if (totalWasteCost === 0) return [];
 
     let cumulativeCost = 0;
     return sortedByWasteCost.map(product => {
-      cumulativeCost += product.totalWasteCost;
-      const cumulativePercentage = (cumulativeCost / totalWasteCost) * 100;
-      
-      let rank: AbcRank;
-      if (cumulativePercentage <= 70) {
-        rank = 'A';
-      } else if (cumulativePercentage <= 90) {
-        rank = 'B';
-      } else {
-        rank = 'C';
-      }
+        cumulativeCost += product.wasteCost;
+        const cumulativePercentage = (cumulativeCost / totalWasteCost) * 100;
+        
+        let rank: AbcRank;
+        if (cumulativePercentage <= 70) {
+            rank = 'A';
+        } else if (cumulativePercentage <= 90) {
+            rank = 'B';
+        } else {
+            rank = 'C';
+        }
 
-      return {
-        productId: product.productId,
-        productName: product.productName,
-        wasteCost: product.totalWasteCost,
-        cumulativePercentage,
-        rank,
-      };
+        return {
+            productId: product.productCode,
+            productName: product.productName,
+            wasteCost: product.wasteCost,
+            cumulativePercentage,
+            rank,
+        };
     });
-  }, [wasteAnalysisData]);
+  }, [products, filteredWasteEntries]);
   
   const setDatePreset = (preset: 'today' | 'this_month' | 'last_7_days') => {
     const today = new Date();

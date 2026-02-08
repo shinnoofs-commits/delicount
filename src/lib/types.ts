@@ -75,6 +75,7 @@ export type Transaction = {
 
 export type WasteItem = {
   productId: string;
+  productCode?: string;
   name: string;
   quantity: number;
   costPrice: number;
