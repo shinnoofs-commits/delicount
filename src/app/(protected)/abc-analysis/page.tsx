@@ -111,36 +111,42 @@ export default function AbcAnalysisPage() {
   }, [date, wasteEntries]);
 
   const abcAnalysisData: AbcDataItem[] = useMemo(() => {
-    // For admins, aggregation is by productCode across stores.
-    // For regular users, aggregation is by productId within their own store.
-    const aggregationKey = isAdmin ? 'productCode' : 'productId';
-    
     const wasteDataMap = new Map<string, { name: string; wasteCost: number }>();
 
-    filteredWasteEntries.forEach(entry => {
-      entry.items.forEach(item => {
-        const product = products.find(p => p.id === item.productId);
+    if (isAdmin) {
+      // Admin logic: Aggregate by productCode using the product master for canonical name.
+      filteredWasteEntries.forEach(entry => {
+        entry.items.forEach(item => {
+          // Find the corresponding product in the master list to get its productCode.
+          const product = products.find(p => p.id === item.productId && p.storeId === entry.storeId);
+          
+          // If the product isn't in the master list or has no product code, skip it.
+          if (!product || !product.productCode) return;
 
-        if (!product) return; // Product might have been deleted.
-
-        const key = aggregationKey === 'productCode' ? product.productCode : product.id;
-        
-        // If aggregating by productCode, and it's missing, we must skip.
-        if (!key) return;
-
-        const { name } = product;
-        const { costPrice, quantity } = item;
-
-        const currentData = wasteDataMap.get(key) || { name, wasteCost: 0 };
-        currentData.wasteCost += quantity * costPrice;
-        wasteDataMap.set(key, currentData);
+          const key = product.productCode;
+          const currentData = wasteDataMap.get(key) || { name: product.name, wasteCost: 0 };
+          currentData.wasteCost += item.quantity * item.costPrice;
+          wasteDataMap.set(key, currentData);
+        });
       });
-    });
+    } else {
+      // User logic: Aggregate by productId using denormalized data from the waste entry.
+      // This is more robust as it doesn't depend on the products context being perfectly in sync.
+      filteredWasteEntries.forEach(entry => {
+        entry.items.forEach(item => {
+          const key = item.productId;
+          if (!key) return;
+
+          const currentData = wasteDataMap.get(key) || { name: item.name, wasteCost: 0 };
+          currentData.wasteCost += item.quantity * item.costPrice;
+          wasteDataMap.set(key, currentData);
+        });
+      });
+    }
 
     const sortedByWasteCost = Array.from(wasteDataMap.entries())
         .map(([key, data]) => ({
-            // Using `key` for productId in AbcDataItem to ensure it's unique for the table row key
-            productId: key, 
+            productId: key,
             productName: data.name,
             wasteCost: data.wasteCost,
         }))
@@ -165,7 +171,6 @@ export default function AbcAnalysisPage() {
         }
 
         return {
-            // Here productId is either the product.id or product.productCode
             productId: product.productId,
             productName: product.productName,
             wasteCost: product.wasteCost,
