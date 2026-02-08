@@ -179,29 +179,30 @@ export default function AbcAnalysisPage() {
         const productMap = new Map<string, Product>(allProducts.map(p => [p.id, p]));
         const aggregatedWaste = new Map<string, { name: string, totalQuantity: number, productCode?: string }>();
 
-        filteredWasteEntries.forEach(entry => {
-            entry.items.forEach(item => {
-                let key: string | undefined;
-                let name: string = item.name;
+        if (isAdmin) {
+             filteredWasteEntries.forEach(entry => {
+                entry.items.forEach(item => {
+                    const product = productMap.get(item.productId);
+                    if (!product || !product.productCode) return; 
 
-                const product = productMap.get(item.productId);
-
-                if (isAdmin) {
-                    key = product?.productCode;
-                    if (product) name = product.name;
-                } else {
-                    key = item.productId;
-                    if (product) name = product.name;
-                }
-                
-                if (!key) return; 
-
-                const existing = aggregatedWaste.get(key) || { name, totalQuantity: 0, productCode: product?.productCode };
-                existing.totalQuantity += item.quantity;
-                
-                aggregatedWaste.set(key, existing);
+                    const key = product.productCode;
+                    const existing = aggregatedWaste.get(key) || { name: product.name, totalQuantity: 0, productCode: product.productCode };
+                    existing.totalQuantity += item.quantity;
+                    aggregatedWaste.set(key, existing);
+                });
             });
-        });
+        } else {
+            // Non-admin logic
+            filteredWasteEntries.forEach(entry => {
+                entry.items.forEach(item => {
+                    // For non-admin, use waste item data directly to avoid dependency on allProducts
+                    const key = item.productId;
+                    const existing = aggregatedWaste.get(key) || { name: item.name, totalQuantity: 0, productCode: item.productCode };
+                    existing.totalQuantity += item.quantity;
+                    aggregatedWaste.set(key, existing);
+                });
+            });
+        }
         
         const calculatedData = Array.from(aggregatedWaste.entries()).map(([key, data]) => ({
             productId: isAdmin ? '' : key,
@@ -210,6 +211,7 @@ export default function AbcAnalysisPage() {
             totalWasteCount: data.totalQuantity,
             averageDailyWaste: data.totalQuantity / numberOfDays,
         }));
+
 
         if (calculatedData.length === 0) return [];
 
@@ -357,7 +359,7 @@ export default function AbcAnalysisPage() {
                                         </TableRow>
                                     ) : (
                                         abcAnalysisData.map((item) => (
-                                            <TableRow key={item.productCode || item.productId}>
+                                            <TableRow key={isAdmin ? item.productCode : item.productId}>
                                                 <TableCell><Badge variant={item.rank === 'A' ? 'destructive' : item.rank === 'B' ? 'secondary' : 'outline'} className={cn(item.rank === 'B' && 'bg-yellow-500 text-white')}>{item.rank}</Badge></TableCell>
                                                 <TableCell className="font-medium">{item.productName}</TableCell>
                                                 <TableCell className="text-right">{item.totalWasteCount.toLocaleString()} 個</TableCell>
