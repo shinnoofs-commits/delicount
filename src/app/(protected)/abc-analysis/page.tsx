@@ -111,37 +111,36 @@ export default function AbcAnalysisPage() {
   }, [date, wasteEntries]);
 
   const abcAnalysisData: AbcDataItem[] = useMemo(() => {
-    // A map to hold aggregated waste data, keyed by productCode
-    const wasteDataByProductCode = new Map<string, { name: string; wasteCost: number }>();
+    // For admins, aggregation is by productCode across stores.
+    // For regular users, aggregation is by productId within their own store.
+    const aggregationKey = isAdmin ? 'productCode' : 'productId';
+    
+    const wasteDataMap = new Map<string, { name: string; wasteCost: number }>();
 
     filteredWasteEntries.forEach(entry => {
       entry.items.forEach(item => {
-        // Always find the corresponding product from the master list using productId.
-        // This is the single source of truth for product details like name and productCode.
         const product = products.find(p => p.id === item.productId);
 
-        // If product is not found (e.g., it was deleted) or it doesn't have a product code,
-        // we cannot reliably include it in a cross-store analysis. So we skip it.
-        if (!product || !product.productCode) {
-          return;
-        }
+        if (!product) return; // Product might have been deleted.
 
-        // Use the product master's code and name for aggregation and display.
-        const { productCode, name } = product;
+        const key = aggregationKey === 'productCode' ? product.productCode : product.id;
+        
+        // If aggregating by productCode, and it's missing, we must skip.
+        if (!key) return;
 
-        // Use the cost price recorded at the time of waste for accuracy.
+        const { name } = product;
         const { costPrice, quantity } = item;
 
-        // Aggregate waste cost by product code.
-        const currentData = wasteDataByProductCode.get(productCode) || { name, wasteCost: 0 };
+        const currentData = wasteDataMap.get(key) || { name, wasteCost: 0 };
         currentData.wasteCost += quantity * costPrice;
-        wasteDataByProductCode.set(productCode, currentData);
+        wasteDataMap.set(key, currentData);
       });
     });
 
-    const sortedByWasteCost = Array.from(wasteDataByProductCode.entries())
-        .map(([code, data]) => ({
-            productCode: code,
+    const sortedByWasteCost = Array.from(wasteDataMap.entries())
+        .map(([key, data]) => ({
+            // Using `key` for productId in AbcDataItem to ensure it's unique for the table row key
+            productId: key, 
             productName: data.name,
             wasteCost: data.wasteCost,
         }))
@@ -166,14 +165,15 @@ export default function AbcAnalysisPage() {
         }
 
         return {
-            productId: product.productCode,
+            // Here productId is either the product.id or product.productCode
+            productId: product.productId,
             productName: product.productName,
             wasteCost: product.wasteCost,
             cumulativePercentage,
             rank,
         };
     });
-  }, [products, filteredWasteEntries]);
+  }, [products, filteredWasteEntries, isAdmin]);
   
   const setDatePreset = (preset: 'today' | 'this_month' | 'last_7_days') => {
     const today = new Date();
