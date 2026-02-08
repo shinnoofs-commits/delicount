@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useUser } from '@/firebase';
@@ -12,7 +11,6 @@ import {
   ShoppingCart,
   LineChart,
   PanelLeft,
-  PieChart,
   BookText,
   Building,
 } from 'lucide-react';
@@ -40,7 +38,6 @@ import { StoreSelectionProvider } from '@/contexts/store-selection-context';
 const navItems = [
   { href: '/pos', icon: ShoppingCart, label: '廃棄入力', adminOnly: false },
   { href: '/dashboard', icon: LineChart, label: 'ダッシュボード', adminOnly: false },
-  { href: '/abc-analysis', icon: PieChart, label: 'ABC分析', adminOnly: false },
   { href: '/products', icon: Package, label: '商品', adminOnly: false },
   { href: '/stores', icon: Building, label: '店舗一覧', adminOnly: true },
   { href: '/manual', icon: BookText, label: '操作説明', adminOnly: false },
