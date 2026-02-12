@@ -89,3 +89,19 @@ export type WasteEntry = {
   items: WasteItem[];
   totalWasteCost: number;
 };
+
+export type ProductionItem = {
+  productId: string;
+  productCode?: string;
+  name: string;
+  quantity: number;
+};
+
+export type ProductionEntry = {
+  id: string;
+  storeId: string;
+  userId: string;
+  date: Date;
+  items: ProductionItem[];
+  totalProductionCount: number;
+};

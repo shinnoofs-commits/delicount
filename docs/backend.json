@@ -188,6 +188,69 @@
         "role",
         "email"
       ]
+    },
+    "ProductionEntry": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ProductionEntry",
+      "type": "object",
+      "description": "Represents a record of products produced on a given day.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the production entry."
+        },
+        "storeId": {
+          "type": "string",
+          "description": "ID of the store where production was recorded."
+        },
+        "userId": {
+          "type": "string",
+          "description": "ID of the user who recorded the production."
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of production.",
+          "format": "date-time"
+        },
+        "totalProductionCount": {
+          "type": "number",
+          "description": "Total number of items produced in this entry."
+        },
+        "items": {
+          "type": "array",
+          "description": "List of items produced.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "productId": {
+                "type": "string"
+              },
+              "productCode": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "quantity": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "productId",
+              "name",
+              "quantity"
+            ]
+          }
+        }
+      },
+      "required": [
+        "id",
+        "storeId",
+        "userId",
+        "date",
+        "items",
+        "totalProductionCount"
+      ]
     }
   },
   "auth": {
@@ -290,6 +353,26 @@
             {
               "name": "uid",
               "description": "User ID for the admin."
+            }
+          ]
+        }
+      },
+      {
+        "path": "stores/{storeId}/production/{productionEntryId}",
+        "definition": {
+          "entityName": "ProductionEntry",
+          "schema": {
+            "$ref": "#/backend/entities/ProductionEntry"
+          },
+          "description": "Production entries subcollection under each store.",
+          "params": [
+            {
+              "name": "storeId",
+              "description": "Unique identifier for the store."
+            },
+            {
+              "name": "productionEntryId",
+              "description": "Unique identifier for the production entry."
             }
           ]
         }
