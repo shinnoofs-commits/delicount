@@ -35,11 +35,10 @@ import holiday_jp from '@holiday-jp/holiday_jp';
 import { DateRange } from "react-day-picker"
 
 import { useTransactions } from "@/contexts/transaction-context";
-import { useProducts } from "@/contexts/product-context";
 import { useAdmin } from "@/hooks/use-admin";
 import { StoreSelector } from "@/components/ui/store-selector";
 import { cn } from "@/lib/utils";
-import type { Product, WasteEntry } from "@/lib/types";
+import type { WasteEntry } from "@/lib/types";
 
 const DateRangePicker = ({ date, setDate }: { date: DateRange | undefined, setDate: (date: DateRange | undefined) => void }) => {
   return (
@@ -95,11 +94,11 @@ const filterOptions = [
 ];
 
 type AbcAnalysisData = {
+    key: string; // Unique key for the row (productCode for admin, productId for user)
     rank: 'A' | 'B' | 'C';
-    productId: string;
-    productCode?: string;
     productName: string;
     totalWasteCount: number;
+    totalWasteCost: number;
     averageDailyWaste: number;
     cumulativePercentage: number;
 };
@@ -107,7 +106,6 @@ type AbcAnalysisData = {
 
 export default function AbcAnalysisPage() {
     const { wasteEntries, loading: wasteLoading } = useTransactions();
-    const { products: allProducts, loading: productsLoading } = useProducts();
     const { isAdmin } = useAdmin();
 
     const [selectedFilters, setSelectedFilters] = useState<number[]>([0, 1, 2, 3, 4, 5, 6, 7]);
@@ -176,53 +174,46 @@ export default function AbcAnalysisPage() {
     const abcAnalysisData: AbcAnalysisData[] = useMemo(() => {
         if (filteredWasteEntries.length === 0) return [];
         
-        const productMap = new Map<string, Product>(allProducts.map(p => [p.id, p]));
-        const aggregatedWaste = new Map<string, { name: string, totalQuantity: number, productCode?: string }>();
+        const aggregatedWaste = new Map<string, { name: string, totalQuantity: number, totalCost: number }>();
 
-        if (isAdmin) {
-             filteredWasteEntries.forEach(entry => {
-                entry.items.forEach(item => {
-                    const product = productMap.get(item.productId);
-                    if (!product || !product.productCode) return; 
+        filteredWasteEntries.forEach(entry => {
+            entry.items.forEach(item => {
+                const key = isAdmin ? item.productCode : item.productId;
+                if (!key) return;
 
-                    const key = product.productCode;
-                    const existing = aggregatedWaste.get(key) || { name: product.name, totalQuantity: 0, productCode: product.productCode };
-                    existing.totalQuantity += item.quantity;
-                    aggregatedWaste.set(key, existing);
-                });
+                const cost = item.costPrice || 0;
+                const current = aggregatedWaste.get(key) || { 
+                    name: item.name, 
+                    totalQuantity: 0, 
+                    totalCost: 0,
+                };
+
+                current.totalQuantity += item.quantity;
+                current.totalCost += item.quantity * cost;
+                
+                aggregatedWaste.set(key, current);
             });
-        } else {
-            // Non-admin logic
-            filteredWasteEntries.forEach(entry => {
-                entry.items.forEach(item => {
-                    // For non-admin, use waste item data directly to avoid dependency on allProducts
-                    const key = item.productId;
-                    const existing = aggregatedWaste.get(key) || { name: item.name, totalQuantity: 0, productCode: item.productCode };
-                    existing.totalQuantity += item.quantity;
-                    aggregatedWaste.set(key, existing);
-                });
-            });
-        }
+        });
         
         const calculatedData = Array.from(aggregatedWaste.entries()).map(([key, data]) => ({
-            productId: isAdmin ? '' : key,
-            productCode: isAdmin ? key : data.productCode,
+            key: key,
             productName: data.name,
             totalWasteCount: data.totalQuantity,
+            totalWasteCost: data.totalCost,
             averageDailyWaste: data.totalQuantity / numberOfDays,
         }));
 
 
         if (calculatedData.length === 0) return [];
 
-        const sortedData = calculatedData.sort((a, b) => b.averageDailyWaste - a.averageDailyWaste);
-        const totalAverageWaste = sortedData.reduce((sum, item) => sum + item.averageDailyWaste, 0);
+        const sortedData = calculatedData.sort((a, b) => b.totalWasteCost - a.totalWasteCost);
+        const grandTotalWasteCost = sortedData.reduce((sum, item) => sum + item.totalWasteCost, 0);
 
-        if (totalAverageWaste === 0) return [];
+        if (grandTotalWasteCost === 0) return [];
 
         let cumulativePercentage = 0;
         return sortedData.map(item => {
-            const percentage = (item.averageDailyWaste / totalAverageWaste) * 100;
+            const percentage = (item.totalWasteCost / grandTotalWasteCost) * 100;
             cumulativePercentage += percentage;
             let rank: 'A' | 'B' | 'C';
             if (cumulativePercentage <= 70) {
@@ -240,7 +231,7 @@ export default function AbcAnalysisPage() {
             };
         });
 
-    }, [filteredWasteEntries, allProducts, isAdmin, numberOfDays]);
+    }, [filteredWasteEntries, isAdmin, numberOfDays]);
 
     const rankCounts = useMemo(() => {
         return abcAnalysisData.reduce((acc, item) => {
@@ -249,14 +240,14 @@ export default function AbcAnalysisPage() {
         }, { A: 0, B: 0, C: 0 });
     }, [abcAnalysisData]);
 
-    const isLoading = wasteLoading || productsLoading;
+    const isLoading = wasteLoading;
     
     return (
         <div className="flex flex-col gap-4">
             <Card>
                 <CardHeader>
                     <CardTitle>ABC分析</CardTitle>
-                    <CardDescription>指定した期間の廃棄状況をABC分析（重点分析）します。1日の平均廃棄数が多い順に商品を並べ、累計で70%までをAランク、90%までをBランク、それ以外をCランクとしています。</CardDescription>
+                    <CardDescription>指定した期間の廃棄状況をABC分析（重点分析）します。廃棄ロス額（原価）が多い順に商品を並べ、累計で70%までをAランク、90%までをBランク、それ以外をCランクとしています。</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
@@ -308,7 +299,7 @@ export default function AbcAnalysisPage() {
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold">{rankCounts.A}品目</div>
-                                <p className="text-xs text-muted-foreground">【最重要管理】廃棄数の累計70%を占める品目群</p>
+                                <p className="text-xs text-muted-foreground">【最重要管理】廃棄ロス額の累計70%を占める品目群</p>
                             </CardContent>
                         </Card>
                          <Card>
@@ -318,7 +309,7 @@ export default function AbcAnalysisPage() {
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold">{rankCounts.B}品目</div>
-                                <p className="text-xs text-muted-foreground">【重要管理】廃棄数の累計70%~90%を占める品目群</p>
+                                <p className="text-xs text-muted-foreground">【重要管理】廃棄ロス額の累計70%~90%を占める品目群</p>
                             </CardContent>
                         </Card>
                          <Card>
@@ -328,7 +319,7 @@ export default function AbcAnalysisPage() {
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold">{rankCounts.C}品目</div>
-                                <p className="text-xs text-muted-foreground">【一般管理】廃棄数の累計90%~100%を占める品目群</p>
+                                <p className="text-xs text-muted-foreground">【一般管理】廃棄ロス額の累計90%~100%を占める品目群</p>
                             </CardContent>
                         </Card>
                     </div>
@@ -345,26 +336,28 @@ export default function AbcAnalysisPage() {
                                     <TableRow>
                                         <TableHead className="w-24">ランク</TableHead>
                                         <TableHead>商品名</TableHead>
-                                        <TableHead className="text-right">廃棄合計</TableHead>
-                                        <TableHead className="text-right">1日平均廃棄数</TableHead>
+                                        <TableHead className="text-right">廃棄ロス(合計)</TableHead>
                                         <TableHead className="text-right">累計構成比</TableHead>
+                                        <TableHead className="text-right">廃棄合計(個数)</TableHead>
+                                        <TableHead className="text-right">1日平均廃棄数</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {abcAnalysisData.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={5} className="h-24 text-center">
+                                            <TableCell colSpan={6} className="h-24 text-center">
                                                 分析対象のデータがありません。
                                             </TableCell>
                                         </TableRow>
                                     ) : (
                                         abcAnalysisData.map((item) => (
-                                            <TableRow key={isAdmin ? item.productCode : item.productId}>
+                                            <TableRow key={item.key}>
                                                 <TableCell><Badge variant={item.rank === 'A' ? 'destructive' : item.rank === 'B' ? 'secondary' : 'outline'} className={cn(item.rank === 'B' && 'bg-yellow-500 text-white')}>{item.rank}</Badge></TableCell>
                                                 <TableCell className="font-medium">{item.productName}</TableCell>
+                                                <TableCell className="text-right">¥{item.totalWasteCost.toLocaleString()}</TableCell>
+                                                <TableCell className="text-right">{item.cumulativePercentage.toFixed(1)}%</TableCell>
                                                 <TableCell className="text-right">{item.totalWasteCount.toLocaleString()} 個</TableCell>
                                                 <TableCell className="text-right">{item.averageDailyWaste.toFixed(2)} 個</TableCell>
-                                                <TableCell className="text-right">{item.cumulativePercentage.toFixed(1)}%</TableCell>
                                             </TableRow>
                                         ))
                                     )}
