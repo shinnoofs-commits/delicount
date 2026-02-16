@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
@@ -19,8 +18,9 @@ export function StoreSelectionProvider({ children }: { children: React.ReactNode
 
   useEffect(() => {
     if (isAdmin && !storesLoading && stores.length > 0) {
-      // Default to all stores selected for admins
-      setSelectedStoreIds(stores.map(s => s.id));
+      // Default to all non-admin stores selected for admins to avoid including HQ/admin accounts in analysis
+      const actualStores = stores.filter(store => !store.isAdmin);
+      setSelectedStoreIds(actualStores.map(s => s.id));
     }
   }, [isAdmin, stores, storesLoading]);
 
