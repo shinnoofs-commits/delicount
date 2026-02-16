@@ -27,6 +27,8 @@ export function StoreSelector() {
   const { selectedStoreIds, setSelectedStoreIds } = useStoreSelection();
   const [open, setOpen] = React.useState(false);
 
+  const selectableStores = React.useMemo(() => stores.filter(s => !s.isAdmin), [stores]);
+
   const toggleStore = (storeId: string) => {
     setSelectedStoreIds((prev) =>
       prev.includes(storeId)
@@ -36,16 +38,16 @@ export function StoreSelector() {
   };
 
   const handleSelectAll = () => {
-    if (selectedStoreIds.length === stores.length) {
+    if (selectedStoreIds.length === selectableStores.length) {
       setSelectedStoreIds([]);
     } else {
-      setSelectedStoreIds(stores.map(s => s.id));
+      setSelectedStoreIds(selectableStores.map(s => s.id));
     }
   }
 
   const getSelectionText = () => {
     if (selectedStoreIds.length === 0) return "店舗を選択...";
-    if (selectedStoreIds.length === stores.length) return "すべての店舗";
+    if (selectableStores.length > 0 && selectedStoreIds.length === selectableStores.length) return "すべての店舗";
     if (selectedStoreIds.length === 1) {
       return stores.find(s => s.id === selectedStoreIds[0])?.name || "1店舗選択中";
     }
@@ -60,7 +62,7 @@ export function StoreSelector() {
           role="combobox"
           aria-expanded={open}
           className="w-[300px] justify-between"
-          disabled={loading || stores.length === 0}
+          disabled={loading || selectableStores.length === 0}
         >
           <span className="truncate">{getSelectionText()}</span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -76,7 +78,7 @@ export function StoreSelector() {
                      <div
                         className={cn(
                         'mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary',
-                        selectedStoreIds.length === stores.length
+                        selectableStores.length > 0 && selectedStoreIds.length === selectableStores.length
                             ? 'bg-primary text-primary-foreground'
                             : 'opacity-50 [&_svg]:invisible'
                         )}
@@ -84,9 +86,9 @@ export function StoreSelector() {
                         <Check className={cn('h-4 w-4')} />
                     </div>
                     すべて選択
-                    <Badge variant="outline" className="ml-auto">{stores.length}</Badge>
+                    <Badge variant="outline" className="ml-auto">{selectableStores.length}</Badge>
                 </CommandItem>
-              {stores.map((store) => (
+              {selectableStores.map((store) => (
                 <CommandItem
                   key={store.id}
                   value={store.name}

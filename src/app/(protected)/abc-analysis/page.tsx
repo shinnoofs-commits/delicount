@@ -94,8 +94,9 @@ const filterOptions = [
   { id: 7, label: '祝' }
 ];
 
+
 type AbcAnalysisData = {
-    key: string; // Unique key for the row (productCode for admin, productId for user)
+    key: string; 
     rank: 'A' | 'B' | 'C';
     productName: string;
     totalWasteCount: number;
@@ -174,18 +175,20 @@ export default function AbcAnalysisPage() {
 
 
     const abcAnalysisData: AbcAnalysisData[] = useMemo(() => {
-        if (filteredWasteEntries.length === 0) return [];
+        if (wasteLoading || productsLoading || filteredWasteEntries.length === 0) return [];
 
         let aggregatedWaste: Map<string, { name: string, totalQuantity: number, totalCost: number }>;
 
         if (isAdmin) {
-            if (products.length === 0) return [];
-            const productsById = new Map(products.map(p => [p.id, p]));
             aggregatedWaste = new Map<string, { name: string, totalQuantity: number, totalCost: number }>();
             
+            const productsByCompositeKey = new Map(products.map(p => [`${p.storeId}-${p.id}`, p]));
+
             filteredWasteEntries.forEach(entry => {
                 entry.items.forEach(item => {
-                    const productCode = item.productCode || productsById.get(item.productId)?.productCode;
+                    const product = productsByCompositeKey.get(`${entry.storeId}-${item.productId}`);
+                    const productCode = item.productCode || product?.productCode;
+
                     if (!productCode) return;
 
                     const current = aggregatedWaste.get(productCode) || { 
@@ -228,7 +231,7 @@ export default function AbcAnalysisPage() {
         const sortedData = calculatedData.sort((a, b) => b.totalWasteCost - a.totalWasteCost);
         const grandTotalWasteCost = sortedData.reduce((sum, item) => sum + item.totalWasteCost, 0);
 
-        if (grandTotalWasteCost === 0) return [];
+        if (grandTotalWasteCost === 0) return sortedData.map(item => ({ ...item, rank: 'C', cumulativePercentage: 100 }));
 
         let cumulativePercentage = 0;
         return sortedData.map(item => {
@@ -250,7 +253,7 @@ export default function AbcAnalysisPage() {
             };
         });
 
-    }, [filteredWasteEntries, isAdmin, numberOfDays, products]);
+    }, [filteredWasteEntries, isAdmin, numberOfDays, products, wasteLoading, productsLoading]);
 
     const rankCounts = useMemo(() => {
         return abcAnalysisData.reduce((acc, item) => {
@@ -266,7 +269,7 @@ export default function AbcAnalysisPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>ABC分析</CardTitle>
-                    <CardDescription>指定した期間の廃棄状況をABC分析（重点分析）します。廃棄ロス額（原価）が多い順に商品を並べ、累計で70%までをAランク、90%までをBランク、それ以外をCランクとしています。</CardDescription>
+                    <CardDescription>指定した期間の廃棄ロス額（原価）を基準に商品をランク付けします。改善の優先順位付けに活用ください。</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
