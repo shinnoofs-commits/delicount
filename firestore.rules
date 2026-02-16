@@ -37,6 +37,14 @@ service cloud.firestore {
          allow create: if request.auth.uid == request.resource.data.userId;
          allow update, delete: if isAdmin() || get(/databases/$(database)/documents/stores/$(storeId)).data.userId == request.auth.uid;
       }
+
+      match /transactions/{transactionId} {
+        allow read, write: if isAdmin() || get(/databases/$(database)/documents/stores/$(storeId)).data.userId == request.auth.uid;
+
+        match /soldItems/{soldItemId} {
+           allow read, write: if isAdmin() || get(/databases/$(database)/documents/stores/$(storeId)).data.userId == request.auth.uid;
+        }
+      }
     }
   }
 }
