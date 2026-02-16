@@ -35,6 +35,7 @@ import holiday_jp from '@holiday-jp/holiday_jp';
 import { DateRange } from "react-day-picker"
 
 import { useTransactions } from "@/contexts/transaction-context";
+import { useProducts } from "@/contexts/product-context";
 import { useAdmin } from "@/hooks/use-admin";
 import { StoreSelector } from "@/components/ui/store-selector";
 import { cn } from "@/lib/utils";
@@ -106,6 +107,7 @@ type AbcAnalysisData = {
 
 export default function AbcAnalysisPage() {
     const { wasteEntries, loading: wasteLoading } = useTransactions();
+    const { products, loading: productsLoading } = useProducts();
     const { isAdmin } = useAdmin();
 
     const [selectedFilters, setSelectedFilters] = useState<number[]>([0, 1, 2, 3, 4, 5, 6, 7]);
@@ -173,28 +175,45 @@ export default function AbcAnalysisPage() {
 
     const abcAnalysisData: AbcAnalysisData[] = useMemo(() => {
         if (filteredWasteEntries.length === 0) return [];
-        
-        const aggregatedWaste = new Map<string, { name: string, totalQuantity: number, totalCost: number }>();
 
-        filteredWasteEntries.forEach(entry => {
-            entry.items.forEach(item => {
-                const key = isAdmin ? item.productCode : item.productId;
-                if (!key) return;
+        let aggregatedWaste: Map<string, { name: string, totalQuantity: number, totalCost: number }>;
 
-                const cost = item.costPrice || 0;
-                const current = aggregatedWaste.get(key) || { 
-                    name: item.name, 
-                    totalQuantity: 0, 
-                    totalCost: 0,
-                };
+        if (isAdmin) {
+            if (products.length === 0) return [];
+            const productsById = new Map(products.map(p => [p.id, p]));
+            aggregatedWaste = new Map<string, { name: string, totalQuantity: number, totalCost: number }>();
+            
+            filteredWasteEntries.forEach(entry => {
+                entry.items.forEach(item => {
+                    const productCode = item.productCode || productsById.get(item.productId)?.productCode;
+                    if (!productCode) return;
 
-                current.totalQuantity += item.quantity;
-                current.totalCost += item.quantity * cost;
-                
-                aggregatedWaste.set(key, current);
+                    const current = aggregatedWaste.get(productCode) || { 
+                        name: item.name, 
+                        totalQuantity: 0,
+                        totalCost: 0
+                    };
+                    current.totalQuantity += item.quantity;
+                    current.totalCost += item.quantity * (item.costPrice || 0);
+                    aggregatedWaste.set(productCode, current);
+                });
             });
-        });
-        
+        } else {
+           aggregatedWaste = new Map<string, { name: string, totalQuantity: number, totalCost: number }>();
+           filteredWasteEntries.forEach(entry => {
+            entry.items.forEach(item => {
+              const current = aggregatedWaste.get(item.productId) || { 
+                name: item.name, 
+                totalQuantity: 0,
+                totalCost: 0
+              };
+              current.totalQuantity += item.quantity;
+              current.totalCost += item.quantity * (item.costPrice || 0);
+              aggregatedWaste.set(item.productId, current);
+            });
+          });
+        }
+
         const calculatedData = Array.from(aggregatedWaste.entries()).map(([key, data]) => ({
             key: key,
             productName: data.name,
@@ -231,7 +250,7 @@ export default function AbcAnalysisPage() {
             };
         });
 
-    }, [filteredWasteEntries, isAdmin, numberOfDays]);
+    }, [filteredWasteEntries, isAdmin, numberOfDays, products]);
 
     const rankCounts = useMemo(() => {
         return abcAnalysisData.reduce((acc, item) => {
@@ -240,7 +259,7 @@ export default function AbcAnalysisPage() {
         }, { A: 0, B: 0, C: 0 });
     }, [abcAnalysisData]);
 
-    const isLoading = wasteLoading;
+    const isLoading = wasteLoading || productsLoading;
     
     return (
         <div className="flex flex-col gap-4">
