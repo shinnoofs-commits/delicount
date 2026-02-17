@@ -1,7 +1,7 @@
 
 'use client';
 
-import type { Product } from '@/lib/types';
+import type { Product, DailyProduction } from '@/lib/types';
 import React, { createContext, useContext, useCallback, useMemo, useState, useEffect } from 'react';
 import { useFirestore, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, doc, addDoc, setDoc, deleteDoc, writeBatch, serverTimestamp, getDocs, query, where, Query, onSnapshot, Unsubscribe, collectionGroup } from 'firebase/firestore';
@@ -13,11 +13,12 @@ import { useStoreSelection } from './store-selection-context';
 interface ProductContextType {
   products: Product[];
   loading: boolean;
-  addProduct: (storeId: string, product: Omit<Product, 'id' | 'storeId'>) => Promise<void>;
+  addProduct: (storeId: string, product: Omit<Product, 'id' | 'storeId' | 'dailyProduction'>) => Promise<void>;
   updateProduct: (storeId: string, product: Product) => Promise<void>;
   deleteProducts: (storeId: string, productIds: string[]) => void;
   importProductsFromCSV: (products: Omit<Product, 'id' | 'storeId'>[]) => void;
   syncAllProducts: (sourceStoreId: string) => Promise<void>;
+  updateSchedules: (storeId: string, schedules: Record<string, Partial<DailyProduction>>) => Promise<void>;
   refetchProducts: () => void;
 }
 
@@ -117,20 +118,25 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
   }, [firestore, stores, toast, refetchProducts]);
 
 
-  const addProduct = useCallback(async (storeId: string, productData: Omit<Product, 'id' | 'storeId'>) => {
+  const addProduct = useCallback(async (storeId: string, productData: Omit<Product, 'id' | 'storeId' | 'dailyProduction'>) => {
+    const productDataWithSchedule = {
+      ...productData,
+      dailyProduction: { sun: 0, mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, holiday: 0 }
+    };
+
     if (isAdmin) {
-        await saveAdminProduct(productData);
+        await saveAdminProduct(productDataWithSchedule);
     } else {
         if (!firestore) return;
         const productsCollection = collection(firestore, 'stores', storeId, 'products');
-        addDoc(productsCollection, productData)
+        addDoc(productsCollection, productDataWithSchedule)
           .then(() => {
             refetchProducts();
             toast({ title: "商品を追加しました", description: `「${productData.name}」を登録しました。` });
           })
           .catch(e => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
-              path: productsCollection.path, operation: 'create', requestResourceData: productData,
+              path: productsCollection.path, operation: 'create', requestResourceData: productDataWithSchedule,
             }));
         });
     }
@@ -344,6 +350,25 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
     }
   }, [firestore, isAdmin, stores, products, toast, refetchProducts]);
 
+ const updateSchedules = useCallback(async (storeId: string, schedules: Record<string, Partial<DailyProduction>>) => {
+    if (!firestore) return;
+    const batch = writeBatch(firestore);
+    Object.entries(schedules).forEach(([productId, dailyProduction]) => {
+      const productRef = doc(firestore, 'stores', storeId, 'products', productId);
+      batch.update(productRef, { dailyProduction });
+    });
+
+    try {
+      await batch.commit();
+      refetchProducts();
+      toast({ title: "製造予定数を一括更新しました。" });
+    } catch (e) {
+       errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: `stores/${storeId}/products`, operation: 'write', 
+      }));
+    }
+  }, [firestore, toast, refetchProducts]);
+
 
   const value = useMemo(() => ({
     products,
@@ -353,8 +378,9 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
     deleteProducts,
     importProductsFromCSV,
     syncAllProducts,
+    updateSchedules,
     refetchProducts,
-  }), [products, loading, addProduct, updateProduct, deleteProducts, importProductsFromCSV, syncAllProducts, refetchProducts]);
+  }), [products, loading, addProduct, updateProduct, deleteProducts, importProductsFromCSV, syncAllProducts, updateSchedules, refetchProducts]);
 
   return (
     <ProductContext.Provider value={value}>

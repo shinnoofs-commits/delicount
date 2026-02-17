@@ -1,15 +1,16 @@
 'use client'
 
 import { useState, useMemo, useEffect } from "react"
-import { MoreHorizontal, PlusCircle, Upload, Trash2, Download, Loader2, RefreshCw } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Upload, Trash2, Download, Loader2, RefreshCw, Edit } from "lucide-react"
 import Papa from "papaparse"
 
-import type { Product, Store } from "@/lib/types"
+import type { Product, Store, DailyProduction } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
@@ -32,6 +33,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
@@ -54,11 +56,132 @@ import Link from "next/link"
 import { useStores } from "@/contexts/store-context"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAdmin } from "@/hooks/use-admin"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
+const daysOfWeek: (keyof DailyProduction)[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun', 'holiday'];
+const dayLabels: Record<keyof DailyProduction, string> = {
+  mon: '月',
+  tue: '火',
+  wed: '水',
+  thu: '木',
+  fri: '金',
+  sat: '土',
+  sun: '日',
+  holiday: '祝',
+};
+
+const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Product[], storeId: string, onSave: (schedules: Record<string, Partial<DailyProduction>>) => void, onCancel: () => void }) => {
+    const categories = useMemo(() => ['すべて', ...Array.from(new Set(products.map(p => p.category)))], [products]);
+    const [selectedCategory, setSelectedCategory] = useState('すべて');
+    const [schedules, setSchedules] = useState<Record<string, Partial<DailyProduction>>>({});
+
+    useEffect(() => {
+        const initialSchedules = products.reduce((acc, product) => {
+            acc[product.id] = product.dailyProduction || {};
+            return acc;
+        }, {} as Record<string, Partial<DailyProduction>>);
+        setSchedules(initialSchedules);
+    }, [products]);
+
+    const filteredProducts = useMemo(() => {
+        if (selectedCategory === 'すべて') return products;
+        return products.filter(p => p.category === selectedCategory);
+    }, [products, selectedCategory]);
+
+    const handleScheduleChange = (productId: string, day: keyof DailyProduction, value: string) => {
+        const numValue = parseInt(value, 10);
+        setSchedules(prev => ({
+            ...prev,
+            [productId]: {
+                ...prev[productId],
+                [day]: isNaN(numValue) ? 0 : numValue,
+            }
+        }));
+    };
+    
+    const columnTotals = useMemo(() => {
+      return daysOfWeek.reduce((acc, day) => {
+          acc[day] = filteredProducts.reduce((sum, product) => {
+              return sum + (schedules[product.id]?.[day] || 0);
+          }, 0);
+          return acc;
+      }, {} as Record<keyof DailyProduction, number>);
+    }, [schedules, filteredProducts]);
+    
+    const grandTotal = useMemo(() => {
+        return Object.values(columnTotals).reduce((sum, val) => sum + val, 0);
+    }, [columnTotals])
+
+    return (
+      <>
+        <DialogHeader>
+          <DialogTitle>曜日別予定数を一括編集</DialogTitle>
+          <DialogDescription>
+            カテゴリを選択し、商品ごとの曜日・祝日別製造予定数を入力してください。
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+            <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
+                <TabsList>
+                    {categories.map(category => (
+                        <TabsTrigger key={category} value={category}>{category}</TabsTrigger>
+                    ))}
+                </TabsList>
+            </Tabs>
+            <div className="relative h-[60vh] overflow-auto border rounded-md">
+              <Table>
+                  <TableHeader className="sticky top-0 bg-muted/80 backdrop-blur-sm">
+                      <TableRow>
+                          <TableHead className="min-w-[200px]">商品</TableHead>
+                          {daysOfWeek.map(day => <TableHead key={day} className="text-right">{dayLabels[day]}</TableHead>)}
+                          <TableHead className="text-right font-bold">合計</TableHead>
+                      </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                      {filteredProducts.map(product => {
+                          const rowTotal = daysOfWeek.reduce((sum, day) => sum + (schedules[product.id]?.[day] || 0), 0);
+                          return (
+                              <TableRow key={product.id}>
+                                  <TableCell className="font-medium">{product.name}</TableCell>
+                                  {daysOfWeek.map(day => (
+                                      <TableCell key={day}>
+                                          <Input
+                                              type="number"
+                                              className="w-20 text-right"
+                                              value={schedules[product.id]?.[day] || ''}
+                                              onChange={(e) => handleScheduleChange(product.id, day, e.target.value)}
+                                              placeholder="0"
+                                          />
+                                      </TableCell>
+                                  ))}
+                                  <TableCell className="text-right font-bold">{rowTotal.toLocaleString()}</TableCell>
+                              </TableRow>
+                          )
+                      })}
+                  </TableBody>
+                  <TableFooter className="sticky bottom-0 bg-muted/80 backdrop-blur-sm">
+                      <TableRow>
+                          <TableHead>合計</TableHead>
+                          {daysOfWeek.map(day => <TableHead key={day} className="text-right">{columnTotals[day]?.toLocaleString()}</TableHead>)}
+                          <TableHead className="text-right font-bold">{grandTotal.toLocaleString()}</TableHead>
+                      </TableRow>
+                  </TableFooter>
+              </Table>
+            </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onCancel}>キャンセル</Button>
+          <Button onClick={() => onSave(schedules)}>変更を保存</Button>
+        </DialogFooter>
+      </>
+    );
+};
+
 
 export default function ProductsClient() {
   const { stores, loading: storesLoading } = useStores();
   const { isAdmin } = useAdmin();
-  const { products: allProducts, addProduct, updateProduct, deleteProducts, importProductsFromCSV, syncAllProducts, loading: productsLoading, refetchProducts } = useProducts();
+  const { products: allProducts, addProduct, updateProduct, deleteProducts, importProductsFromCSV, syncAllProducts, updateSchedules, loading: productsLoading, refetchProducts } = useProducts();
   
   const [managedStoreId, setManagedStoreId] = useState<string | undefined>(stores[0]?.id);
   
@@ -68,6 +191,7 @@ export default function ProductsClient() {
   const [productToEdit, setProductToEdit] = useState<Product | null>(null)
   const [productsToDelete, setProductsToDelete] = useState<string[]>([]);
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([])
+  const [isScheduleEditorOpen, setIsScheduleEditorOpen] = useState(false)
 
   const { toast } = useToast()
   
@@ -120,12 +244,24 @@ export default function ProductsClient() {
     if (!managedStoreId) return;
 
     if (productData.id) {
-      await updateProduct(managedStoreId, { ...productData, storeId: managedStoreId } as Product);
+      const existingProduct = products.find(p => p.id === productData.id);
+      const updatedProductData = {
+         ...existingProduct, 
+         ...productData,
+         dailyProduction: existingProduct?.dailyProduction || { sun: 0, mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, holiday: 0 }
+      }
+      await updateProduct(managedStoreId, updatedProductData as Product);
     } else {
       await addProduct(managedStoreId, productData);
     }
     setIsFormOpen(false)
     setProductToEdit(null)
+  }
+  
+  const handleScheduleSave = (schedules: Record<string, Partial<DailyProduction>>) => {
+    if (!managedStoreId) return;
+    updateSchedules(managedStoreId, schedules);
+    setIsScheduleEditorOpen(false);
   }
 
   const handleCsvImport = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -240,7 +376,7 @@ export default function ProductsClient() {
             <CardTitle>商品</CardTitle>
             <CardDescription>商品の管理ができます。</CardDescription>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {isAdmin && stores.length > 0 && (
                 <Select value={managedStoreId} onValueChange={setManagedStoreId}>
                   <SelectTrigger className="w-[200px]">
@@ -262,6 +398,10 @@ export default function ProductsClient() {
             <Button variant="outline" size="sm" onClick={refetchProducts} disabled={loading}>
                 <RefreshCw className="h-4 w-4 mr-2" />
                 商品情報を更新
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setIsScheduleEditorOpen(true)} disabled={!managedStoreId}>
+                <Edit className="h-4 w-4 mr-2" />
+                曜日別予定数を一括編集
             </Button>
             {isAdmin && (
               <>
@@ -389,6 +529,12 @@ export default function ProductsClient() {
             </DialogDescription>
           </DialogHeader>
           <ProductForm product={productToEdit} onSubmit={handleFormSubmit} onCancel={() => setIsFormOpen(false)} />
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={isScheduleEditorOpen} onOpenChange={setIsScheduleEditorOpen}>
+        <DialogContent className="max-w-7xl">
+            {managedStoreId && <ScheduleEditor products={products} storeId={managedStoreId} onSave={handleScheduleSave} onCancel={() => setIsScheduleEditorOpen(false)} />}
         </DialogContent>
       </Dialog>
 
