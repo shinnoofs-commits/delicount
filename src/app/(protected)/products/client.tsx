@@ -58,6 +58,7 @@ import { useStores } from "@/contexts/store-context"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAdmin } from "@/hooks/use-admin"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 const daysOfWeek: (keyof DailyProduction)[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun', 'holiday'];
 const dayLabels: Record<keyof DailyProduction, string> = {
@@ -123,17 +124,19 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
         </DialogHeader>
         <div className="space-y-4 py-4">
             <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
-                <TabsList>
+              <ScrollArea className="w-full whitespace-nowrap rounded-md">
+                <TabsList className="inline-flex">
                     {categories.map(category => (
                         <TabsTrigger key={category} value={category}>{category}</TabsTrigger>
                     ))}
                 </TabsList>
+              </ScrollArea>
             </Tabs>
-            <div className="relative h-[60vh] overflow-auto border rounded-md">
+            <ScrollArea className="h-[60vh] rounded-md border">
               <Table>
-                  <TableHeader className="sticky top-0 bg-muted/80 backdrop-blur-sm">
+                  <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
                       <TableRow>
-                          <TableHead className="min-w-[200px]">商品</TableHead>
+                          <TableHead className="sticky left-0 bg-muted/80 min-w-[200px]">商品</TableHead>
                           {daysOfWeek.map(day => <TableHead key={day} className="text-right">{dayLabels[day]}</TableHead>)}
                           <TableHead className="text-right font-bold">合計</TableHead>
                       </TableRow>
@@ -143,7 +146,7 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
                           const rowTotal = daysOfWeek.reduce((sum, day) => sum + (schedules[product.id]?.[day] || 0), 0);
                           return (
                               <TableRow key={product.id}>
-                                  <TableCell className="font-medium">{product.name}</TableCell>
+                                  <TableCell className="sticky left-0 bg-background font-medium">{product.name}</TableCell>
                                   {daysOfWeek.map(day => (
                                       <TableCell key={day}>
                                           <Input
@@ -162,13 +165,13 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
                   </TableBody>
                   <TableFooter className="sticky bottom-0 bg-muted/80 backdrop-blur-sm">
                       <TableRow>
-                          <TableHead>合計</TableHead>
+                          <TableHead className="sticky left-0 bg-muted/80">合計</TableHead>
                           {daysOfWeek.map(day => <TableHead key={day} className="text-right">{columnTotals[day]?.toLocaleString()}</TableHead>)}
                           <TableHead className="text-right font-bold">{grandTotal.toLocaleString()}</TableHead>
                       </TableRow>
                   </TableFooter>
               </Table>
-            </div>
+            </ScrollArea>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onCancel}>キャンセル</Button>
