@@ -1,4 +1,3 @@
-
 'use client'
 
 import { useForm } from 'react-hook-form'
@@ -39,13 +38,13 @@ interface ProductFormProps {
 }
 
 const daysOfWeek = [
-    { name: 'sun', label: '日' },
     { name: 'mon', label: '月' },
     { name: 'tue', label: '火' },
     { name: 'wed', label: '水' },
     { name: 'thu', label: '木' },
     { name: 'fri', label: '金' },
     { name: 'sat', label: '土' },
+    { name: 'sun', label: '日' },
     { name: 'holiday', label: '祝' },
 ] as const;
 
@@ -159,7 +158,7 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
 
         <div className="space-y-2">
             <FormLabel>曜日・祝日ごとの製造予定数</FormLabel>
-            <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
+            <div className="grid grid-cols-8 gap-2">
                 {daysOfWeek.map(day => (
                 <FormField
                     key={day.name}
