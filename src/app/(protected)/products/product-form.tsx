@@ -18,6 +18,15 @@ const formSchema = z.object({
   costPrice: z.coerce.number().min(0, { message: '原価は正の数でなければなりません。' }),
   category: z.string().min(1, { message: 'カテゴリーは必須です。' }),
   pricePattern: z.string().optional(),
+  dailyProduction: z.object({
+    sun: z.coerce.number().min(0),
+    mon: z.coerce.number().min(0),
+    tue: z.coerce.number().min(0),
+    wed: z.coerce.number().min(0),
+    thu: z.coerce.number().min(0),
+    fri: z.coerce.number().min(0),
+    sat: z.coerce.number().min(0),
+  }).optional(),
 })
 
 type FormValues = z.infer<typeof formSchema>;
@@ -28,16 +37,33 @@ interface ProductFormProps {
   onCancel: () => void;
 }
 
+const daysOfWeek = [
+    { name: 'sun', label: '日' },
+    { name: 'mon', label: '月' },
+    { name: 'tue', label: '火' },
+    { name: 'wed', label: '水' },
+    { name: 'thu', label: '木' },
+    { name: 'fri', label: '金' },
+    { name: 'sat', label: '土' },
+] as const;
+
+
 export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: product || {
-      name: '',
-      productCode: '',
-      price: 0,
-      costPrice: 0,
-      category: '揚げ物',
-      pricePattern: '',
+    defaultValues: product 
+      ? {
+        ...product,
+        dailyProduction: product.dailyProduction ?? { sun: 0, mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0 }
+      }
+      : {
+        name: '',
+        productCode: '',
+        price: 0,
+        costPrice: 0,
+        category: '揚げ物',
+        pricePattern: '',
+        dailyProduction: { sun: 0, mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0 },
     },
   })
 
@@ -128,6 +154,29 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
               )}
             />
         </div>
+
+        <div className="space-y-2">
+            <FormLabel>曜日ごとの製造予定数</FormLabel>
+            <div className="grid grid-cols-4 md:grid-cols-7 gap-2">
+                {daysOfWeek.map(day => (
+                <FormField
+                    key={day.name}
+                    control={form.control}
+                    name={`dailyProduction.${day.name}`}
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel className="text-xs font-normal">{day.label}</FormLabel>
+                        <FormControl>
+                        <Input type="number" placeholder="0" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                ))}
+            </div>
+        </div>
+
         <div className="flex justify-end gap-2 pt-4">
           <Button type="button" variant="outline" onClick={onCancel}>
             キャンセル

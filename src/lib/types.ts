@@ -33,6 +33,16 @@ export type Container = {
   quantity: number;
 }
 
+export type DailyProduction = {
+  sun: number;
+  mon: number;
+  tue: number;
+  wed: number;
+  thu: number;
+  fri: number;
+  sat: number;
+};
+
 export type Product = {
   id: string;
   storeId: string;
@@ -44,6 +54,7 @@ export type Product = {
   pricePattern?: string;
   materials?: Material[];
   containers?: Container[];
+  dailyProduction?: DailyProduction;
 };
 
 export type CartItem = {

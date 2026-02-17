@@ -35,6 +35,33 @@
           "type": "string",
           "description": "URL of the product image.",
           "format": "uri"
+        },
+        "dailyProduction": {
+          "type": "object",
+          "description": "Planned production quantity for each day of the week.",
+          "properties": {
+            "sun": {
+              "type": "number"
+            },
+            "mon": {
+              "type": "number"
+            },
+            "tue": {
+              "type": "number"
+            },
+            "wed": {
+              "type": "number"
+            },
+            "thu": {
+              "type": "number"
+            },
+            "fri": {
+              "type": "number"
+            },
+            "sat": {
+              "type": "number"
+            }
+          }
         }
       },
       "required": [
