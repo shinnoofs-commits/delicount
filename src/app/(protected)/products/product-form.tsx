@@ -26,6 +26,7 @@ const formSchema = z.object({
     thu: z.coerce.number().min(0),
     fri: z.coerce.number().min(0),
     sat: z.coerce.number().min(0),
+    holiday: z.coerce.number().min(0),
   }).optional(),
 })
 
@@ -45,6 +46,7 @@ const daysOfWeek = [
     { name: 'thu', label: '木' },
     { name: 'fri', label: '金' },
     { name: 'sat', label: '土' },
+    { name: 'holiday', label: '祝' },
 ] as const;
 
 
@@ -54,7 +56,7 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
     defaultValues: product 
       ? {
         ...product,
-        dailyProduction: product.dailyProduction ?? { sun: 0, mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0 }
+        dailyProduction: product.dailyProduction ?? { sun: 0, mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, holiday: 0 }
       }
       : {
         name: '',
@@ -63,7 +65,7 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
         costPrice: 0,
         category: '揚げ物',
         pricePattern: '',
-        dailyProduction: { sun: 0, mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0 },
+        dailyProduction: { sun: 0, mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, holiday: 0 },
     },
   })
 
@@ -156,8 +158,8 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
         </div>
 
         <div className="space-y-2">
-            <FormLabel>曜日ごとの製造予定数</FormLabel>
-            <div className="grid grid-cols-4 md:grid-cols-7 gap-2">
+            <FormLabel>曜日・祝日ごとの製造予定数</FormLabel>
+            <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
                 {daysOfWeek.map(day => (
                 <FormField
                     key={day.name}

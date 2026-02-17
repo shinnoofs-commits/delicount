@@ -41,6 +41,7 @@ export type DailyProduction = {
   thu: number;
   fri: number;
   sat: number;
+  holiday: number;
 };
 
 export type Product = {

@@ -20,6 +20,7 @@ import type { ProductionEntry, DailyProduction, Product } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import holiday_jp from '@holiday-jp/holiday_jp';
 
 const dayMap: (keyof DailyProduction)[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 
@@ -48,20 +49,29 @@ export default function ProductionClient() {
   };
 
   const handleApplySchedule = () => {
+    const isHoliday = holiday_jp.isHoliday(date);
     const dayKey = dayMap[getDay(date)];
     const newQuantities: Record<string, string> = {};
     let appliedCount = 0;
+    
     filteredProducts.forEach(product => {
-      const scheduledQuantity = product.dailyProduction?.[dayKey] ?? 0;
+      const holidayQuantity = product.dailyProduction?.holiday;
+      const dayQuantity = product.dailyProduction?.[dayKey];
+
+      const scheduledQuantity = (isHoliday && holidayQuantity !== undefined)
+        ? holidayQuantity
+        : (dayQuantity ?? 0);
+        
       if (scheduledQuantity > 0) {
         newQuantities[product.id] = String(scheduledQuantity);
         appliedCount++;
       }
     });
-    setQuantities(newQuantities);
+
+    setQuantities(prev => ({ ...prev, ...newQuantities }));
     toast({
         title: "製造予定数を適用しました",
-        description: `${appliedCount}件の商品に${format(date, 'EEEE', { locale: ja })}の予定数を反映しました。`
+        description: `${appliedCount}件の商品に${format(date, 'PPPP', { locale: ja })}の予定数を反映しました。`
     })
   };
 
@@ -114,6 +124,7 @@ export default function ProductionClient() {
   };
 
   const isLoading = productsLoading || storesLoading;
+  const isHoliday = holiday_jp.isHoliday(date);
   const dayKey = dayMap[getDay(date)];
 
   if (isAdmin) {
@@ -187,7 +198,7 @@ export default function ProductionClient() {
               </Popover>
               <Button onClick={handleApplySchedule}>
                 <Factory className="mr-2 h-4 w-4"/>
-                曜日の製造予定を適用
+                予定数を適用
               </Button>
             </div>
           </div>
@@ -217,7 +228,8 @@ export default function ProductionClient() {
                                       <Info className="h-3 w-3 text-muted-foreground cursor-help" />
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                      <p>商品マスタに登録された{format(date, 'EEEE', { locale: ja })}の製造予定数</p>
+                                      <p>商品マスタに登録された製造予定数です。</p>
+                                      <p className="text-xs text-muted-foreground">祝日の場合は祝日、それ以外は曜日の数が適用されます。</p>
                                     </TooltipContent>
                                   </Tooltip>
                                 </TooltipProvider>
@@ -234,11 +246,16 @@ export default function ProductionClient() {
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            filteredProducts.map(product => (
+                            filteredProducts.map(product => {
+                                const scheduledQuantity = (isHoliday && product.dailyProduction?.holiday !== undefined)
+                                    ? product.dailyProduction.holiday
+                                    : product.dailyProduction?.[dayKey] ?? 0;
+                                
+                                return (
                                 <TableRow key={product.id}>
                                     <TableCell className="font-medium">{product.name}</TableCell>
                                     <TableCell className="text-right text-muted-foreground">
-                                        {(product.dailyProduction?.[dayKey] ?? 0).toLocaleString()} 個
+                                        {scheduledQuantity.toLocaleString()} 個
                                     </TableCell>
                                     <TableCell>
                                         <Input
@@ -251,7 +268,7 @@ export default function ProductionClient() {
                                         />
                                     </TableCell>
                                 </TableRow>
-                            ))
+                            )})
                         )}
                     </TableBody>
                 </Table>
