@@ -76,6 +76,8 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
     const categories = useMemo(() => ['すべて', ...Array.from(new Set(products.map(p => p.category)))], [products]);
     const [selectedCategory, setSelectedCategory] = useState('すべて');
     const [schedules, setSchedules] = useState<Record<string, Partial<DailyProduction>>>({});
+    const [tableKey, setTableKey] = useState(Date.now());
+    const { toast } = useToast();
 
     useEffect(() => {
         const initialSchedules = products.reduce((acc, product) => {
@@ -83,6 +85,7 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
             return acc;
         }, {} as Record<string, Partial<DailyProduction>>);
         setSchedules(initialSchedules);
+        setTableKey(Date.now());
     }, [products]);
 
     const filteredProducts = useMemo(() => {
@@ -101,6 +104,38 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
         }));
     };
     
+    const handleApplySchedule = () => {
+        const newQuantities: Record<string, Partial<DailyProduction>> = {};
+        let appliedCount = 0;
+        
+        filteredProducts.forEach(product => {
+            const holidayQuantity = product.dailyProduction?.holiday;
+            const dayKey = daysOfWeek.find(d => d !== 'holiday'); // any weekday for example
+            const dayQuantity = dayKey ? product.dailyProduction?.[dayKey] : undefined;
+
+            const scheduledQuantity = (product.dailyProduction?.holiday !== undefined && holidayQuantity)
+                ? holidayQuantity
+                : (dayQuantity ?? 0);
+            
+            if (scheduledQuantity > 0) {
+              const newSchedule = { ...schedules[product.id] };
+              daysOfWeek.forEach(day => {
+                const qty = product.dailyProduction?.[day] ?? 0;
+                if(qty > 0) newSchedule[day] = qty;
+              });
+              newQuantities[product.id] = newSchedule;
+              appliedCount++;
+            }
+        });
+
+        setSchedules(prev => ({ ...prev, ...newQuantities }));
+        setTableKey(Date.now());
+        toast({
+            title: "製造予定数を適用しました",
+            description: `${appliedCount}件の商品に予定数を反映しました。`
+        });
+    };
+
     const columnTotals = useMemo(() => {
       return daysOfWeek.reduce((acc, day) => {
           acc[day] = filteredProducts.reduce((sum, product) => {
@@ -123,15 +158,13 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
-            <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
-              <ScrollArea className="w-full whitespace-nowrap rounded-md">
-                <TabsList className="inline-flex">
+            <ScrollArea className="w-full whitespace-nowrap rounded-md">
+                <TabsList className="inline-flex" value={selectedCategory} onValueChange={setSelectedCategory}>
                     {categories.map(category => (
                         <TabsTrigger key={category} value={category}>{category}</TabsTrigger>
                     ))}
                 </TabsList>
-              </ScrollArea>
-            </Tabs>
+            </ScrollArea>
             <div className="relative w-full overflow-auto rounded-md border h-[60vh]">
               <table className="text-sm caption-bottom min-w-max">
                   <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
@@ -141,7 +174,7 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
                           <TableHead className="text-right font-bold">合計</TableHead>
                       </TableRow>
                   </TableHeader>
-                  <TableBody>
+                  <TableBody key={tableKey}>
                       {filteredProducts.map(product => {
                           const rowTotal = daysOfWeek.reduce((sum, day) => sum + (schedules[product.id]?.[day] || 0), 0);
                           return (
@@ -152,8 +185,8 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
                                           <Input
                                               type="number"
                                               className="w-20 text-right"
-                                              value={schedules[product.id]?.[day] || ''}
-                                              onChange={(e) => handleScheduleChange(product.id, day, e.target.value)}
+                                              defaultValue={schedules[product.id]?.[day] || ''}
+                                              onBlur={(e) => handleScheduleChange(product.id, day, e.target.value)}
                                               placeholder="0"
                                           />
                                       </TableCell>
@@ -165,7 +198,7 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
                   </TableBody>
                   <TableFooter className="sticky bottom-0 bg-muted/80 backdrop-blur-sm">
                       <TableRow>
-                          <TableHead className="sticky left-0 bg-muted/80">合計</TableHead>
+                          <TableHead className="sticky left-0 bg-muted/80 min-w-[200px]">合計</TableHead>
                           {daysOfWeek.map(day => <TableHead key={day} className="text-right">{columnTotals[day]?.toLocaleString()}</TableHead>)}
                           <TableHead className="text-right font-bold">{grandTotal.toLocaleString()}</TableHead>
                       </TableRow>
