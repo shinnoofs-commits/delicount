@@ -133,7 +133,7 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
               </ScrollArea>
             </Tabs>
             <div className="relative w-full overflow-auto rounded-md border h-[60vh]">
-              <table className="text-sm caption-bottom">
+              <table className="text-sm caption-bottom min-w-max">
                   <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
                       <TableRow>
                           <TableHead className="sticky left-0 bg-muted/80 min-w-[200px]">商品</TableHead>
