@@ -132,8 +132,8 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
                 </TabsList>
               </ScrollArea>
             </Tabs>
-            <ScrollArea className="h-[60vh] rounded-md border">
-              <Table>
+            <div className="relative w-full overflow-auto rounded-md border h-[60vh]">
+              <table className="text-sm caption-bottom">
                   <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
                       <TableRow>
                           <TableHead className="sticky left-0 bg-muted/80 min-w-[200px]">商品</TableHead>
@@ -170,8 +170,8 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
                           <TableHead className="text-right font-bold">{grandTotal.toLocaleString()}</TableHead>
                       </TableRow>
                   </TableFooter>
-              </Table>
-            </ScrollArea>
+              </table>
+            </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onCancel}>キャンセル</Button>
