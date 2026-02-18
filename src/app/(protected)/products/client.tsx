@@ -163,7 +163,7 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
             </Tabs>
             <div className="relative block w-full overflow-auto rounded-md border h-[60vh]">
               <table className="text-sm caption-bottom min-w-max">
-                  <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
+                  <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
                       <TableRow>
                           <TableHead className="sticky left-0 bg-muted/80 min-w-[200px]">商品</TableHead>
                           {daysOfWeek.map(day => 
@@ -177,7 +177,7 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
                           </TableHead>
                           <TableHead className="text-right font-bold min-w-[80px]">合計</TableHead>
                       </TableRow>
-                  </TableHeader>
+                  </thead>
                   <TableBody>
                       {filteredProducts.map(product => {
                           const rowTotal = daysOfWeek.reduce((sum, day) => sum + (schedules[product.id]?.[day] || 0), 0);
@@ -245,6 +245,7 @@ const pricePatterns = ['専門店', '量販店'];
 
 const BulkProductEditor = ({ products, onSave, onCancel }: { products: Product[], onSave: (productsToUpdate: Pick<Product, 'id' | 'category' | 'pricePattern'>[]) => void, onCancel: () => void }) => {
     const [updatedProducts, setUpdatedProducts] = useState<Record<string, { category: string, pricePattern: string }>>({});
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
     useEffect(() => {
         const initial = products.reduce((acc, product) => {
@@ -252,6 +253,7 @@ const BulkProductEditor = ({ products, onSave, onCancel }: { products: Product[]
             return acc;
         }, {} as Record<string, { category: string, pricePattern: string }>);
         setUpdatedProducts(initial);
+        setSelectedIds(products.map(p => p.id)); // Select all by default
     }, [products]);
 
     const handleCategoryChange = (productId: string, category: string) => {
@@ -275,11 +277,27 @@ const BulkProductEditor = ({ products, onSave, onCancel }: { products: Product[]
     };
 
     const handleSave = () => {
-        const productsToUpdate = Object.entries(updatedProducts).map(([id, data]) => ({
+        const productsToUpdate = selectedIds.map(id => ({
             id,
-            ...data,
+            ...updatedProducts[id],
         }));
         onSave(productsToUpdate);
+    };
+
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedIds(products.map(p => p.id));
+        } else {
+            setSelectedIds([]);
+        }
+    };
+
+    const handleSelectRow = (productId: string, checked: boolean) => {
+        if (checked) {
+            setSelectedIds(prev => [...prev, productId]);
+        } else {
+            setSelectedIds(prev => prev.filter(id => id !== productId));
+        }
     };
     
     return (
@@ -287,13 +305,20 @@ const BulkProductEditor = ({ products, onSave, onCancel }: { products: Product[]
             <DialogHeader>
               <DialogTitle>カテゴリ・価格パターンを一括編集</DialogTitle>
               <DialogDescription>
-                商品ごとのカテゴリと価格パターンを一括で編集します。
+                編集したい商品にチェックを入れてください。カテゴリと価格パターンを一括で編集できます。
               </DialogDescription>
             </DialogHeader>
             <div className="h-[60vh] overflow-auto border rounded-md">
                 <Table>
                     <TableHeader>
                         <TableRow>
+                            <TableHead className="sticky top-0 bg-muted">
+                                <Checkbox
+                                    checked={products.length > 0 && selectedIds.length === products.length}
+                                    onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
+                                    aria-label="すべて選択"
+                                />
+                            </TableHead>
                             <TableHead className="sticky top-0 bg-muted">商品名</TableHead>
                             <TableHead className="sticky top-0 bg-muted w-48">カテゴリー</TableHead>
                             <TableHead className="sticky top-0 bg-muted w-48">価格パターン</TableHead>
@@ -301,7 +326,14 @@ const BulkProductEditor = ({ products, onSave, onCancel }: { products: Product[]
                     </TableHeader>
                     <TableBody>
                         {products.map(product => (
-                            <TableRow key={product.id}>
+                            <TableRow key={product.id} data-state={selectedIds.includes(product.id) && 'selected'}>
+                                <TableCell>
+                                    <Checkbox
+                                        checked={selectedIds.includes(product.id)}
+                                        onCheckedChange={(checked) => handleSelectRow(product.id, checked as boolean)}
+                                        aria-label={`${product.name}を選択`}
+                                    />
+                                </TableCell>
                                 <TableCell className="font-medium">{product.name}</TableCell>
                                 <TableCell>
                                     <Select
@@ -344,7 +376,9 @@ const BulkProductEditor = ({ products, onSave, onCancel }: { products: Product[]
             </div>
             <DialogFooter>
                 <Button variant="outline" onClick={onCancel}>キャンセル</Button>
-                <Button onClick={handleSave}>変更を保存</Button>
+                <Button onClick={handleSave} disabled={selectedIds.length === 0}>
+                    選択した{selectedIds.length}件を保存
+                </Button>
             </DialogFooter>
         </>
     );
@@ -623,9 +657,9 @@ export default function ProductsClient() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead padding="checkbox">
+                <TableHead>
                   <Checkbox
-                    checked={selectedProductIds.length > 0 && selectedProductIds.length === products.length}
+                    checked={products.length > 0 && selectedProductIds.length === products.length}
                     onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
                     aria-label="すべての商品を選択"
                     disabled={products.length === 0}
@@ -667,7 +701,7 @@ export default function ProductsClient() {
               ) : (
                 products.map(product => (
                 <TableRow key={product.id} data-state={selectedProductIds.includes(product.id) && "selected"}>
-                   <TableCell padding="checkbox">
+                   <TableCell>
                     <Checkbox
                       checked={selectedProductIds.includes(product.id)}
                       onCheckedChange={(checked) => handleSelectRow(product.id, checked as boolean)}
@@ -717,7 +751,7 @@ export default function ProductsClient() {
       </Dialog>
       
       <Dialog open={isScheduleEditorOpen} onOpenChange={setIsScheduleEditorOpen}>
-        <DialogContent className="max-w-7xl block">
+        <DialogContent className="max-w-7xl">
             {managedStoreId && <ScheduleEditor products={products} storeId={managedStoreId} onSave={handleScheduleSave} onCancel={() => setIsScheduleEditorOpen(false)} />}
         </DialogContent>
       </Dialog>
