@@ -8,6 +8,7 @@ import type { Product } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const formSchema = z.object({
   id: z.string().optional(),
@@ -18,6 +19,16 @@ const formSchema = z.object({
   category: z.string().min(1, { message: 'カテゴリーは必須です。' }),
   pricePattern: z.string().optional(),
 })
+
+const productCategories = [
+  '温惣菜',
+  '冷惣菜',
+  '弁当',
+  '丼ぶり',
+  '揚げ物',
+  '唐揚げ',
+  'おこわ',
+];
 
 type FormValues = z.infer<typeof formSchema>;
 
@@ -106,9 +117,20 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>カテゴリー</FormLabel>
-                <FormControl>
-                  <Input placeholder="例：揚げ物" {...field} />
-                </FormControl>
+                 <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="カテゴリーを選択" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {productCategories.map(category => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
@@ -147,5 +169,3 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
     </Form>
   )
 }
-
-    
