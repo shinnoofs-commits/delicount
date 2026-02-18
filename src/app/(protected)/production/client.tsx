@@ -5,7 +5,7 @@ import { Loader2, CalendarIcon, Factory, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useProducts } from '@/contexts/product-context';
 import { useStores } from '@/contexts/store-context';
@@ -37,13 +37,6 @@ export default function ProductionClient() {
 
   const categories = useMemo(() => ['すべて', ...Array.from(new Set(allProducts.map(p => p.category)))], [allProducts]);
 
-  const filteredProducts = useMemo(() => {
-    return allProducts.filter(product => {
-      const matchesCategory = selectedCategory === 'すべて' || product.category === selectedCategory;
-      return matchesCategory;
-    });
-  }, [selectedCategory, allProducts]);
-
   const handleQuantityChange = (productId: string, value: string) => {
     setQuantities(prev => ({ ...prev, [productId]: value }));
   };
@@ -53,8 +46,10 @@ export default function ProductionClient() {
     const dayKey = dayMap[getDay(date)];
     const newQuantities: Record<string, string> = {};
     let appliedCount = 0;
+
+    const productsToApply = selectedCategory === 'すべて' ? allProducts : allProducts.filter(p => p.category === selectedCategory);
     
-    filteredProducts.forEach(product => {
+    productsToApply.forEach(product => {
       const holidayQuantity = product.dailyProduction?.holiday;
       const dayQuantity = product.dailyProduction?.[dayKey];
 
@@ -203,7 +198,7 @@ export default function ProductionClient() {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent>
             <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
                 <ScrollArea className="w-full whitespace-nowrap">
                     <TabsList>
@@ -212,67 +207,70 @@ export default function ProductionClient() {
                         ))}
                     </TabsList>
                 </ScrollArea>
+                 {categories.map(category => (
+                    <TabsContent value={category} key={category}>
+                        <div className="border rounded-md mt-4">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>商品名</TableHead>
+                                        <TableHead className="w-32 text-right">
+                                          <div className="flex items-center justify-end gap-1">
+                                            予定数
+                                            <TooltipProvider>
+                                              <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                  <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                  <p>商品マスタに登録された製造予定数です。</p>
+                                                  <p className="text-xs text-muted-foreground">祝日の場合は祝日、それ以外は曜日の数が適用されます。</p>
+                                                </TooltipContent>
+                                              </Tooltip>
+                                            </TooltipProvider>
+                                          </div>
+                                        </TableHead>
+                                        <TableHead className="w-32 text-right">今回の製造数</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {allProducts.filter(p => category === 'すべて' || p.category === category).length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={3} className="h-24 text-center">
+                                                対象の商品がありません。
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        allProducts.filter(p => category === 'すべて' || p.category === category).map(product => {
+                                            const scheduledQuantity = (isHoliday && product.dailyProduction?.holiday !== undefined)
+                                                ? product.dailyProduction.holiday
+                                                : product.dailyProduction?.[dayKey] ?? 0;
+                                            
+                                            return (
+                                            <TableRow key={product.id}>
+                                                <TableCell className="font-medium">{product.name}</TableCell>
+                                                <TableCell className="text-right text-muted-foreground">
+                                                    {scheduledQuantity.toLocaleString()} 個
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Input
+                                                        type="number"
+                                                        className="text-right"
+                                                        placeholder="0"
+                                                        value={quantities[product.id] || ''}
+                                                        onChange={(e) => handleQuantityChange(product.id, e.target.value)}
+                                                        min="0"
+                                                    />
+                                                </TableCell>
+                                            </TableRow>
+                                        )})
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </TabsContent>
+                 ))}
             </Tabs>
-
-            <div className="border rounded-md">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>商品名</TableHead>
-                            <TableHead className="w-32 text-right">
-                              <div className="flex items-center justify-end gap-1">
-                                予定数
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>商品マスタに登録された製造予定数です。</p>
-                                      <p className="text-xs text-muted-foreground">祝日の場合は祝日、それ以外は曜日の数が適用されます。</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                              </div>
-                            </TableHead>
-                            <TableHead className="w-32 text-right">今回の製造数</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {filteredProducts.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={3} className="h-24 text-center">
-                                    対象の商品がありません。
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            filteredProducts.map(product => {
-                                const scheduledQuantity = (isHoliday && product.dailyProduction?.holiday !== undefined)
-                                    ? product.dailyProduction.holiday
-                                    : product.dailyProduction?.[dayKey] ?? 0;
-                                
-                                return (
-                                <TableRow key={product.id}>
-                                    <TableCell className="font-medium">{product.name}</TableCell>
-                                    <TableCell className="text-right text-muted-foreground">
-                                        {scheduledQuantity.toLocaleString()} 個
-                                    </TableCell>
-                                    <TableCell>
-                                        <Input
-                                            type="number"
-                                            className="text-right"
-                                            placeholder="0"
-                                            value={quantities[product.id] || ''}
-                                            onChange={(e) => handleQuantityChange(product.id, e.target.value)}
-                                            min="0"
-                                        />
-                                    </TableCell>
-                                </TableRow>
-                            )})
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
         </CardContent>
         <CardFooter className="flex flex-col items-end gap-4 mt-auto bg-muted/50 p-6">
           <div className="w-full max-w-sm space-y-2 text-sm">

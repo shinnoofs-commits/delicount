@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
@@ -9,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useTransactions } from '@/contexts/transaction-context';
 import { useProducts } from '@/contexts/product-context';
@@ -38,13 +37,6 @@ export default function PosClient() {
   const { toast } = useToast();
 
   const categories = useMemo(() => ['すべて', ...Array.from(new Set(allProducts.map(p => p.category)))], [allProducts]);
-
-  const filteredProducts = useMemo(() => {
-    return allProducts.filter(product => {
-      const matchesCategory = selectedCategory === 'すべて' || product.category === selectedCategory;
-      return matchesCategory;
-    });
-  }, [selectedCategory, allProducts]);
 
   const addToWasteList = useCallback((product: Product) => {
     setWasteList(prevList => {
@@ -170,24 +162,28 @@ export default function PosClient() {
                 ))}
             </TabsList>
           </ScrollArea>
-        </Tabs>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-        {filteredProducts.map(product => (
-            <Card 
-                key={product.id} 
-                onClick={() => addToWasteList(product)} 
-                className="cursor-pointer hover:shadow-lg hover:border-destructive transition-all flex flex-col min-h-24"
-            >
-            <CardContent className="p-4 flex-1 flex flex-col justify-center">
-                <div className="text-center">
-                    <p className="font-semibold text-sm break-words">{product.name}</p>
-                    <p className="text-xs text-muted-foreground">原価: ¥{product.costPrice.toLocaleString()}</p>
+          {categories.map(category => (
+            <TabsContent value={category} key={category}>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 pt-4">
+                    {(category === 'すべて' ? allProducts : allProducts.filter(p => p.category === category))
+                    .map(product => (
+                        <Card 
+                            key={product.id} 
+                            onClick={() => addToWasteList(product)} 
+                            className="cursor-pointer hover:shadow-lg hover:border-destructive transition-all flex flex-col min-h-24"
+                        >
+                        <CardContent className="p-4 flex-1 flex flex-col justify-center">
+                            <div className="text-center">
+                                <p className="font-semibold text-sm break-words">{product.name}</p>
+                                <p className="text-xs text-muted-foreground">原価: ¥{product.costPrice.toLocaleString()}</p>
+                            </div>
+                        </CardContent>
+                        </Card>
+                    ))}
                 </div>
-            </CardContent>
-            </Card>
-        ))}
-        </div>
+            </TabsContent>
+          ))}
+        </Tabs>
       </div>
 
       {/* Waste List Section */}
