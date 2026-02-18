@@ -144,24 +144,22 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
     }, [columnTotals])
 
     return (
-      <Tabs defaultValue="すべて" className="w-full">
+      <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="flex flex-col h-full">
         <DialogHeader>
           <DialogTitle>曜日別予定数を一括編集</DialogTitle>
           <DialogDescription>
             カテゴリを選択し、商品ごとの曜日・祝日別製造予定数を入力してください。
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-4">
-            <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
-                <ScrollArea className="w-full whitespace-nowrap rounded-md">
-                    <TabsList className="inline-flex">
-                        {categories.map(category => (
-                            <TabsTrigger key={category} value={category}>{category}</TabsTrigger>
-                        ))}
-                    </TabsList>
-                </ScrollArea>
-            </Tabs>
-            <div className="relative block w-full overflow-auto rounded-md border h-[60vh]">
+        <div className="space-y-4 py-4 flex-1 flex flex-col min-h-0">
+          <ScrollArea className="w-full whitespace-nowrap rounded-md">
+              <TabsList className="inline-flex">
+                  {categories.map(category => (
+                      <TabsTrigger key={category} value={category}>{category}</TabsTrigger>
+                  ))}
+              </TabsList>
+          </ScrollArea>
+            <div className="relative block w-full overflow-auto rounded-md border flex-1">
               <table className="text-sm caption-bottom min-w-max">
                   <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
                       <TableRow>
@@ -400,6 +398,7 @@ export default function ProductsClient() {
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([])
   const [isScheduleEditorOpen, setIsScheduleEditorOpen] = useState(false)
   const [isBulkEditorOpen, setIsBulkEditorOpen] = useState(false)
+  const [isSyncConfirmOpen, setIsSyncConfirmOpen] = useState(false)
 
   const { toast } = useToast()
   
@@ -577,10 +576,19 @@ export default function ProductsClient() {
       });
       return;
     }
+    setIsSyncConfirmOpen(true);
+  }
+
+  const confirmSync = async () => {
+    if (!managedStoreId) {
+      setIsSyncConfirmOpen(false);
+      return;
+    };
     setIsSyncing(true);
     await syncAllProducts(managedStoreId);
     setIsSyncing(false);
-  }
+    setIsSyncConfirmOpen(false);
+  };
 
   return (
     <>
@@ -642,8 +650,8 @@ export default function ProductsClient() {
 
             {isAdmin && (
               <Button variant="outline" size="sm" onClick={handleSyncAll} disabled={isSyncing}>
-                  {isSyncing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-                  現在の設定で全店舗を同期
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  この店舗の設定を全店舗に同期
               </Button>
             )}
 
@@ -751,7 +759,7 @@ export default function ProductsClient() {
       </Dialog>
       
       <Dialog open={isScheduleEditorOpen} onOpenChange={setIsScheduleEditorOpen}>
-        <DialogContent className="max-w-7xl">
+        <DialogContent className="max-w-7xl h-[90vh] flex flex-col">
             {managedStoreId && <ScheduleEditor products={products} storeId={managedStoreId} onSave={handleScheduleSave} onCancel={() => setIsScheduleEditorOpen(false)} />}
         </DialogContent>
       </Dialog>
@@ -774,6 +782,25 @@ export default function ProductsClient() {
             <AlertDialogCancel>キャンセル</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">
               削除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isSyncConfirmOpen} onOpenChange={setIsSyncConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>全店舗へ商品マスタを同期しますか？</AlertDialogTitle>
+            <AlertDialogDescription>
+              現在選択されている「{stores.find(s => s.id === managedStoreId)?.name}」の商品設定を、他のすべての店舗に反映します。
+              商品コードが一致する商品は上書きされ、存在しない商品は新規で追加されます。この操作は元に戻せません。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setIsSyncConfirmOpen(false)}>キャンセル</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmSync} disabled={isSyncing}>
+              {isSyncing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              同期を実行
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
