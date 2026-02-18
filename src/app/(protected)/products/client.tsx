@@ -78,7 +78,6 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
     const categories = useMemo(() => ['すべて', ...Array.from(new Set(products.map(p => p.category)))], [products]);
     const [selectedCategory, setSelectedCategory] = useState('すべて');
     const [schedules, setSchedules] = useState<Record<string, Partial<DailyProduction>>>({});
-    const [headerInputs, setHeaderInputs] = useState<Partial<Record<keyof DailyProduction, string>>>({});
     const [rowHeaderInputs, setRowHeaderInputs] = useState<Record<string, string>>({});
     const [tableKey, setTableKey] = useState(Date.now());
     const { toast } = useToast();
@@ -105,35 +104,9 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
                 [day]: isNaN(numValue) ? undefined : numValue,
             }
         }));
+        setTableKey(Date.now()); 
     };
 
-    const handleHeaderInputChange = (day: keyof DailyProduction, value: string) => {
-        setHeaderInputs(prev => ({ ...prev, [day]: value }));
-    };
-
-    const handleHeaderScheduleChange = (day: keyof DailyProduction, value: string) => {
-        const numValue = parseInt(value, 10);
-        
-        if (value === '' || isNaN(numValue) || numValue < 0) {
-            setHeaderInputs(prev => ({ ...prev, [day]: '' }));
-            return;
-        }
-
-        setSchedules(prevSchedules => {
-            const newSchedules = { ...prevSchedules };
-            filteredProducts.forEach(product => {
-                newSchedules[product.id] = {
-                    ...newSchedules[product.id],
-                    [day]: numValue,
-                };
-            });
-            return newSchedules;
-        });
-        
-        setTableKey(Date.now());
-        setHeaderInputs(prev => ({ ...prev, [day]: '' }));
-    };
-    
     const handleRowHeaderInputChange = (productId: string, value: string) => {
         setRowHeaderInputs(prev => ({ ...prev, [productId]: value }));
     };
@@ -201,15 +174,6 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
                           {daysOfWeek.map(day => 
                             <TableHead key={day} className="text-right min-w-[100px]">
                                 {dayLabels[day]}
-                                <Input
-                                    type="number"
-                                    placeholder="一括入力"
-                                    className="h-8 mt-1 text-right"
-                                    value={headerInputs[day] || ''}
-                                    onChange={(e) => handleHeaderInputChange(day, e.target.value)}
-                                    onBlur={(e) => handleHeaderScheduleChange(day, e.target.value)}
-                                    min="0"
-                                />
                             </TableHead>
                           )}
                            <TableHead className="text-right min-w-[100px]">
