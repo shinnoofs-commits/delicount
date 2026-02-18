@@ -21,7 +21,6 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  TableFooter,
 } from "@/components/ui/table"
 import {
   DropdownMenu,
@@ -79,9 +78,7 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
     const [selectedCategory, setSelectedCategory] = useState('すべて');
     const [schedules, setSchedules] = useState<Record<string, Partial<DailyProduction>>>({});
     const [rowHeaderInputs, setRowHeaderInputs] = useState<Record<string, string>>({});
-    const [tableKey, setTableKey] = useState(Date.now());
-    const { toast } = useToast();
-
+    
     useEffect(() => {
         const initialSchedules = products.reduce((acc, product) => {
             acc[product.id] = product.dailyProduction || {};
@@ -129,7 +126,6 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
             };
         });
         
-        setTableKey(Date.now());
         setRowHeaderInputs(prev => ({ ...prev, [productId]: '' }));
     };
 
@@ -141,14 +137,14 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
           }, 0);
           return acc;
       }, {} as Record<keyof DailyProduction, number>);
-    }, [schedules, filteredProducts, tableKey]);
+    }, [schedules, filteredProducts]);
     
     const grandTotal = useMemo(() => {
         return Object.values(columnTotals).reduce((sum, val) => sum + val, 0);
     }, [columnTotals])
 
     return (
-      <>
+      <Tabs defaultValue="すべて" className="w-full">
         <DialogHeader>
           <DialogTitle>曜日別予定数を一括編集</DialogTitle>
           <DialogDescription>
@@ -166,7 +162,7 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
                 </ScrollArea>
             </Tabs>
             <div className="relative block w-full overflow-auto rounded-md border h-[60vh]">
-              <table key={tableKey} className="text-sm caption-bottom min-w-max">
+              <table className="text-sm caption-bottom min-w-max">
                   <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
                       <TableRow>
                           <TableHead className="sticky left-0 bg-muted/80 min-w-[200px]">商品</TableHead>
@@ -216,14 +212,14 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
                           )
                       })}
                   </TableBody>
-                  <TableFooter className="sticky bottom-0 bg-muted/80 backdrop-blur-sm">
+                  <tfoot className="sticky bottom-0 bg-muted/80 backdrop-blur-sm">
                       <TableRow>
                           <TableHead className="sticky left-0 bg-muted/80 min-w-[200px]">合計</TableHead>
                           {daysOfWeek.map(day => <TableHead key={day} className="text-right">{columnTotals[day]?.toLocaleString()}</TableHead>)}
                           <TableHead></TableHead>
                           <TableHead className="text-right font-bold">{grandTotal.toLocaleString()}</TableHead>
                       </TableRow>
-                  </TableFooter>
+                  </tfoot>
               </table>
             </div>
         </div>
@@ -231,7 +227,7 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
           <Button variant="outline" onClick={onCancel}>キャンセル</Button>
           <Button onClick={() => onSave(schedules)}>変更を保存</Button>
         </DialogFooter>
-      </>
+      </Tabs>
     );
 };
 
@@ -244,6 +240,8 @@ const productCategories = [
   '唐揚げ',
   'おこわ',
 ];
+
+const pricePatterns = ['専門店', '量販店'];
 
 const BulkProductEditor = ({ products, onSave, onCancel }: { products: Product[], onSave: (productsToUpdate: Pick<Product, 'id' | 'category' | 'pricePattern'>[]) => void, onCancel: () => void }) => {
     const [updatedProducts, setUpdatedProducts] = useState<Record<string, { category: string, pricePattern: string }>>({});
@@ -323,11 +321,21 @@ const BulkProductEditor = ({ products, onSave, onCancel }: { products: Product[]
                                     </Select>
                                 </TableCell>
                                 <TableCell>
-                                    <Input
+                                    <Select
                                         value={updatedProducts[product.id]?.pricePattern || ''}
-                                        onChange={(e) => handlePricePatternChange(product.id, e.target.value)}
-                                        placeholder="例: 通常"
-                                    />
+                                        onValueChange={(value) => handlePricePatternChange(product.id, value)}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="パターンを選択" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {pricePatterns.map(pattern => (
+                                                <SelectItem key={pattern} value={pattern}>
+                                                    {pattern}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -710,9 +718,7 @@ export default function ProductsClient() {
       
       <Dialog open={isScheduleEditorOpen} onOpenChange={setIsScheduleEditorOpen}>
         <DialogContent className="max-w-7xl block">
-          <Tabs defaultValue="すべて" className="w-full">
             {managedStoreId && <ScheduleEditor products={products} storeId={managedStoreId} onSave={handleScheduleSave} onCancel={() => setIsScheduleEditorOpen(false)} />}
-          </Tabs>
         </DialogContent>
       </Dialog>
 

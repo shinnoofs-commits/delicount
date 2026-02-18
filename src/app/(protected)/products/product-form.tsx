@@ -30,6 +30,8 @@ const productCategories = [
   'おこわ',
 ];
 
+const pricePatterns = ['専門店', '量販店'];
+
 type FormValues = z.infer<typeof formSchema>;
 
 interface ProductFormProps {
@@ -42,7 +44,7 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: product 
-      ? product
+      ? { ...product, pricePattern: product.pricePattern || '' }
       : {
         name: '',
         productCode: '',
@@ -143,9 +145,20 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>価格パターン</FormLabel>
-                  <FormControl>
-                    <Input placeholder="例：通常" {...field} />
-                  </FormControl>
+                   <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="パターンを選択" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {pricePatterns.map(pattern => (
+                        <SelectItem key={pattern} value={pattern}>
+                          {pattern}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
