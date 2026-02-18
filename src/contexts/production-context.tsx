@@ -66,7 +66,6 @@ export function ProductionProvider({ children }: { children: React.ReactNode }) 
         setProductionEntries(allProductionEntries);
 
       } catch (error) {
-        console.error(`Error fetching production entries:`, error);
         if (error instanceof Error && (error.message.includes('permission-denied') || (error as any).code === 'permission-denied')) {
            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'stores/{storeId}/production', operation: 'list' }));
         }
@@ -125,3 +124,5 @@ export function useProduction() {
   }
   return context;
 }
+
+    

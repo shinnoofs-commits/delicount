@@ -37,7 +37,7 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
         productCode: '',
         price: 0,
         costPrice: 0,
-        category: '揚げ物',
+        category: '',
         pricePattern: '',
     },
   })
@@ -147,3 +147,5 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
     </Form>
   )
 }
+
+    

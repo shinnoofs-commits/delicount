@@ -68,7 +68,6 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         setWasteEntries(allWasteEntries);
 
       } catch (error) {
-        console.error(`Error fetching waste entries:`, error);
         if (error instanceof Error && (error.message.includes('permission-denied') || (error as any).code === 'permission-denied')) {
            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'stores/{storeId}/waste', operation: 'list' }));
         }
@@ -128,3 +127,5 @@ export function useTransactions() {
   }
   return context;
 }
+
+    

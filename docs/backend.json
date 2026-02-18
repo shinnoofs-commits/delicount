@@ -285,8 +285,7 @@
   },
   "auth": {
     "providers": [
-      "password",
-      "anonymous"
+      "password"
     ]
   },
   "firestore": {
@@ -411,3 +410,5 @@
     "reasoning": "The Firestore structure is designed to support the SwiftPOS application's requirements for product management, sales tracking, user/permission management, and reporting. The core principle is Authorization Independence, achieved through denormalization where necessary. The structure leverages path-based ownership and membership maps to simplify security rules and enable QAPs. Specifically, the `stores/{storeId}` collection holds store-specific data. Products are located at `stores/{storeId}/products/{productId}` to associate them with a store. Transactions are located at `stores/{storeId}/transactions/{transactionId}`. The `storeId` is denormalized into the transaction. The main collections and subcollections are used to maintain data segregation by store. This design enables straightforward security rules that prevent unauthorized access to data. Finally, to easily show a dashboard with all the transactions, the `transactions` collection will also contain the storeId so that the dashboard can filter by store ID, and global admins will have access to all transactions. To support listing products and transactions securely (QAPs), each collection is scoped to a store. This structure allows us to write security rules that check the user's role and grant access accordingly, ensuring that only authorized users can access the data."
   }
 }
+
+    
