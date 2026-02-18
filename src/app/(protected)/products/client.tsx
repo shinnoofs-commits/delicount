@@ -104,7 +104,6 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
                 [day]: isNaN(numValue) ? undefined : numValue,
             }
         }));
-        setTableKey(Date.now()); 
     };
 
     const handleRowHeaderInputChange = (productId: string, value: string) => {
@@ -167,7 +166,7 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
                 </ScrollArea>
             </Tabs>
             <div className="relative block w-full overflow-auto rounded-md border h-[60vh]">
-              <table className="text-sm caption-bottom min-w-max">
+              <table key={tableKey} className="text-sm caption-bottom min-w-max">
                   <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
                       <TableRow>
                           <TableHead className="sticky left-0 bg-muted/80 min-w-[200px]">商品</TableHead>
@@ -183,7 +182,7 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
                           <TableHead className="text-right font-bold min-w-[80px]">合計</TableHead>
                       </TableRow>
                   </TableHeader>
-                  <TableBody key={tableKey}>
+                  <TableBody>
                       {filteredProducts.map(product => {
                           const rowTotal = daysOfWeek.reduce((sum, day) => sum + (schedules[product.id]?.[day] || 0), 0);
                           return (
@@ -236,11 +235,118 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
     );
 };
 
+const productCategories = [
+  '温惣菜',
+  '冷惣菜',
+  '弁当',
+  '丼ぶり',
+  '揚げ物',
+  '唐揚げ',
+  'おこわ',
+];
+
+const BulkProductEditor = ({ products, onSave, onCancel }: { products: Product[], onSave: (productsToUpdate: Pick<Product, 'id' | 'category' | 'pricePattern'>[]) => void, onCancel: () => void }) => {
+    const [updatedProducts, setUpdatedProducts] = useState<Record<string, { category: string, pricePattern: string }>>({});
+
+    useEffect(() => {
+        const initial = products.reduce((acc, product) => {
+            acc[product.id] = { category: product.category, pricePattern: product.pricePattern || '' };
+            return acc;
+        }, {} as Record<string, { category: string, pricePattern: string }>);
+        setUpdatedProducts(initial);
+    }, [products]);
+
+    const handleCategoryChange = (productId: string, category: string) => {
+        setUpdatedProducts(prev => ({
+            ...prev,
+            [productId]: {
+                ...(prev[productId] || { category: '', pricePattern: '' }),
+                category: category,
+            }
+        }));
+    };
+
+    const handlePricePatternChange = (productId: string, pricePattern: string) => {
+         setUpdatedProducts(prev => ({
+            ...prev,
+            [productId]: {
+                ...(prev[productId] || { category: '', pricePattern: '' }),
+                pricePattern: pricePattern,
+            }
+        }));
+    };
+
+    const handleSave = () => {
+        const productsToUpdate = Object.entries(updatedProducts).map(([id, data]) => ({
+            id,
+            ...data,
+        }));
+        onSave(productsToUpdate);
+    };
+    
+    return (
+        <>
+            <DialogHeader>
+              <DialogTitle>カテゴリ・価格パターンを一括編集</DialogTitle>
+              <DialogDescription>
+                商品ごとのカテゴリと価格パターンを一括で編集します。
+              </DialogDescription>
+            </DialogHeader>
+            <div className="h-[60vh] overflow-auto border rounded-md">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead className="sticky top-0 bg-muted">商品名</TableHead>
+                            <TableHead className="sticky top-0 bg-muted w-48">カテゴリー</TableHead>
+                            <TableHead className="sticky top-0 bg-muted w-48">価格パターン</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {products.map(product => (
+                            <TableRow key={product.id}>
+                                <TableCell className="font-medium">{product.name}</TableCell>
+                                <TableCell>
+                                    <Select
+                                        value={updatedProducts[product.id]?.category || ''}
+                                        onValueChange={(value) => handleCategoryChange(product.id, value)}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="カテゴリーを選択" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {productCategories.map(category => (
+                                            <SelectItem key={category} value={category}>
+                                                {category}
+                                            </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </TableCell>
+                                <TableCell>
+                                    <Input
+                                        value={updatedProducts[product.id]?.pricePattern || ''}
+                                        onChange={(e) => handlePricePatternChange(product.id, e.target.value)}
+                                        placeholder="例: 通常"
+                                    />
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={onCancel}>キャンセル</Button>
+                <Button onClick={handleSave}>変更を保存</Button>
+            </DialogFooter>
+        </>
+    );
+};
+
 
 export default function ProductsClient() {
   const { stores, loading: storesLoading } = useStores();
   const { isAdmin } = useAdmin();
-  const { products: allProducts, addProduct, updateProduct, deleteProducts, importProductsFromCSV, syncAllProducts, updateSchedules, loading: productsLoading, refetchProducts } = useProducts();
+  const { products: allProducts, addProduct, updateProduct, deleteProducts, importProductsFromCSV, syncAllProducts, updateSchedules, bulkUpdateProducts, loading: productsLoading, refetchProducts } = useProducts();
   
   const [managedStoreId, setManagedStoreId] = useState<string | undefined>(stores[0]?.id);
   
@@ -251,6 +357,7 @@ export default function ProductsClient() {
   const [productsToDelete, setProductsToDelete] = useState<string[]>([]);
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([])
   const [isScheduleEditorOpen, setIsScheduleEditorOpen] = useState(false)
+  const [isBulkEditorOpen, setIsBulkEditorOpen] = useState(false)
 
   const { toast } = useToast()
   
@@ -321,6 +428,12 @@ export default function ProductsClient() {
     if (!managedStoreId) return;
     updateSchedules(managedStoreId, schedules);
     setIsScheduleEditorOpen(false);
+  }
+
+  const handleBulkUpdate = (productsToUpdate: Pick<Product, 'id' | 'category' | 'pricePattern'>[]) => {
+    if (!managedStoreId) return;
+    bulkUpdateProducts(managedStoreId, productsToUpdate);
+    setIsBulkEditorOpen(false);
   }
 
   const handleCsvImport = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -457,6 +570,10 @@ export default function ProductsClient() {
             <Button variant="outline" size="sm" onClick={refetchProducts} disabled={loading}>
                 <RefreshCw className="h-4 w-4 mr-2" />
                 商品情報を更新
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setIsBulkEditorOpen(true)} disabled={!managedStoreId}>
+                <Edit className="h-4 w-4 mr-2" />
+                カテゴリ等を一括編集
             </Button>
             <Button variant="outline" size="sm" onClick={() => setIsScheduleEditorOpen(true)} disabled={!managedStoreId}>
                 <Edit className="h-4 w-4 mr-2" />
@@ -596,6 +713,12 @@ export default function ProductsClient() {
           <Tabs defaultValue="すべて" className="w-full">
             {managedStoreId && <ScheduleEditor products={products} storeId={managedStoreId} onSave={handleScheduleSave} onCancel={() => setIsScheduleEditorOpen(false)} />}
           </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isBulkEditorOpen} onOpenChange={setIsBulkEditorOpen}>
+        <DialogContent className="max-w-4xl">
+            {managedStoreId && <BulkProductEditor products={products} onSave={handleBulkUpdate} onCancel={() => setIsBulkEditorOpen(false)} />}
         </DialogContent>
       </Dialog>
 

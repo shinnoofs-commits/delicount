@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { Product, DailyProduction } from '@/lib/types';
@@ -19,6 +18,7 @@ interface ProductContextType {
   importProductsFromCSV: (products: Omit<Product, 'id' | 'storeId'>[]) => void;
   syncAllProducts: (sourceStoreId: string) => Promise<void>;
   updateSchedules: (storeId: string, schedules: Record<string, Partial<DailyProduction>>) => Promise<void>;
+  bulkUpdateProducts: (storeId: string, productsToUpdate: Pick<Product, 'id' | 'category' | 'pricePattern'>[]) => Promise<void>;
   refetchProducts: () => void;
 }
 
@@ -369,6 +369,28 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
     }
   }, [firestore, toast, refetchProducts]);
 
+ const bulkUpdateProducts = useCallback(async (storeId: string, productsToUpdate: Pick<Product, 'id' | 'category' | 'pricePattern'>[]) => {
+    if (!firestore) return;
+    const batch = writeBatch(firestore);
+    productsToUpdate.forEach(productData => {
+        const productRef = doc(firestore, 'stores', storeId, 'products', productData.id);
+        batch.update(productRef, {
+            category: productData.category,
+            pricePattern: productData.pricePattern || '',
+        });
+    });
+
+    try {
+        await batch.commit();
+        refetchProducts();
+        toast({ title: `${productsToUpdate.length}件の商品を一括更新しました。` });
+    } catch (e) {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: `stores/${storeId}/products`, operation: 'write',
+        }));
+    }
+  }, [firestore, toast, refetchProducts]);
+
 
   const value = useMemo(() => ({
     products,
@@ -379,8 +401,9 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
     importProductsFromCSV,
     syncAllProducts,
     updateSchedules,
+    bulkUpdateProducts,
     refetchProducts,
-  }), [products, loading, addProduct, updateProduct, deleteProducts, importProductsFromCSV, syncAllProducts, updateSchedules, refetchProducts]);
+  }), [products, loading, addProduct, updateProduct, deleteProducts, importProductsFromCSV, syncAllProducts, updateSchedules, bulkUpdateProducts, refetchProducts]);
 
   return (
     <ProductContext.Provider value={value}>
