@@ -200,13 +200,11 @@ export default function ProductionClient() {
         </CardHeader>
         <CardContent>
             <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
-                <ScrollArea className="w-full whitespace-nowrap">
-                    <TabsList>
-                        {categories.map(category => (
-                            <TabsTrigger key={category} value={category}>{category}</TabsTrigger>
-                        ))}
-                    </TabsList>
-                </ScrollArea>
+                <TabsList>
+                    {categories.map(category => (
+                        <TabsTrigger key={category} value={category}>{category}</TabsTrigger>
+                    ))}
+                </TabsList>
                  {categories.map(category => (
                     <TabsContent value={category} key={category}>
                         <div className="border rounded-md mt-4">
