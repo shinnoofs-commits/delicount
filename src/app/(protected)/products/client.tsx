@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useState, useMemo, useEffect } from "react"
@@ -144,88 +145,88 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
     }, [columnTotals])
 
     return (
-      <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="flex flex-col h-full">
-        <DialogHeader>
-          <DialogTitle>曜日別予定数を一括編集</DialogTitle>
-          <DialogDescription>
-            カテゴリを選択し、商品ごとの曜日・祝日別製造予定数を入力してください。
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 py-4 flex-1 flex flex-col min-h-0">
-          <ScrollArea className="w-full whitespace-nowrap rounded-md">
-              <TabsList className="inline-flex">
-                  {categories.map(category => (
-                      <TabsTrigger key={category} value={category}>{category}</TabsTrigger>
-                  ))}
-              </TabsList>
-          </ScrollArea>
-            <div className="relative block w-full overflow-auto rounded-md border flex-1">
-              <table className="text-sm caption-bottom min-w-max">
-                  <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
-                      <TableRow>
-                          <TableHead className="sticky left-0 bg-muted/80 min-w-[200px]">商品</TableHead>
-                          {daysOfWeek.map(day => 
-                            <TableHead key={day} className="text-right min-w-[100px]">
-                                {dayLabels[day]}
-                            </TableHead>
-                          )}
-                           <TableHead className="text-right min-w-[100px]">
-                            一括入力
-                            <span className="block text-xs font-normal text-muted-foreground">行全体</span>
-                          </TableHead>
-                          <TableHead className="text-right font-bold min-w-[80px]">合計</TableHead>
-                      </TableRow>
-                  </thead>
-                  <TableBody>
-                      {filteredProducts.map(product => {
-                          const rowTotal = daysOfWeek.reduce((sum, day) => sum + (schedules[product.id]?.[day] || 0), 0);
-                          return (
-                              <TableRow key={product.id}>
-                                  <TableCell className="sticky left-0 bg-background font-medium">{product.name}</TableCell>
-                                  {daysOfWeek.map(day => (
-                                      <TableCell key={day}>
-                                          <Input
-                                              type="number"
-                                              className="w-20 text-right"
-                                              defaultValue={schedules[product.id]?.[day] || ''}
-                                              onBlur={(e) => handleScheduleChange(product.id, day, e.target.value)}
-                                              placeholder="0"
-                                              min="0"
-                                          />
-                                      </TableCell>
-                                  ))}
-                                  <TableCell>
-                                    <Input
-                                        type="number"
-                                        placeholder="一括"
-                                        className="w-20 text-right"
-                                        value={rowHeaderInputs[product.id] || ''}
-                                        onChange={(e) => handleRowHeaderInputChange(product.id, e.target.value)}
-                                        onBlur={(e) => handleRowHeaderScheduleChange(product.id, e.target.value)}
-                                        min="0"
-                                    />
-                                  </TableCell>
-                                  <TableCell className="text-right font-bold">{rowTotal.toLocaleString()}</TableCell>
-                              </TableRow>
-                          )
-                      })}
-                  </TableBody>
-                  <tfoot className="sticky bottom-0 bg-muted/80 backdrop-blur-sm">
-                      <TableRow>
-                          <TableHead className="sticky left-0 bg-muted/80 min-w-[200px]">合計</TableHead>
-                          {daysOfWeek.map(day => <TableHead key={day} className="text-right">{columnTotals[day]?.toLocaleString()}</TableHead>)}
-                          <TableHead></TableHead>
-                          <TableHead className="text-right font-bold">{grandTotal.toLocaleString()}</TableHead>
-                      </TableRow>
-                  </tfoot>
-              </table>
+        <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="flex flex-col h-full">
+            <DialogHeader>
+                <DialogTitle>曜日別予定数を一括編集</DialogTitle>
+                <DialogDescription>
+                    カテゴリを選択し、商品ごとの曜日・祝日別製造予定数を入力してください。
+                </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4 flex-1 flex flex-col min-h-0">
+                <ScrollArea className="w-full whitespace-nowrap rounded-md">
+                    <TabsList className="inline-flex">
+                        {categories.map(category => (
+                            <TabsTrigger key={category} value={category}>{category}</TabsTrigger>
+                        ))}
+                    </TabsList>
+                </ScrollArea>
+                <div className="relative block w-full overflow-auto rounded-md border flex-1">
+                    <table className="text-sm caption-bottom min-w-max">
+                        <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
+                            <TableRow>
+                                <TableHead className="sticky left-0 bg-muted/80 min-w-[200px]">商品</TableHead>
+                                {daysOfWeek.map(day => 
+                                    <TableHead key={day} className="text-right min-w-[100px]">
+                                        {dayLabels[day]}
+                                    </TableHead>
+                                )}
+                                <TableHead className="text-right min-w-[100px]">
+                                    一括入力
+                                    <span className="block text-xs font-normal text-muted-foreground">行全体</span>
+                                </TableHead>
+                                <TableHead className="text-right font-bold min-w-[80px]">合計</TableHead>
+                            </TableRow>
+                        </thead>
+                        <TableBody>
+                            {filteredProducts.map(product => {
+                                const rowTotal = daysOfWeek.reduce((sum, day) => sum + (schedules[product.id]?.[day] || 0), 0);
+                                return (
+                                    <TableRow key={product.id}>
+                                        <TableCell className="sticky left-0 bg-background font-medium">{product.name}</TableCell>
+                                        {daysOfWeek.map(day => (
+                                            <TableCell key={day}>
+                                                <Input
+                                                    type="number"
+                                                    className="w-20 text-right"
+                                                    defaultValue={schedules[product.id]?.[day] || ''}
+                                                    onBlur={(e) => handleScheduleChange(product.id, day, e.target.value)}
+                                                    placeholder="0"
+                                                    min="0"
+                                                />
+                                            </TableCell>
+                                        ))}
+                                        <TableCell>
+                                            <Input
+                                                type="number"
+                                                placeholder="一括"
+                                                className="w-20 text-right"
+                                                value={rowHeaderInputs[product.id] || ''}
+                                                onChange={(e) => handleRowHeaderInputChange(product.id, e.target.value)}
+                                                onBlur={(e) => handleRowHeaderScheduleChange(product.id, e.target.value)}
+                                                min="0"
+                                            />
+                                        </TableCell>
+                                        <TableCell className="text-right font-bold">{rowTotal.toLocaleString()}</TableCell>
+                                    </TableRow>
+                                )
+                            })}
+                        </TableBody>
+                        <tfoot className="sticky bottom-0 bg-muted/80 backdrop-blur-sm">
+                            <TableRow>
+                                <TableHead className="sticky left-0 bg-muted/80 min-w-[200px]">合計</TableHead>
+                                {daysOfWeek.map(day => <TableHead key={day} className="text-right">{columnTotals[day]?.toLocaleString()}</TableHead>)}
+                                <TableHead></TableHead>
+                                <TableHead className="text-right font-bold">{grandTotal.toLocaleString()}</TableHead>
+                            </TableRow>
+                        </tfoot>
+                    </table>
+                </div>
             </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onCancel}>キャンセル</Button>
-          <Button onClick={() => onSave(schedules)}>変更を保存</Button>
-        </DialogFooter>
-      </Tabs>
+            <DialogFooter>
+                <Button variant="outline" onClick={onCancel}>キャンセル</Button>
+                <Button onClick={() => onSave(schedules)}>変更を保存</Button>
+            </DialogFooter>
+        </Tabs>
     );
 };
 
@@ -242,8 +243,11 @@ const productCategories = [
 const pricePatterns = ['専門店', '量販店'];
 
 const BulkProductEditor = ({ products, onSave, onCancel }: { products: Product[], onSave: (productsToUpdate: Pick<Product, 'id' | 'category' | 'pricePattern'>[]) => void, onCancel: () => void }) => {
+    const { toast } = useToast();
     const [updatedProducts, setUpdatedProducts] = useState<Record<string, { category: string, pricePattern: string }>>({});
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [bulkCategory, setBulkCategory] = useState('');
+    const [bulkPricePattern, setBulkPricePattern] = useState('');
 
     useEffect(() => {
         const initial = products.reduce((acc, product) => {
@@ -253,6 +257,44 @@ const BulkProductEditor = ({ products, onSave, onCancel }: { products: Product[]
         setUpdatedProducts(initial);
         setSelectedIds(products.map(p => p.id)); // Select all by default
     }, [products]);
+
+    const handleApplyBulk = (type: 'category' | 'pricePattern') => {
+        const value = type === 'category' ? bulkCategory : bulkPricePattern;
+        const valueName = type === 'category' ? 'カテゴリ' : '価格パターン';
+
+        if (!value) {
+            toast({
+                variant: 'destructive',
+                title: `${valueName}が選択されていません`,
+            });
+            return;
+        }
+
+        if (selectedIds.length === 0) {
+            toast({
+                variant: 'destructive',
+                title: '商品が選択されていません',
+                description: '一括適用するには、少なくとも1つの商品を選択してください。'
+            });
+            return;
+        }
+
+        setUpdatedProducts(prev => {
+            const newState = { ...prev };
+            selectedIds.forEach(id => {
+                newState[id] = {
+                    ...(prev[id] || { category: '', pricePattern: '' }),
+                    ...(type === 'category' ? { category: value } : { pricePattern: value })
+                };
+            });
+            return newState;
+        });
+
+        toast({
+            title: `${valueName}を一括適用しました`,
+            description: `選択された${selectedIds.length}件の商品に「${value}」を適用しました。`,
+        });
+    };
 
     const handleCategoryChange = (productId: string, category: string) => {
         setUpdatedProducts(prev => ({
@@ -303,10 +345,43 @@ const BulkProductEditor = ({ products, onSave, onCancel }: { products: Product[]
             <DialogHeader>
               <DialogTitle>カテゴリ・価格パターンを一括編集</DialogTitle>
               <DialogDescription>
-                編集したい商品にチェックを入れてください。カテゴリと価格パターンを一括で編集できます。
+                編集したい商品にチェックを入れ、カテゴリや価格パターンを一括適用または個別編集してください。
               </DialogDescription>
             </DialogHeader>
-            <div className="h-[60vh] overflow-auto border rounded-md">
+            
+            <div className="flex flex-wrap items-center gap-4 p-4 border-y bg-muted/50">
+                <div className="flex items-center gap-2">
+                    <Select value={bulkCategory} onValueChange={setBulkCategory}>
+                        <SelectTrigger className="w-[180px] bg-background">
+                            <SelectValue placeholder="一括適用カテゴリ" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {productCategories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                    <Button size="sm" onClick={() => handleApplyBulk('category')} disabled={selectedIds.length === 0}>
+                        カテゴリを適用
+                    </Button>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Select value={bulkPricePattern} onValueChange={setBulkPricePattern}>
+                        <SelectTrigger className="w-[180px] bg-background">
+                            <SelectValue placeholder="一括適用パターン" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {pricePatterns.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                    <Button size="sm" onClick={() => handleApplyBulk('pricePattern')} disabled={selectedIds.length === 0}>
+                        パターンを適用
+                    </Button>
+                </div>
+                <div className="ml-auto text-sm text-muted-foreground">
+                    {selectedIds.length}件選択中
+                </div>
+            </div>
+
+            <div className="h-[50vh] overflow-auto border-x border-b rounded-b-md">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -808,3 +883,5 @@ export default function ProductsClient() {
     </>
   )
 }
+
+    
