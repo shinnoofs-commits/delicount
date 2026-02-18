@@ -74,11 +74,9 @@ const dayLabels: Record<keyof DailyProduction, string> = {
 };
 
 const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Product[], storeId: string, onSave: (schedules: Record<string, Partial<DailyProduction>>) => void, onCancel: () => void }) => {
-    const categories = useMemo(() => ['すべて', ...Array.from(new Set(products.map(p => p.category)))], [products]);
-    const [selectedCategory, setSelectedCategory] = useState('すべて');
     const [schedules, setSchedules] = useState<Record<string, Partial<DailyProduction>>>({});
     const [rowHeaderInputs, setRowHeaderInputs] = useState<Record<string, string>>({});
-    
+
     useEffect(() => {
         const initialSchedules = products.reduce((acc, product) => {
             acc[product.id] = product.dailyProduction || {};
@@ -126,14 +124,13 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
 
 
     const columnTotals = useMemo(() => {
-      const currentProducts = selectedCategory === 'すべて' ? products : products.filter(p => p.category === selectedCategory);
       return daysOfWeek.reduce((acc, day) => {
-          acc[day] = currentProducts.reduce((sum, product) => {
+          acc[day] = products.reduce((sum, product) => {
               return sum + (schedules[product.id]?.[day] || 0);
           }, 0);
           return acc;
       }, {} as Record<keyof DailyProduction, number>);
-    }, [schedules, products, selectedCategory]);
+    }, [schedules, products]);
     
     const grandTotal = useMemo(() => {
         return Object.values(columnTotals).reduce((sum, val) => sum + val, 0);
@@ -144,81 +141,72 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
             <DialogHeader>
                 <DialogTitle>曜日別予定数を一括編集</DialogTitle>
                 <DialogDescription>
-                    カテゴリを選択し、商品ごとの曜日・祝日別製造予定数を入力してください。
+                    商品ごとの曜日・祝日別製造予定数を入力してください。
                 </DialogDescription>
             </DialogHeader>
-            <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="flex flex-col flex-1 overflow-hidden pt-4">
-                <TabsList className="inline-flex">
-                    {categories.map(category => (
-                        <TabsTrigger key={category} value={category}>{category}</TabsTrigger>
-                    ))}
-                </TabsList>
-                {categories.map(category => (
-                    <TabsContent value={category} key={category} className="flex-1 mt-2 overflow-hidden">
-                        <div className="relative block w-full overflow-auto rounded-md border h-full">
-                            <table className="text-sm caption-bottom min-w-max">
-                                <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
-                                    <TableRow>
-                                        <TableHead className="sticky left-0 bg-muted/80 min-w-[200px]">商品</TableHead>
-                                        {daysOfWeek.map(day => 
-                                            <TableHead key={day} className="text-right min-w-[100px]">
-                                                {dayLabels[day]}
-                                            </TableHead>
-                                        )}
-                                        <TableHead className="text-right min-w-[100px]">
-                                            一括入力
-                                            <span className="block text-xs font-normal text-muted-foreground">行全体</span>
-                                        </TableHead>
-                                        <TableHead className="text-right font-bold min-w-[80px]">合計</TableHead>
+            <div className="flex-1 mt-2 overflow-hidden">
+                <div className="relative block w-full overflow-auto rounded-md border h-full">
+                    <table className="text-sm caption-bottom min-w-max">
+                        <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
+                            <TableRow>
+                                <TableHead className="sticky left-0 bg-muted/80 min-w-[200px]">商品</TableHead>
+                                {daysOfWeek.map(day => 
+                                    <TableHead key={day} className="text-right min-w-[100px]">
+                                        {dayLabels[day]}
+                                    </TableHead>
+                                )}
+                                <TableHead className="text-right min-w-[100px]">
+                                    一括入力
+                                    <span className="block text-xs font-normal text-muted-foreground">行全体</span>
+                                </TableHead>
+                                <TableHead className="text-right font-bold min-w-[80px]">合計</TableHead>
+                            </TableRow>
+                        </thead>
+                        <TableBody>
+                            {products.map(product => {
+                                const rowTotal = daysOfWeek.reduce((sum, day) => sum + (schedules[product.id]?.[day] || 0), 0);
+                                return (
+                                    <TableRow key={product.id}>
+                                        <TableCell className="sticky left-0 bg-background font-medium">{product.name}</TableCell>
+                                        {daysOfWeek.map(day => (
+                                            <TableCell key={day}>
+                                                <Input
+                                                    type="number"
+                                                    className="w-20 text-right"
+                                                    defaultValue={schedules[product.id]?.[day] || ''}
+                                                    onBlur={(e) => handleScheduleChange(product.id, day, e.target.value)}
+                                                    placeholder="0"
+                                                    min="0"
+                                                />
+                                            </TableCell>
+                                        ))}
+                                        <TableCell>
+                                            <Input
+                                                type="number"
+                                                placeholder="一括"
+                                                className="w-20 text-right"
+                                                value={rowHeaderInputs[product.id] || ''}
+                                                onChange={(e) => handleRowHeaderInputChange(product.id, e.target.value)}
+                                                onBlur={(e) => handleRowHeaderScheduleChange(product.id, e.target.value)}
+                                                min="0"
+                                            />
+                                        </TableCell>
+                                        <TableCell className="text-right font-bold">{rowTotal.toLocaleString()}</TableCell>
                                     </TableRow>
-                                </thead>
-                                <TableBody>
-                                    {(category === 'すべて' ? products : products.filter(p => p.category === category)).map(product => {
-                                        const rowTotal = daysOfWeek.reduce((sum, day) => sum + (schedules[product.id]?.[day] || 0), 0);
-                                        return (
-                                            <TableRow key={product.id}>
-                                                <TableCell className="sticky left-0 bg-background font-medium">{product.name}</TableCell>
-                                                {daysOfWeek.map(day => (
-                                                    <TableCell key={day}>
-                                                        <Input
-                                                            type="number"
-                                                            className="w-20 text-right"
-                                                            defaultValue={schedules[product.id]?.[day] || ''}
-                                                            onBlur={(e) => handleScheduleChange(product.id, day, e.target.value)}
-                                                            placeholder="0"
-                                                            min="0"
-                                                        />
-                                                    </TableCell>
-                                                ))}
-                                                <TableCell>
-                                                    <Input
-                                                        type="number"
-                                                        placeholder="一括"
-                                                        className="w-20 text-right"
-                                                        value={rowHeaderInputs[product.id] || ''}
-                                                        onChange={(e) => handleRowHeaderInputChange(product.id, e.target.value)}
-                                                        onBlur={(e) => handleRowHeaderScheduleChange(product.id, e.target.value)}
-                                                        min="0"
-                                                    />
-                                                </TableCell>
-                                                <TableCell className="text-right font-bold">{rowTotal.toLocaleString()}</TableCell>
-                                            </TableRow>
-                                        )
-                                    })}
-                                </TableBody>
-                                <tfoot className="sticky bottom-0 bg-muted/80 backdrop-blur-sm">
-                                    <TableRow>
-                                        <TableHead className="sticky left-0 bg-muted/80 min-w-[200px]">合計</TableHead>
-                                        {daysOfWeek.map(day => <TableHead key={day} className="text-right">{columnTotals[day]?.toLocaleString()}</TableHead>)}
-                                        <TableHead></TableHead>
-                                        <TableHead className="text-right font-bold">{grandTotal.toLocaleString()}</TableHead>
-                                    </TableRow>
-                                </tfoot>
-                            </table>
-                        </div>
-                    </TabsContent>
-                ))}
-            </Tabs>
+                                )
+                            })}
+                        </TableBody>
+                        <tfoot className="sticky bottom-0 bg-muted/80 backdrop-blur-sm">
+                            <TableRow>
+                                <TableHead className="sticky left-0 bg-muted/80 min-w-[200px]">合計</TableHead>
+                                {daysOfWeek.map(day => <TableHead key={day} className="text-right">{columnTotals[day]?.toLocaleString()}</TableHead>)}
+                                <TableHead></TableHead>
+                                <TableHead className="text-right font-bold">{grandTotal.toLocaleString()}</TableHead>
+                            </TableRow>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
             <DialogFooter>
                 <Button variant="outline" onClick={onCancel}>キャンセル</Button>
                 <Button onClick={() => onSave(schedules)}>変更を保存</Button>
