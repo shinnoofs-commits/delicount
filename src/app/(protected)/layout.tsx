@@ -101,7 +101,17 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
         isPage: index === pathParts.length - 1,
       };
     });
-    return [{ href: '/', label: '廃棄分析ツール' }, ...items];
+
+    const allItems = [
+        { href: '/', label: '廃棄分析ツール', isPage: pathParts.length === 0 },
+        ...items
+    ];
+    
+    if (allItems.length > 1) {
+        allItems[0].isPage = false;
+    }
+
+    return allItems;
   }, [pathname]);
 
   if (isUserLoading || !user || isAdminLoading) {
