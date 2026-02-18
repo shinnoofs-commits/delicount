@@ -59,6 +59,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAdmin } from "@/hooks/use-admin"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Info } from "lucide-react"
 
 const daysOfWeek: (keyof DailyProduction)[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun', 'holiday'];
 const dayLabels: Record<keyof DailyProduction, string> = {
@@ -77,6 +79,7 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
     const [selectedCategory, setSelectedCategory] = useState('すべて');
     const [schedules, setSchedules] = useState<Record<string, Partial<DailyProduction>>>({});
     const [headerInputs, setHeaderInputs] = useState<Partial<Record<keyof DailyProduction, string>>>({});
+    const [rowHeaderInputs, setRowHeaderInputs] = useState<Record<string, string>>({});
     const [tableKey, setTableKey] = useState(Date.now());
     const { toast } = useToast();
 
@@ -99,7 +102,7 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
             ...prev,
             [productId]: {
                 ...prev[productId],
-                [day]: isNaN(numValue) ? 0 : numValue,
+                [day]: isNaN(numValue) ? undefined : numValue,
             }
         }));
     };
@@ -130,6 +133,34 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
         setTableKey(Date.now());
         setHeaderInputs(prev => ({ ...prev, [day]: '' }));
     };
+    
+    const handleRowHeaderInputChange = (productId: string, value: string) => {
+        setRowHeaderInputs(prev => ({ ...prev, [productId]: value }));
+    };
+
+    const handleRowHeaderScheduleChange = (productId: string, value: string) => {
+        const numValue = parseInt(value, 10);
+        
+        if (value === '' || isNaN(numValue) || numValue < 0) {
+            setRowHeaderInputs(prev => ({ ...prev, [productId]: '' }));
+            return;
+        }
+
+        setSchedules(prevSchedules => {
+            const newProductSchedule: Partial<DailyProduction> = { ...prevSchedules[productId] };
+            daysOfWeek.forEach(day => {
+                newProductSchedule[day] = numValue;
+            });
+            return {
+                ...prevSchedules,
+                [productId]: newProductSchedule
+            };
+        });
+        
+        setTableKey(Date.now());
+        setRowHeaderInputs(prev => ({ ...prev, [productId]: '' }));
+    };
+
 
     const columnTotals = useMemo(() => {
       return daysOfWeek.reduce((acc, day) => {
@@ -138,7 +169,7 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
           }, 0);
           return acc;
       }, {} as Record<keyof DailyProduction, number>);
-    }, [schedules, filteredProducts]);
+    }, [schedules, filteredProducts, tableKey]);
     
     const grandTotal = useMemo(() => {
         return Object.values(columnTotals).reduce((sum, val) => sum + val, 0);
@@ -181,7 +212,11 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
                                 />
                             </TableHead>
                           )}
-                          <TableHead className="text-right font-bold">合計</TableHead>
+                           <TableHead className="text-right min-w-[100px]">
+                            一括入力
+                            <span className="block text-xs font-normal text-muted-foreground">行全体</span>
+                          </TableHead>
+                          <TableHead className="text-right font-bold min-w-[80px]">合計</TableHead>
                       </TableRow>
                   </TableHeader>
                   <TableBody key={tableKey}>
@@ -198,9 +233,21 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
                                               defaultValue={schedules[product.id]?.[day] || ''}
                                               onBlur={(e) => handleScheduleChange(product.id, day, e.target.value)}
                                               placeholder="0"
+                                              min="0"
                                           />
                                       </TableCell>
                                   ))}
+                                  <TableCell>
+                                    <Input
+                                        type="number"
+                                        placeholder="一括"
+                                        className="w-20 text-right"
+                                        value={rowHeaderInputs[product.id] || ''}
+                                        onChange={(e) => handleRowHeaderInputChange(product.id, e.target.value)}
+                                        onBlur={(e) => handleRowHeaderScheduleChange(product.id, e.target.value)}
+                                        min="0"
+                                    />
+                                  </TableCell>
                                   <TableCell className="text-right font-bold">{rowTotal.toLocaleString()}</TableCell>
                               </TableRow>
                           )
@@ -210,6 +257,7 @@ const ScheduleEditor = ({ products, storeId, onSave, onCancel }: { products: Pro
                       <TableRow>
                           <TableHead className="sticky left-0 bg-muted/80 min-w-[200px]">合計</TableHead>
                           {daysOfWeek.map(day => <TableHead key={day} className="text-right">{columnTotals[day]?.toLocaleString()}</TableHead>)}
+                          <TableHead></TableHead>
                           <TableHead className="text-right font-bold">{grandTotal.toLocaleString()}</TableHead>
                       </TableRow>
                   </TableFooter>
@@ -581,7 +629,9 @@ export default function ProductsClient() {
       
       <Dialog open={isScheduleEditorOpen} onOpenChange={setIsScheduleEditorOpen}>
         <DialogContent className="max-w-7xl block">
+          <Tabs defaultValue="すべて" className="w-full">
             {managedStoreId && <ScheduleEditor products={products} storeId={managedStoreId} onSave={handleScheduleSave} onCancel={() => setIsScheduleEditorOpen(false)} />}
+          </Tabs>
         </DialogContent>
       </Dialog>
 
