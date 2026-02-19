@@ -16,7 +16,6 @@ export default function LogoutPage() {
             toast({ title: 'ログアウトしました' });
             router.replace('/login');
         }).catch((error) => {
-            console.error('Logout failed', error);
             toast({
                 variant: 'destructive',
                 title: 'ログアウトに失敗しました',

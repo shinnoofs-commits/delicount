@@ -91,7 +91,8 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
   
   const breadcrumbItems = useMemo(() => {
     const pathParts = pathname.split('/').filter(part => part);
-    const items = pathParts.map((part, index) => {
+    
+    const mappedItems = pathParts.map((part, index) => {
       const href = '/' + pathParts.slice(0, index + 1).join('/');
       const navItem = navItems.find(item => item.href === href);
       const label = navItem?.label || part.charAt(0).toUpperCase() + part.slice(1);
@@ -102,14 +103,14 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
       };
     });
 
-    const allItems = [
-        { href: '/', label: '廃棄分析ツール', isPage: pathParts.length === 0 },
-        ...items
+    const allItems: { href: string; label: string; isPage: boolean }[] = [
+      {
+        href: '/',
+        label: '廃棄分析ツール',
+        isPage: pathParts.length === 0,
+      },
+      ...mappedItems,
     ];
-    
-    if (allItems.length > 1) {
-        allItems[0].isPage = false;
-    }
 
     return allItems;
   }, [pathname]);
