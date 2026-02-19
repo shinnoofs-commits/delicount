@@ -17,9 +17,9 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useTransactions } from "@/contexts/transaction-context";
-import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid, getDay } from "date-fns"
+import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid, getDay, addDays } from "date-fns"
 import { ja } from "date-fns/locale"
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from "recharts"
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts"
 import { Calendar as CalendarIcon, Trash2, TrendingDown } from 'lucide-react';
 import { useMemo, useState } from "react";
 import type { Category, Product } from "@/lib/types";
@@ -198,6 +198,32 @@ export default function DashboardPage() {
   const totalOpportunityLoss = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.opportunityLoss, 0), [wasteAnalysisData]);
   const totalWaste = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.wasteCount, 0), [wasteAnalysisData]);
 
+  const dailyWasteData = useMemo(() => {
+    if (!date?.from || !date?.to) return [];
+
+    const dailyTotals = new Map<string, number>();
+
+    filteredWasteEntries.forEach(entry => {
+      const entryDate = format(new Date(entry.date), 'yyyy-MM-dd');
+      const currentTotal = dailyTotals.get(entryDate) || 0;
+      dailyTotals.set(entryDate, currentTotal + entry.totalWasteCost);
+    });
+
+    const allDaysData: { date: string, totalWaste: number }[] = [];
+    let currentDate = date.from;
+
+    while (currentDate <= date.to) {
+      const formattedDate = format(currentDate, 'yyyy-MM-dd');
+      allDaysData.push({
+        date: format(currentDate, 'M/d'),
+        totalWaste: dailyTotals.get(formattedDate) || 0,
+      });
+      currentDate = addDays(currentDate, 1);
+    }
+    
+    return allDaysData;
+  }, [filteredWasteEntries, date]);
+
   const salesByCategory = useMemo(() => categories.map(category => {
       const productSales = filteredTransactions
           .flatMap(t => t.items)
@@ -301,6 +327,47 @@ export default function DashboardPage() {
             </CardContent>
         </Card>
       </div>
+
+      <div className="grid grid-cols-1 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>日別廃棄ロス推移</CardTitle>
+            <CardDescription>指定した期間内の日ごとの廃棄ロス額（原価）の推移です。</CardDescription>
+          </CardHeader>
+          <CardContent className="pl-2">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={dailyWasteData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="date"
+                  stroke="#888888"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  stroke="#888888"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  width={80}
+                  tickFormatter={(value) => `¥${(value as number).toLocaleString()}`}
+                />
+                <Tooltip
+                  contentStyle={{
+                      backgroundColor: 'hsl(var(--background))',
+                      borderColor: 'hsl(var(--border))',
+                      borderRadius: 'var(--radius)'
+                  }}
+                  formatter={(value: number) => [`¥${value.toLocaleString()}`, "廃棄ロス額"]}
+                />
+                <Bar dataKey="totalWaste" fill="hsl(var(--primary))" name="廃棄ロス額" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="grid grid-cols-1 gap-4">
         <Card>
             <CardHeader>
