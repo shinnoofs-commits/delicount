@@ -18,7 +18,7 @@ import {
 import { useTransactions } from "@/contexts/transaction-context";
 import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid, getDay, addDays } from "date-fns"
 import { ja } from "date-fns/locale"
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts"
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts"
 import { Calendar as CalendarIcon, Trash2, TrendingDown, Edit, MoreHorizontal, Plus, Minus, Loader2 } from 'lucide-react';
 import { useMemo, useState } from "react";
 import type { Category, Product, WasteEntry, WasteItem } from "@/lib/types";
@@ -210,29 +210,40 @@ export default function DashboardPage() {
   const dailyWasteData = useMemo(() => {
     if (!date?.from || !date?.to) return [];
 
-    const dailyTotals = new Map<string, number>();
+    const dailyTotals = new Map<string, { cost: number, price: number }>();
 
     filteredWasteEntries.forEach(entry => {
       const entryDate = format(new Date(entry.date), 'yyyy-MM-dd');
-      const currentTotal = dailyTotals.get(entryDate) || 0;
-      dailyTotals.set(entryDate, currentTotal + entry.totalWasteCost);
+      const current = dailyTotals.get(entryDate) || { cost: 0, price: 0 };
+      
+      const entryTotalPrice = entry.items.reduce((sum, item) => {
+          const product = products.find(p => p.id === item.productId);
+          return sum + (product?.price || 0) * item.quantity;
+      }, 0);
+
+      dailyTotals.set(entryDate, {
+          cost: current.cost + entry.totalWasteCost,
+          price: current.price + entryTotalPrice
+      });
     });
 
-    const allDaysData: { date: string, totalWaste: number }[] = [];
+    const allDaysData: { date: string, totalWaste: number, totalOpportunityLoss: number }[] = [];
     let currentDate = startOfDay(date.from);
     const toDate = endOfDay(date.to);
 
     while (currentDate <= toDate) {
       const formattedDate = format(currentDate, 'yyyy-MM-dd');
+      const dayData = dailyTotals.get(formattedDate) || { cost: 0, price: 0 };
       allDaysData.push({
         date: format(currentDate, 'M/d'),
-        totalWaste: dailyTotals.get(formattedDate) || 0,
+        totalWaste: dayData.cost,
+        totalOpportunityLoss: dayData.price,
       });
       currentDate = addDays(currentDate, 1);
     }
     
     return allDaysData;
-  }, [filteredWasteEntries, date]);
+  }, [filteredWasteEntries, date, products]);
 
   const setDatePreset = (preset: 'today' | 'this_month' | 'last_7_days') => {
     const today = new Date();
@@ -381,12 +392,12 @@ export default function DashboardPage() {
       <Card>
           <CardHeader>
             <CardTitle>日別廃棄ロス推移</CardTitle>
-            <CardDescription>指定した期間内の日ごとの廃棄ロス額（原価）の推移です。</CardDescription>
+            <CardDescription>指定した期間内の日ごとの廃棄ロス額（原価）と機会損失額（売価）の推移です。</CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={350}>
               <BarChart data={dailyWasteData}>
-                <CartesianGrid strokeDasharray="3 3" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis 
                   dataKey="date"
                   stroke="#888888"
@@ -408,9 +419,11 @@ export default function DashboardPage() {
                       borderColor: 'hsl(var(--border))',
                       borderRadius: 'var(--radius)'
                   }}
-                  formatter={(value: number) => [`¥${value.toLocaleString()}`, "廃棄ロス額"]}
+                  formatter={(value: number, name: string) => [`¥${value.toLocaleString()}`, name]}
                 />
+                <Legend />
                 <Bar dataKey="totalWaste" fill="hsl(var(--primary))" name="廃棄ロス額" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="totalOpportunityLoss" fill="hsl(var(--accent))" name="機会損失額" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
