@@ -515,32 +515,34 @@ export default function DashboardPage() {
       </Card>
 
       <Dialog open={!!editEntry} onOpenChange={(open) => !open && !isSaving && setEditEntry(null)}>
-          <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
+          <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col overflow-hidden">
               <DialogHeader>
                   <DialogTitle>廃棄データの編集</DialogTitle>
                   <DialogDescription>
                       数量を調整してください。数量を0にするとその項目は削除されます。
                   </DialogDescription>
               </DialogHeader>
-              <ScrollArea className="flex-1 pr-4 py-4">
-                  <div className="space-y-4">
-                      {editItems.map(item => (
-                          <div key={item.productId} className="flex items-center justify-between gap-4 border-b pb-2 last:border-0">
-                              <span className="text-sm font-medium flex-1 truncate">{item.name}</span>
-                              <div className="flex items-center gap-2">
-                                  <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleUpdateQuantity(item.productId, -1)} disabled={isSaving}>
-                                      <Minus className="h-4 w-4" />
-                                  </Button>
-                                  <span className="w-8 text-center tabular-nums font-semibold">{item.quantity}</span>
-                                  <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleUpdateQuantity(item.productId, 1)} disabled={isSaving}>
-                                      <Plus className="h-4 w-4" />
-                                  </Button>
+              <div className="flex-1 min-h-0 py-4">
+                  <ScrollArea className="h-full pr-4">
+                      <div className="space-y-4">
+                          {editItems.map(item => (
+                              <div key={item.productId} className="flex items-center justify-between gap-4 border-b pb-2 last:border-0">
+                                  <span className="text-sm font-medium flex-1 truncate">{item.name}</span>
+                                  <div className="flex items-center gap-2">
+                                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleUpdateQuantity(item.productId, -1)} disabled={isSaving}>
+                                          <Minus className="h-4 w-4" />
+                                      </Button>
+                                      <span className="w-8 text-center tabular-nums font-semibold">{item.quantity}</span>
+                                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleUpdateQuantity(item.productId, 1)} disabled={isSaving}>
+                                          <Plus className="h-4 w-4" />
+                                      </Button>
+                                  </div>
                               </div>
-                          </div>
-                      ))}
-                  </div>
-              </ScrollArea>
-              <DialogFooter className="gap-2 sm:gap-0">
+                          ))}
+                      </div>
+                  </ScrollArea>
+              </div>
+              <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t mt-2">
                   <Button variant="outline" onClick={() => setEditEntry(null)} disabled={isSaving}>キャンセル</Button>
                   <Button onClick={handleSaveEdit} disabled={isSaving}>
                       {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
