@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -20,9 +19,9 @@ import { useTransactions } from "@/contexts/transaction-context";
 import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid, getDay, addDays } from "date-fns"
 import { ja } from "date-fns/locale"
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts"
-import { Calendar as CalendarIcon, Trash2, TrendingDown } from 'lucide-react';
-import { useMemo, useState } from "react";
-import type { Category, Product } from "@/lib/types";
+import { Calendar as CalendarIcon, Trash2, TrendingDown, Edit, MoreHorizontal, Plus, Minus, Loader2 } from 'lucide-react';
+import { useMemo, useState, useEffect } from "react";
+import type { Category, Product, WasteEntry, WasteItem } from "@/lib/types";
 import { useProducts } from "@/contexts/product-context";
 import { DateRange } from "react-day-picker"
 import { Button } from "@/components/ui/button"
@@ -38,6 +37,23 @@ import { Label } from "@/components/ui/label";
 import holiday_jp from '@holiday-jp/holiday_jp';
 import { StoreSelector } from "@/components/ui/store-selector";
 import { useAdmin } from "@/hooks/use-admin";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { useToast } from "@/hooks/use-toast";
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"];
 
@@ -105,10 +121,14 @@ type WasteData = {
 };
 
 export default function DashboardPage() {
-  const { transactions, wasteEntries } = useTransactions();
+  const { wasteEntries, deleteWasteEntries, updateWasteEntry, loading: wasteLoading } = useTransactions();
   const { products } = useProducts();
   const { isAdmin } = useAdmin();
+  const { toast } = useToast();
   const [selectedFilters, setSelectedFilters] = useState<number[]>([0, 1, 2, 3, 4, 5, 6, 7]);
+  const [selectedEntries, setSelectedEntries] = useState<string[]>([]);
+  const [editEntry, setEditEntry] = useState<WasteEntry | null>(null);
+  const [editItems, setEditItems] = useState<WasteItem[]>([]);
 
   const categories = useMemo(() => [...new Set(products.map(p => p.category))] as Category[], [products]);
 
@@ -123,13 +143,13 @@ export default function DashboardPage() {
     );
   };
   
-  const { filteredTransactions, filteredWasteEntries } = useMemo(() => {
-    if (!date || !date.from) return { filteredTransactions: [], filteredWasteEntries: [] };
+  const { filteredWasteEntries } = useMemo(() => {
+    if (!date || !date.from) return { filteredWasteEntries: [] };
     
     const fromDate = startOfDay(date.from);
     const toDate = date.to ? endOfDay(date.to) : endOfDay(date.from);
 
-    const filterByDateAndDay = (entry: { date: Date }) => {
+    const filterByDateAndDay = (entry: WasteEntry) => {
         const entryDate = new Date(entry.date);
         if (!isValid(entryDate) || entryDate < fromDate || entryDate > toDate) {
           return false;
@@ -156,10 +176,9 @@ export default function DashboardPage() {
     };
 
     return {
-        filteredTransactions: transactions.filter(filterByDateAndDay),
         filteredWasteEntries: wasteEntries.filter(filterByDateAndDay)
     };
-  }, [date, transactions, wasteEntries, selectedFilters]);
+  }, [date, wasteEntries, selectedFilters]);
 
   const wasteAnalysisData: WasteData[] = useMemo(() => {
     const wasteDataMap = new Map<string, WasteData>();
@@ -224,39 +243,6 @@ export default function DashboardPage() {
     return allDaysData;
   }, [filteredWasteEntries, date]);
 
-  const salesByCategory = useMemo(() => categories.map(category => {
-      const productSales = filteredTransactions
-          .flatMap(t => t.items)
-          .filter(item => {
-              const product = products.find(p => p.id === item.productId);
-              return product?.category === category;
-          })
-          .reduce((acc, item) => {
-              const product = products.find(p => p.id === item.productId);
-              if (!product) return acc;
-              
-              const existing = acc.find(p => p.name === product.name);
-              const transaction = transactions.find(t => t.items.some(i => i.productId === item.productId));
-              const discountValue = (transaction?.discount?.type === 'percentage' ? transaction.discount.value : 0);
-              const saleAmount = item.quantity * item.unitPrice * (item.wasDiscounted ? (1 - discountValue / 100) : 1);
-
-              if (existing) {
-                  existing.quantity += item.quantity;
-                  existing.total += saleAmount;
-              } else {
-                  acc.push({ name: product.name, quantity: item.quantity, total: saleAmount });
-              }
-              return acc;
-          }, [] as { name: string; quantity: number, total: number }[])
-          .sort((a, b) => b.total - a.total)
-          .slice(0, 5);
-
-      return {
-          category,
-          sales: productSales
-      };
-  }), [filteredTransactions, products, categories, transactions]);
-
   const setDatePreset = (preset: 'today' | 'this_month' | 'last_7_days') => {
     const today = new Date();
     if (preset === 'today') {
@@ -268,9 +254,69 @@ export default function DashboardPage() {
     }
   }
 
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedEntries(filteredWasteEntries.map(e => e.id));
+    } else {
+      setSelectedEntries([]);
+    }
+  };
+
+  const handleSelectEntry = (id: string, checked: boolean) => {
+    if (checked) {
+      setSelectedEntries(prev => [...prev, id]);
+    } else {
+      setSelectedEntries(prev => prev.filter(e => e !== id));
+    }
+  };
+
+  const handleDelete = async (entry: WasteEntry) => {
+    await deleteWasteEntries(entry.storeId, [entry.id]);
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedEntries.length === 0) return;
+    const storeIds = new Set(filteredWasteEntries.filter(e => selectedEntries.includes(e.id)).map(e => e.storeId));
+    
+    for (const storeId of Array.from(storeIds)) {
+        const idsToDelete = filteredWasteEntries
+            .filter(e => e.storeId === storeId && selectedEntries.includes(e.id))
+            .map(e => e.id);
+        await deleteWasteEntries(storeId, idsToDelete);
+    }
+    setSelectedEntries([]);
+  };
+
+  const handleEditOpen = (entry: WasteEntry) => {
+    setEditEntry(entry);
+    setEditItems(JSON.parse(JSON.stringify(entry.items))); // Deep copy
+  };
+
+  const handleUpdateQuantity = (productId: string, delta: number) => {
+    setEditItems(prev => prev.map(item => {
+        if (item.productId === productId) {
+            const newQty = Math.max(0, item.quantity + delta);
+            return { ...item, quantity: newQty };
+        }
+        return item;
+    }).filter(item => item.quantity > 0));
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editEntry) return;
+    const newTotalCost = editItems.reduce((sum, item) => sum + (item.costPrice * item.quantity), 0);
+    
+    if (editItems.length === 0) {
+        await deleteWasteEntries(editEntry.storeId, [editEntry.id]);
+    } else {
+        await updateWasteEntry(editEntry.storeId, editEntry.id, editItems, newTotalCost);
+    }
+    setEditEntry(null);
+  };
+
   return (
     <div className="flex flex-col gap-4">
-       <div className="flex flex-col gap-4 p-4 border rounded-lg">
+       <div className="flex flex-col gap-4 p-4 border rounded-lg bg-card">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
             <div>
               <Label className="text-sm font-medium mb-2 block">分析対象の店舗</Label>
@@ -305,7 +351,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2">
          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">廃棄ロス（原価）</CardTitle>
@@ -328,8 +374,7 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
-        <Card>
+      <Card>
           <CardHeader>
             <CardTitle>日別廃棄ロス推移</CardTitle>
             <CardDescription>指定した期間内の日ごとの廃棄ロス額（原価）の推移です。</CardDescription>
@@ -366,12 +411,139 @@ export default function DashboardPage() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
-      </div>
+
+      <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                  <CardTitle>廃棄履歴</CardTitle>
+                  <CardDescription>入力された廃棄データの一覧です。修正や削除が可能です。</CardDescription>
+              </div>
+              {selectedEntries.length > 0 && (
+                  <Button variant="destructive" size="sm" onClick={handleDeleteSelected}>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      選択した{selectedEntries.length}件を削除
+                  </Button>
+              )}
+          </CardHeader>
+          <CardContent>
+              <Table>
+                  <TableHeader>
+                      <TableRow>
+                          <TableHead className="w-12">
+                              <Checkbox 
+                                checked={filteredWasteEntries.length > 0 && selectedEntries.length === filteredWasteEntries.length}
+                                onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
+                              />
+                          </TableHead>
+                          <TableHead>日時</TableHead>
+                          <TableHead>商品内容</TableHead>
+                          <TableHead className="text-right">廃棄額（原価）</TableHead>
+                          <TableHead className="w-12"></TableHead>
+                      </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                      {wasteLoading ? (
+                          <TableRow>
+                              <TableCell colSpan={5} className="h-24 text-center">
+                                  <Loader2 className="h-6 w-6 animate-spin inline-block" />
+                              </TableCell>
+                          </TableRow>
+                      ) : filteredWasteEntries.length === 0 ? (
+                          <TableRow>
+                              <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                                  廃棄データがありません。
+                              </TableCell>
+                          </TableRow>
+                      ) : (
+                          filteredWasteEntries.sort((a, b) => b.date.getTime() - a.date.getTime()).map(entry => (
+                              <TableRow key={entry.id}>
+                                  <TableCell>
+                                      <Checkbox 
+                                        checked={selectedEntries.includes(entry.id)}
+                                        onCheckedChange={(checked) => handleSelectEntry(entry.id, checked as boolean)}
+                                      />
+                                  </TableCell>
+                                  <TableCell className="whitespace-nowrap">
+                                      {format(entry.date, "yyyy/MM/dd HH:mm", { locale: ja })}
+                                  </TableCell>
+                                  <TableCell>
+                                      <div className="flex flex-wrap gap-1">
+                                          {entry.items.map((item, i) => (
+                                              <span key={i} className="text-xs bg-muted px-2 py-0.5 rounded-full">
+                                                  {item.name} x{item.quantity}
+                                              </span>
+                                          ))}
+                                      </div>
+                                  </TableCell>
+                                  <TableCell className="text-right font-medium">
+                                      ¥{entry.totalWasteCost.toLocaleString()}
+                                  </TableCell>
+                                  <TableCell>
+                                      <DropdownMenu>
+                                          <DropdownMenuTrigger asChild>
+                                              <Button variant="ghost" size="icon">
+                                                  <MoreHorizontal className="h-4 w-4" />
+                                              </Button>
+                                          </DropdownMenuTrigger>
+                                          <DropdownMenuContent align="end">
+                                              <DropdownMenuLabel>操作</DropdownMenuLabel>
+                                              <DropdownMenuItem onClick={() => handleEditOpen(entry)}>
+                                                  <Edit className="h-4 w-4 mr-2" />
+                                                  編集
+                                              </DropdownMenuItem>
+                                              <DropdownMenuItem 
+                                                className="text-destructive"
+                                                onClick={() => handleDelete(entry)}
+                                              >
+                                                  <Trash2 className="h-4 w-4 mr-2" />
+                                                  削除
+                                              </DropdownMenuItem>
+                                          </DropdownMenuContent>
+                                      </DropdownMenu>
+                                  </TableCell>
+                              </TableRow>
+                          ))
+                      )}
+                  </TableBody>
+              </Table>
+          </CardContent>
+      </Card>
+
+      <Dialog open={!!editEntry} onOpenChange={(open) => !open && setEditEntry(null)}>
+          <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                  <DialogTitle>廃棄データの編集</DialogTitle>
+                  <DialogDescription>
+                      数量を調整してください。数量を0にすると項目が削除されます。
+                  </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                  {editItems.map(item => (
+                      <div key={item.productId} className="flex items-center justify-between gap-4">
+                          <span className="text-sm font-medium flex-1 truncate">{item.name}</span>
+                          <div className="flex items-center gap-2">
+                              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleUpdateQuantity(item.productId, -1)}>
+                                  <Minus className="h-4 w-4" />
+                              </Button>
+                              <span className="w-8 text-center">{item.quantity}</span>
+                              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleUpdateQuantity(item.productId, 1)}>
+                                  <Plus className="h-4 w-4" />
+                              </Button>
+                          </div>
+                      </div>
+                  ))}
+              </div>
+              <DialogFooter>
+                  <Button variant="outline" onClick={() => setEditEntry(null)}>キャンセル</Button>
+                  <Button onClick={handleSaveEdit}>変更を保存</Button>
+              </DialogFooter>
+          </DialogContent>
+      </Dialog>
 
       <div className="grid grid-cols-1 gap-4">
         <Card>
             <CardHeader>
-                <CardTitle>廃棄分析</CardTitle>
+                <CardTitle>商品別廃棄分析</CardTitle>
                 <CardDescription>各商品の廃棄状況と、それに伴う損失額の一覧です。</CardDescription>
             </CardHeader>
             <CardContent>
@@ -401,47 +573,6 @@ export default function DashboardPage() {
                 </Table>
             </CardContent>
         </Card>
-      </div>
-       <div className="grid grid-cols-1 gap-4">
-        <div className="grid grid-cols-1 gap-4 auto-rows-min lg:grid-cols-2 xl:grid-cols-3">
-            {salesByCategory.filter(cat => cat.sales.length > 0).map(({ category, sales }) => (
-            <Card key={category}>
-                <CardHeader className="pb-4">
-                    <CardTitle className="text-lg">{category} 売上 TOP5</CardTitle>
-                    <CardDescription>選択期間中の{category}カテゴリの売上トップ5です。</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <ResponsiveContainer width="100%" height={250}>
-                        <PieChart>
-                            <Pie
-                                data={sales}
-                                dataKey="total"
-                                nameKey="name"
-                                cx="50%"
-                                cy="50%"
-                                outerRadius={80}
-                                labelLine={false}
-                                label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
-                            >
-                                {sales.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                            </Pie>
-                            <Tooltip
-                                contentStyle={{
-                                    backgroundColor: 'hsl(var(--background))',
-                                    borderColor: 'hsl(var(--border))',
-                                    borderRadius: 'var(--radius)'
-                                }}
-                                formatter={(value: number, name) => [`¥${Math.round(value).toLocaleString()}`, name]}
-                            />
-                            <Legend formatter={(value) => <span className="text-muted-foreground text-xs truncate w-32 inline-block">{value}</span>} />
-                        </PieChart>
-                    </ResponsiveContainer>
-                </CardContent>
-            </Card>
-            ))}
-        </div>
       </div>
     </div>
   )
