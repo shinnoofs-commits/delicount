@@ -18,9 +18,9 @@ import {
 import { useTransactions } from "@/contexts/transaction-context";
 import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid, getDay, addDays } from "date-fns"
 import { ja } from "date-fns/locale"
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts"
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts"
 import { Calendar as CalendarIcon, Trash2, TrendingDown, Edit, MoreHorizontal, Plus, Minus, Loader2 } from 'lucide-react';
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import type { Category, Product, WasteEntry, WasteItem } from "@/lib/types";
 import { useProducts } from "@/contexts/product-context";
 import { DateRange } from "react-day-picker"
@@ -52,10 +52,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { useToast } from "@/hooks/use-toast";
-
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"];
 
 const DateRangePicker = ({ date, setDate }: { date: DateRange | undefined, setDate: (date: DateRange | undefined) => void }) => {
   return (
@@ -125,12 +123,12 @@ export default function DashboardPage() {
   const { products } = useProducts();
   const { isAdmin } = useAdmin();
   const { toast } = useToast();
+  
   const [selectedFilters, setSelectedFilters] = useState<number[]>([0, 1, 2, 3, 4, 5, 6, 7]);
   const [selectedEntries, setSelectedEntries] = useState<string[]>([]);
   const [editEntry, setEditEntry] = useState<WasteEntry | null>(null);
   const [editItems, setEditItems] = useState<WasteItem[]>([]);
-
-  const categories = useMemo(() => [...new Set(products.map(p => p.category))] as Category[], [products]);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [date, setDate] = useState<DateRange | undefined>({
     from: subDays(new Date(), 6),
@@ -153,13 +151,6 @@ export default function DashboardPage() {
         const entryDate = new Date(entry.date);
         if (!isValid(entryDate) || entryDate < fromDate || entryDate > toDate) {
           return false;
-        }
-
-        if (selectedFilters.length === filterOptions.length) {
-            return true;
-        }
-        if (selectedFilters.length === 0) {
-            return false;
         }
 
         const dayOfWeek = getDay(entryDate);
@@ -229,9 +220,10 @@ export default function DashboardPage() {
     });
 
     const allDaysData: { date: string, totalWaste: number }[] = [];
-    let currentDate = date.from;
+    let currentDate = startOfDay(date.from);
+    const toDate = endOfDay(date.to);
 
-    while (currentDate <= date.to) {
+    while (currentDate <= toDate) {
       const formattedDate = format(currentDate, 'yyyy-MM-dd');
       allDaysData.push({
         date: format(currentDate, 'M/d'),
@@ -299,19 +291,32 @@ export default function DashboardPage() {
             return { ...item, quantity: newQty };
         }
         return item;
-    }).filter(item => item.quantity > 0));
+    }).filter(item => item.quantity >= 0));
   };
 
   const handleSaveEdit = async () => {
     if (!editEntry) return;
-    const newTotalCost = editItems.reduce((sum, item) => sum + (item.costPrice * item.quantity), 0);
+    setIsSaving(true);
     
-    if (editItems.length === 0) {
-        await deleteWasteEntries(editEntry.storeId, [editEntry.id]);
-    } else {
-        await updateWasteEntry(editEntry.storeId, editEntry.id, editItems, newTotalCost);
+    const validItems = editItems.filter(item => item.quantity > 0);
+    const newTotalCost = validItems.reduce((sum, item) => sum + (item.costPrice * item.quantity), 0);
+    
+    try {
+        if (validItems.length === 0) {
+            await deleteWasteEntries(editEntry.storeId, [editEntry.id]);
+        } else {
+            await updateWasteEntry(editEntry.storeId, editEntry.id, validItems, newTotalCost);
+        }
+        setEditEntry(null);
+    } catch (e) {
+        toast({
+            variant: "destructive",
+            title: "保存エラー",
+            description: "データの更新に失敗しました。",
+        });
+    } finally {
+        setIsSaving(false);
     }
-    setEditEntry(null);
   };
 
   return (
@@ -509,33 +514,38 @@ export default function DashboardPage() {
           </CardContent>
       </Card>
 
-      <Dialog open={!!editEntry} onOpenChange={(open) => !open && setEditEntry(null)}>
-          <DialogContent className="sm:max-w-md">
+      <Dialog open={!!editEntry} onOpenChange={(open) => !open && !isSaving && setEditEntry(null)}>
+          <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
               <DialogHeader>
                   <DialogTitle>廃棄データの編集</DialogTitle>
                   <DialogDescription>
-                      数量を調整してください。数量を0にすると項目が削除されます。
+                      数量を調整してください。数量を0にするとその項目は削除されます。
                   </DialogDescription>
               </DialogHeader>
-              <div className="space-y-4 py-4">
-                  {editItems.map(item => (
-                      <div key={item.productId} className="flex items-center justify-between gap-4">
-                          <span className="text-sm font-medium flex-1 truncate">{item.name}</span>
-                          <div className="flex items-center gap-2">
-                              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleUpdateQuantity(item.productId, -1)}>
-                                  <Minus className="h-4 w-4" />
-                              </Button>
-                              <span className="w-8 text-center">{item.quantity}</span>
-                              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleUpdateQuantity(item.productId, 1)}>
-                                  <Plus className="h-4 w-4" />
-                              </Button>
+              <ScrollArea className="flex-1 pr-4 py-4">
+                  <div className="space-y-4">
+                      {editItems.map(item => (
+                          <div key={item.productId} className="flex items-center justify-between gap-4 border-b pb-2 last:border-0">
+                              <span className="text-sm font-medium flex-1 truncate">{item.name}</span>
+                              <div className="flex items-center gap-2">
+                                  <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleUpdateQuantity(item.productId, -1)} disabled={isSaving}>
+                                      <Minus className="h-4 w-4" />
+                                  </Button>
+                                  <span className="w-8 text-center tabular-nums font-semibold">{item.quantity}</span>
+                                  <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleUpdateQuantity(item.productId, 1)} disabled={isSaving}>
+                                      <Plus className="h-4 w-4" />
+                                  </Button>
+                              </div>
                           </div>
-                      </div>
-                  ))}
-              </div>
-              <DialogFooter>
-                  <Button variant="outline" onClick={() => setEditEntry(null)}>キャンセル</Button>
-                  <Button onClick={handleSaveEdit}>変更を保存</Button>
+                      ))}
+                  </div>
+              </ScrollArea>
+              <DialogFooter className="gap-2 sm:gap-0">
+                  <Button variant="outline" onClick={() => setEditEntry(null)} disabled={isSaving}>キャンセル</Button>
+                  <Button onClick={handleSaveEdit} disabled={isSaving}>
+                      {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      変更を保存
+                  </Button>
               </DialogFooter>
           </DialogContent>
       </Dialog>
