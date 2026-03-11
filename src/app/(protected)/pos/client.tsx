@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
-import { X, Plus, Minus, Trash2, Loader2, CalendarIcon, Sun, Cloud, CloudRain, Snowflake } from 'lucide-react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { X, Plus, Minus, Trash2, Loader2, CalendarIcon, Sun, Cloud, CloudRain, Snowflake, RefreshCw } from 'lucide-react';
 import type { Product, WasteItem, WasteEntry, WeatherType } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -42,9 +42,54 @@ export default function PosClient() {
   const [wasteList, setWasteList] = useState<WasteListItem[]>([]);
   const [date, setDate] = useState<Date>(new Date());
   const [weather, setWeather] = useState<WeatherType>('sunny');
+  const [isFetchingWeather, setIsFetchingWeather] = useState(false);
   const { toast } = useToast();
 
   const categories = useMemo(() => ['すべて', ...Array.from(new Set(allProducts.map(p => p.category)))], [allProducts]);
+
+  // 天気を自動取得する関数
+  const fetchCurrentWeather = useCallback(async () => {
+    if (!navigator.geolocation) return;
+
+    setIsFetchingWeather(true);
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      try {
+        const { latitude, longitude } = position.coords;
+        // Open-Meteo API (Free, no key required)
+        const response = await fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`
+        );
+        const data = await response.json();
+        const code = data.current_weather.weathercode;
+
+        // WMO Weather interpretation codes (WW)
+        // https://open-meteo.com/en/docs
+        let autoWeather: WeatherType = 'sunny';
+        if (code === 0) {
+          autoWeather = 'sunny';
+        } else if ([1, 2, 3, 45, 48].includes(code)) {
+          autoWeather = 'cloudy';
+        } else if ([51, 53, 55, 61, 63, 65, 80, 81, 82, 95, 96, 99].includes(code)) {
+          autoWeather = 'rainy';
+        } else if ([71, 73, 75, 77, 85, 86].includes(code)) {
+          autoWeather = 'snowy';
+        }
+
+        setWeather(autoWeather);
+      } catch (error) {
+        // Silent error
+      } finally {
+        setIsFetchingWeather(false);
+      }
+    }, () => {
+      setIsFetchingWeather(false);
+    });
+  }, []);
+
+  // 初期読み込み時に天気を取得
+  useEffect(() => {
+    fetchCurrentWeather();
+  }, [fetchCurrentWeather]);
 
   const addToWasteList = useCallback((product: Product) => {
     setWasteList(prevList => {
@@ -164,9 +209,15 @@ export default function PosClient() {
       {/* Product Selection */}
       <div className="lg:col-span-2 flex flex-col gap-4">
         <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
-          <TabsList>
+          <TabsList className="flex flex-wrap h-auto gap-1 bg-transparent p-0 justify-start">
               {categories.map(category => (
-                  <TabsTrigger key={category} value={category}>{category}</TabsTrigger>
+                  <TabsTrigger 
+                    key={category} 
+                    value={category}
+                    className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border"
+                  >
+                    {category}
+                  </TabsTrigger>
               ))}
           </TabsList>
           {categories.map(category => (
@@ -233,7 +284,13 @@ export default function PosClient() {
                     </Popover>
                 </div>
                 <div className="space-y-2">
-                    <Label className="font-medium text-sm">天気:</Label>
+                    <div className="flex items-center justify-between">
+                        <Label className="font-medium text-sm">天気:</Label>
+                        <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={fetchCurrentWeather} disabled={isFetchingWeather}>
+                            {isFetchingWeather ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+                            自動取得
+                        </Button>
+                    </div>
                     <div className="grid grid-cols-4 gap-2">
                         {weatherOptions.map((option) => (
                             <Button
