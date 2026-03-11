@@ -575,6 +575,7 @@ export default function DashboardPage() {
           <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col p-0 overflow-hidden">
               <DialogHeader className="p-6 pb-2">
                   <DialogTitle>廃棄データの編集</DialogTitle>
+                  <DialogTitle>廃棄データの編集</DialogTitle>
                   <DialogDescription>
                       数量や天気を調整してください。数量を0にするとその項目は削除されます。
                   </DialogDescription>
