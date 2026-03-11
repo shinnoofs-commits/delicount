@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { ProductionEntry } from '@/lib/types';
@@ -6,14 +7,13 @@ import { useFirestore, errorEmitter, FirestorePermissionError, useUser } from '@
 import { useAdmin } from '@/hooks/use-admin';
 import { useStores } from './store-context';
 import { useStoreSelection } from './store-selection-context';
-import { collection, addDoc, getDocs } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, Unsubscribe } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 interface ProductionContextType {
   productionEntries: ProductionEntry[];
   loading: boolean;
   addProductionEntry: (productionEntry: Omit<ProductionEntry, 'id' | 'userId'>) => void;
-  refetchProductionEntries: () => void;
 }
 
 export const ProductionContext = createContext<ProductionContextType | undefined>(undefined);
@@ -28,32 +28,27 @@ export function ProductionProvider({ children }: { children: React.ReactNode }) 
   
   const [productionEntries, setProductionEntries] = useState<ProductionEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshCount, setRefreshCount] = useState(0);
-
-  const refetchProductionEntries = useCallback(() => setRefreshCount(c => c + 1), []);
 
   useEffect(() => {
     if (!firestore) return;
     
-    const fetchProductionEntries = async () => {
-      setLoading(true);
-      const storeIdsToFetch = isAdmin ? selectedStoreIds : (userStore ? [userStore.id] : []);
-      
-      if (storeIdsToFetch.length === 0) {
-        setProductionEntries([]);
-        setLoading(false);
-        return;
-      }
-      
-      try {
-        const productionPromises = storeIdsToFetch.map(storeId => 
-          getDocs(collection(firestore, 'stores', storeId, 'production'))
-        );
-        
-        const productionSnapshots = await Promise.all(productionPromises);
+    setLoading(true);
+    const storeIdsToFetch = isAdmin ? selectedStoreIds : (userStore ? [userStore.id] : []);
+    
+    if (storeIdsToFetch.length === 0) {
+      setProductionEntries([]);
+      setLoading(false);
+      return;
+    }
+    
+    const unsubscribers: Unsubscribe[] = [];
 
-        const allProductionEntries = productionSnapshots.flatMap(snapshot => {
-          return snapshot.docs.map(doc => {
+    storeIdsToFetch.forEach(storeId => {
+      const q = query(collection(firestore, 'stores', storeId, 'production'));
+      const unsub = onSnapshot(q, (snapshot) => {
+        setProductionEntries(prev => {
+          const otherEntries = prev.filter(e => e.storeId !== storeId);
+          const currentStoreEntries = snapshot.docs.map(doc => {
             const data = doc.data();
             return {
               id: doc.id,
@@ -61,22 +56,19 @@ export function ProductionProvider({ children }: { children: React.ReactNode }) 
               date: data.date.toDate(),
             } as ProductionEntry;
           });
+          return [...otherEntries, ...currentStoreEntries];
         });
-
-        setProductionEntries(allProductionEntries);
-
-      } catch (error) {
-        if (error instanceof Error && (error.message.includes('permission-denied') || (error as any).code === 'permission-denied')) {
-           errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'stores/{storeId}/production', operation: 'list' }));
-        }
-      } finally {
         setLoading(false);
-      }
-    };
+      }, (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `stores/${storeId}/production`, operation: 'list' }));
+        setLoading(false);
+      });
+      unsubscribers.push(unsub);
+    });
 
-    fetchProductionEntries();
+    return () => unsubscribers.forEach(unsub => unsub());
 
-  }, [firestore, isAdmin, userStore, selectedStoreIds, refreshCount]);
+  }, [firestore, isAdmin, userStore, selectedStoreIds]);
 
 
   const addProductionEntry = useCallback((productionEntryData: Omit<ProductionEntry, 'id' | 'userId'>) => {
@@ -91,7 +83,6 @@ export function ProductionProvider({ children }: { children: React.ReactNode }) 
     addDoc(productionCollection, newEntry)
       .then(() => {
         toast({ title: '製造数を記録しました', description: `合計製造数 ${productionEntryData.totalProductionCount.toLocaleString()} 個が記録されました` });
-        refetchProductionEntries();
       })
       .catch((e) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -100,15 +91,14 @@ export function ProductionProvider({ children }: { children: React.ReactNode }) 
           requestResourceData: newEntry,
         }));
       });
-  }, [firestore, user, toast, refetchProductionEntries]);
+  }, [firestore, user, toast]);
 
 
   const value = useMemo(() => ({ 
     productionEntries, 
     loading,
     addProductionEntry,
-    refetchProductionEntries,
-  }), [productionEntries, loading, addProductionEntry, refetchProductionEntries]);
+  }), [productionEntries, loading, addProductionEntry]);
 
   return (
     <ProductionContext.Provider value={value}>
@@ -124,5 +114,3 @@ export function useProduction() {
   }
   return context;
 }
-
-    

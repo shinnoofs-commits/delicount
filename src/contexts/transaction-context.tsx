@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Transaction, WasteEntry, WasteItem } from '@/lib/types';
@@ -6,7 +7,7 @@ import { useFirestore, errorEmitter, FirestorePermissionError, useUser } from '@
 import { useAdmin } from '@/hooks/use-admin';
 import { useStores } from './store-context';
 import { useStoreSelection } from './store-selection-context';
-import { collection, addDoc, getDocs, doc, deleteDoc, writeBatch, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, deleteDoc, writeBatch, updateDoc, onSnapshot, query, Unsubscribe } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 interface TransactionContextType {
@@ -16,7 +17,6 @@ interface TransactionContextType {
   addWasteEntry: (wasteEntry: Omit<WasteEntry, 'id' | 'userId'>) => void;
   deleteWasteEntries: (storeId: string, entryIds: string[]) => Promise<void>;
   updateWasteEntry: (storeId: string, entryId: string, items: WasteItem[], totalWasteCost: number) => Promise<void>;
-  refetchWasteEntries: () => void;
 }
 
 export const TransactionContext = createContext<TransactionContextType | undefined>(undefined);
@@ -31,57 +31,49 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   
   const [wasteEntries, setWasteEntries] = useState<WasteEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshCount, setRefreshCount] = useState(0);
-
-  const refetchWasteEntries = useCallback(() => setRefreshCount(c => c + 1), []);
 
   useEffect(() => {
     if (!firestore) return;
     
-    const fetchWasteEntries = async () => {
-      setLoading(true);
-      const storeIdsToFetch = isAdmin ? selectedStoreIds : (userStore ? [userStore.id] : []);
-      
-      if (storeIdsToFetch.length === 0) {
-        setWasteEntries([]);
-        setLoading(false);
-        return;
-      }
-      
-      try {
-        const wastePromises = storeIdsToFetch.map(storeId => 
-          getDocs(collection(firestore, 'stores', storeId, 'waste'))
-        );
-        
-        const wasteSnapshots = await Promise.all(wastePromises);
+    setLoading(true);
+    const storeIdsToFetch = isAdmin ? selectedStoreIds : (userStore ? [userStore.id] : []);
+    
+    if (storeIdsToFetch.length === 0) {
+      setWasteEntries([]);
+      setLoading(false);
+      return;
+    }
 
-        const allWasteEntries = wasteSnapshots.flatMap((snapshot, index) => {
-          const storeId = storeIdsToFetch[index];
-          return snapshot.docs.map(doc => {
+    const unsubscribers: Unsubscribe[] = [];
+
+    storeIdsToFetch.forEach(storeId => {
+      const q = query(collection(firestore, 'stores', storeId, 'waste'));
+      const unsub = onSnapshot(q, (snapshot) => {
+        setWasteEntries(prev => {
+          const otherEntries = prev.filter(e => e.storeId !== storeId);
+          const currentStoreEntries = snapshot.docs.map(doc => {
             const data = doc.data();
             return {
               id: doc.id,
               ...data,
-              storeId, // Ensure storeId is present
+              storeId,
               date: data.date.toDate(),
             } as WasteEntry;
           });
+          const combined = [...otherEntries, ...currentStoreEntries];
+          return combined;
         });
-
-        setWasteEntries(allWasteEntries);
-
-      } catch (error) {
-        if (error instanceof Error && (error.message.includes('permission-denied') || (error as any).code === 'permission-denied')) {
-           errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'stores/{storeId}/waste', operation: 'list' }));
-        }
-      } finally {
         setLoading(false);
-      }
-    };
+      }, (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `stores/${storeId}/waste`, operation: 'list' }));
+        setLoading(false);
+      });
+      unsubscribers.push(unsub);
+    });
 
-    fetchWasteEntries();
+    return () => unsubscribers.forEach(unsub => unsub());
 
-  }, [firestore, isAdmin, userStore, selectedStoreIds, refreshCount]);
+  }, [firestore, isAdmin, userStore, selectedStoreIds]);
 
 
   const addWasteEntry = useCallback((wasteEntryData: Omit<WasteEntry, 'id' | 'userId'>) => {
@@ -96,7 +88,6 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     addDoc(wasteCollection, newEntry)
       .then(() => {
         toast({ title: '廃棄を記録しました', description: `合計廃棄額 ¥${wasteEntryData.totalWasteCost.toLocaleString()} が記録されました` });
-        refetchWasteEntries();
       })
       .catch((e) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -105,7 +96,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
           requestResourceData: newEntry,
         }));
       });
-  }, [firestore, user, toast, refetchWasteEntries]);
+  }, [firestore, user, toast]);
 
   const deleteWasteEntries = useCallback(async (storeId: string, entryIds: string[]) => {
     if (!firestore) return;
@@ -119,14 +110,13 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     try {
       await batch.commit();
       toast({ title: `${entryIds.length}件のデータを削除しました` });
-      refetchWasteEntries();
     } catch (error) {
        errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: `stores/${storeId}/waste`,
           operation: 'delete',
         }));
     }
-  }, [firestore, toast, refetchWasteEntries]);
+  }, [firestore, toast]);
 
   const updateWasteEntry = useCallback(async (storeId: string, entryId: string, items: WasteItem[], totalWasteCost: number) => {
     if (!firestore) return;
@@ -137,7 +127,6 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
       totalWasteCost
     }).then(() => {
       toast({ title: 'データを更新しました' });
-      refetchWasteEntries();
     }).catch(error => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
         path: entryRef.path,
@@ -145,18 +134,17 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         requestResourceData: { items, totalWasteCost }
       }));
     });
-  }, [firestore, toast, refetchWasteEntries]);
+  }, [firestore, toast]);
 
 
   const value = useMemo(() => ({ 
-    transactions: [], // Not used currently
+    transactions: [],
     wasteEntries, 
     loading,
     addWasteEntry,
     deleteWasteEntries,
     updateWasteEntry,
-    refetchWasteEntries,
-  }), [wasteEntries, loading, addWasteEntry, deleteWasteEntries, updateWasteEntry, refetchWasteEntries]);
+  }), [wasteEntries, loading, addWasteEntry, deleteWasteEntries, updateWasteEntry]);
 
   return (
     <TransactionContext.Provider value={value}>

@@ -1,10 +1,10 @@
 
 'use client';
 
-import type { Store, AdminRole } from '@/lib/types';
+import type { Store } from '@/lib/types';
 import React, { createContext, useContext, useCallback, useMemo, useState, useEffect } from 'react';
-import { useFirestore, useMemoFirebase, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, doc, addDoc, setDoc, deleteDoc, serverTimestamp, query, where, writeBatch, getDoc, getDocs } from 'firebase/firestore';
+import { useFirestore, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { collection, doc, addDoc, setDoc, deleteDoc, serverTimestamp, query, where, writeBatch, getDoc, onSnapshot } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useAdmin } from '@/hooks/use-admin';
 import { initializeApp, deleteApp } from 'firebase/app';
@@ -32,11 +32,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshCount, setRefreshCount] = useState(0);
-
-  const refetchStores = useCallback(() => {
-    setRefreshCount(prev => prev + 1);
-  }, []);
 
   useEffect(() => {
     if (!firestore || !user || isAdminLoading) {
@@ -44,32 +39,28 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     
-    const fetchStores = async () => {
-      setLoading(true);
-      try {
-        let storesQuery;
-        if (isAdmin) {
-          storesQuery = collection(firestore, 'stores');
-        } else {
-          storesQuery = query(collection(firestore, 'stores'), where('userId', '==', user.uid));
-        }
-        const querySnapshot = await getDocs(storesQuery);
-        const fetchedStores = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Store));
-        setStores(fetchedStores);
-      } catch (e) {
-        if (e instanceof Error && ((e as any).code === 'permission-denied')) {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: 'stores',
-                operation: 'list'
-            }));
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
+    setLoading(true);
+    let storesQuery;
+    if (isAdmin) {
+      storesQuery = collection(firestore, 'stores');
+    } else {
+      storesQuery = query(collection(firestore, 'stores'), where('userId', '==', user.uid));
+    }
 
-    fetchStores();
-  }, [firestore, user, isAdmin, isAdminLoading, refreshCount]);
+    const unsub = onSnapshot(storesQuery, (snapshot) => {
+      const fetchedStores = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Store));
+      setStores(fetchedStores);
+      setLoading(false);
+    }, (e) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: 'stores',
+          operation: 'list'
+      }));
+      setLoading(false);
+    });
+
+    return () => unsub();
+  }, [firestore, user, isAdmin, isAdminLoading]);
 
   
   const userStore = useMemo(() => {
@@ -104,7 +95,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       
       addDoc(storesCollection, storeDataForFirestore)
         .then(() => {
-          refetchStores();
           toast({ title: "店舗アカウントを追加しました", description: `「${storeData.name}」を登録しました。` });
         })
         .catch(() => {
@@ -126,7 +116,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     } finally {
       deleteApp(secondaryApp);
     }
-  }, [firestore, toast, refetchStores]);
+  }, [firestore, toast]);
 
   const updateStore = useCallback((storeData: Omit<Store, 'userId' | 'email' | 'isAdmin'>) => {
     if (!firestore || !isAdmin) return;
@@ -134,7 +124,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const dataToUpdate = { name: storeData.name };
     setDoc(storeRef, dataToUpdate, { merge: true })
       .then(() => {
-        refetchStores();
         toast({ title: "店舗情報を更新しました", description: `「${storeData.name}」を更新しました。` });
       })
       .catch(() => {
@@ -142,17 +131,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           path: storeRef.path, operation: 'update', requestResourceData: dataToUpdate
         }));
       });
-  }, [firestore, toast, isAdmin, refetchStores]);
+  }, [firestore, toast, isAdmin]);
 
   const deleteStore = useCallback((storeId: string) => {
     if (!firestore || !isAdmin) return;
     const storeRef = doc(firestore, 'stores', storeId);
     deleteDoc(storeRef)
       .then(() => {
-        refetchStores();
         toast({ 
           title: "店舗を削除しました",
-          description: "店舗データのみ削除されました。ログインアカウントの削除はFirebaseコンソールから手動で行う必要があります。"
+          description: "店舗データのみ削除されました。"
         });
       })
       .catch(() => {
@@ -160,7 +148,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           path: storeRef.path, operation: 'delete'
         }));
       });
-  }, [firestore, toast, isAdmin, refetchStores]);
+  }, [firestore, toast, isAdmin]);
 
   const getStoreById = useCallback((storeId: string) => {
       return stores.find(s => s.id === storeId);
@@ -195,7 +183,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
       
       await batch.commit();
-      refetchStores();
       const newRole = isCurrentlyAdmin ? '店舗アカウント' : '管理者';
       toast({ title: '役割が変更されました', description: `「${store.name}」は${newRole}になりました。` });
 
@@ -205,7 +192,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         operation: 'write',
       }));
     }
-  }, [firestore, isAdmin, user, toast, refetchStores]);
+  }, [firestore, isAdmin, user, toast]);
 
 
   const value = useMemo(() => ({

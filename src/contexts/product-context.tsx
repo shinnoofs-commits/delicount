@@ -1,9 +1,10 @@
+
 'use client';
 
 import type { Product, DailyProduction } from '@/lib/types';
 import React, { createContext, useContext, useCallback, useMemo, useState, useEffect } from 'react';
-import { useFirestore, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, doc, addDoc, setDoc, deleteDoc, writeBatch, serverTimestamp, getDocs, query, where, Query, onSnapshot, Unsubscribe, collectionGroup } from 'firebase/firestore';
+import { useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { collection, doc, addDoc, setDoc, writeBatch, query, where, getDocs, onSnapshot, Unsubscribe } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useAdmin } from '@/hooks/use-admin';
 import { useStores } from './store-context';
@@ -19,7 +20,6 @@ interface ProductContextType {
   syncAllProducts: (sourceStoreId: string) => Promise<void>;
   updateSchedules: (storeId: string, schedules: Record<string, Partial<DailyProduction>>) => Promise<void>;
   bulkUpdateProducts: (storeId: string, productsToUpdate: Pick<Product, 'id' | 'category' | 'pricePattern'>[]) => Promise<void>;
-  refetchProducts: () => void;
 }
 
 export const ProductContext = createContext<ProductContextType | undefined>(undefined);
@@ -33,50 +33,44 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
   
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshCount, setRefreshCount] = useState(0);
-
-  const refetchProducts = useCallback(() => setRefreshCount(c => c + 1), []);
 
   useEffect(() => {
     if (!firestore) return;
 
-    const fetchProducts = async () => {
-      setLoading(true);
+    setLoading(true);
+    const storeIdsToFetch = isAdmin ? selectedStoreIds : (userStore ? [userStore.id] : []);
 
-      const storeIdsToFetch = isAdmin ? selectedStoreIds : (userStore ? [userStore.id] : []);
+    if (storeIdsToFetch.length === 0) {
+      setProducts([]);
+      setLoading(false);
+      return;
+    }
+    
+    const unsubscribers: Unsubscribe[] = [];
 
-      if (storeIdsToFetch.length === 0) {
-        setProducts([]);
-        setLoading(false);
-        return;
-      }
-      
-      try {
-        const productPromises = storeIdsToFetch.map(storeId => 
-          getDocs(collection(firestore, 'stores', storeId, 'products'))
-        );
-        
-        const productSnapshots = await Promise.all(productPromises);
-
-        const allProducts = productSnapshots.flatMap((snapshot, index) => {
-          const storeId = storeIdsToFetch[index];
-          return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), storeId } as Product));
+    storeIdsToFetch.forEach(storeId => {
+      const q = query(collection(firestore, 'stores', storeId, 'products'));
+      const unsub = onSnapshot(q, (snapshot) => {
+        setProducts(prev => {
+          const otherProducts = prev.filter(p => p.storeId !== storeId);
+          const currentStoreProducts = snapshot.docs.map(doc => ({ 
+            id: doc.id, 
+            ...doc.data(), 
+            storeId 
+          } as Product));
+          return [...otherProducts, ...currentStoreProducts];
         });
-
-        setProducts(allProducts);
-
-      } catch (error) {
-        if (error instanceof Error && (error.message.includes('permission-denied') || (error as any).code === 'permission-denied')) {
-           errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'stores/{storeId}/products', operation: 'list' }));
-        }
-      } finally {
         setLoading(false);
-      }
-    };
+      }, (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `stores/${storeId}/products`, operation: 'list' }));
+        setLoading(false);
+      });
+      unsubscribers.push(unsub);
+    });
+
+    return () => unsubscribers.forEach(unsub => unsub());
     
-    fetchProducts();
-    
-  }, [firestore, isAdmin, userStore, selectedStoreIds, refreshCount]);
+  }, [firestore, isAdmin, userStore, selectedStoreIds]);
 
   const saveAdminProduct = useCallback(async (productData: Omit<Product, 'id' | 'storeId'>) => {
     if (!firestore || !stores || stores.length === 0) return;
@@ -96,11 +90,9 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
             const querySnapshot = await getDocs(q);
 
             if (querySnapshot.empty) {
-                // Add new
                 const newDocRef = doc(productsCollection);
                 batch.set(newDocRef, productData);
             } else {
-                // Update existing
                 querySnapshot.forEach(docToUpdate => {
                     batch.update(docToUpdate.ref, productData as {[x: string]: any});
                 });
@@ -108,14 +100,13 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
         }
 
         await batch.commit();
-        refetchProducts();
         processingToast.dismiss();
         toast({ title: "商品を全店舗で同期しました", description: `「${productData.name}」の情報が全店舗に反映されました。` });
     } catch(e) {
         processingToast.dismiss();
         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'stores/{storeId}/products', operation: 'write', requestResourceData: productData }));
     }
-  }, [firestore, stores, toast, refetchProducts]);
+  }, [firestore, stores, toast]);
 
 
   const addProduct = useCallback(async (storeId: string, productData: Omit<Product, 'id' | 'storeId' | 'dailyProduction'>) => {
@@ -131,7 +122,6 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
         const productsCollection = collection(firestore, 'stores', storeId, 'products');
         addDoc(productsCollection, productDataWithSchedule)
           .then(() => {
-            refetchProducts();
             toast({ title: "商品を追加しました", description: `「${productData.name}」を登録しました。` });
           })
           .catch(e => {
@@ -140,7 +130,7 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
             }));
         });
     }
-  }, [firestore, toast, isAdmin, saveAdminProduct, refetchProducts]);
+  }, [firestore, toast, isAdmin, saveAdminProduct]);
 
 
   const updateProduct = useCallback(async (storeId: string, productData: Product) => {
@@ -153,7 +143,6 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
         const productRef = doc(firestore, 'stores', storeId, 'products', id);
         setDoc(productRef, data, { merge: true })
           .then(() => {
-            refetchProducts();
             toast({ title: "商品を更新しました", description: `「${productData.name}」を更新しました。` });
           })
           .catch(e => {
@@ -162,7 +151,7 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
             }));
           });
     }
-  }, [firestore, toast, isAdmin, saveAdminProduct, refetchProducts]);
+  }, [firestore, toast, isAdmin, saveAdminProduct]);
 
 
   const deleteProducts = useCallback((storeId: string, productIds: string[]) => {
@@ -175,7 +164,6 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
     });
     batch.commit()
       .then(() => {
-        refetchProducts();
         toast({ title: `${productIds.length}件の商品を削除しました` });
       })
       .catch(e => {
@@ -183,7 +171,7 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
             path: productsCollection.path, operation: 'write', 
         }));
       });
-  }, [firestore, toast, refetchProducts]);
+  }, [firestore, toast]);
   
   const importProductsFromCSV = useCallback(async (newProducts: Omit<Product, 'id' | 'storeId'>[]) => {
     if (!firestore || !isAdmin || stores.length === 0) {
@@ -205,7 +193,7 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
         const productsCollection = collection(firestore, 'stores', store.id, 'products');
         const existingProductsSnap = await getDocs(productsCollection);
         
-        const existingProductMap = new Map<string, string>(); // Map productCode to docId
+        const existingProductMap = new Map<string, string>();
         existingProductsSnap.forEach(doc => {
           const data = doc.data();
           if (data.productCode) {
@@ -220,7 +208,6 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
         newProducts.forEach(product => {
             if (!product.productCode) return;
             const existingId = existingProductMap.get(product.productCode);
-            
             const productDataForStore = { ...product };
 
             if (existingId) {
@@ -244,7 +231,6 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
     }));
 
     processingToast.dismiss();
-    refetchProducts();
 
     if (failedStores.length > 0) {
       toast({
@@ -258,27 +244,19 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
         description: `全${stores.length}店舗に商品を反映しました。合計で新規${totalNewCount}件、更新${totalUpdateCount}件を処理しました。`
       });
     }
-  }, [firestore, isAdmin, stores, toast, refetchProducts]);
+  }, [firestore, isAdmin, stores, toast]);
 
   const syncAllProducts = useCallback(async (sourceStoreId: string) => {
     if (!firestore || !isAdmin) return;
     
     if (stores.length <= 1) {
-        toast({
-            variant: 'default',
-            title: '同期不要',
-            description: '管理対象の店舗が1つしかないため、同期処理は不要です。'
-        });
+        toast({ title: '同期不要', description: '管理対象の店舗が1つしかないため、同期処理は不要です。' });
         return;
     }
 
     const sourceProducts = products.filter(p => p.storeId === sourceStoreId);
     if (sourceProducts.length === 0) {
-        toast({
-            variant: 'destructive',
-            title: '同期失敗',
-            description: '同期元となる店舗に商品が登録されていません。'
-        });
+        toast({ variant: 'destructive', title: '同期失敗', description: '同期元となる店舗に商品が登録されていません。' });
         return;
     }
 
@@ -286,14 +264,14 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
     let totalUpdateCount = 0;
     let totalNewCount = 0;
     const failedStores: string[] = [];
-    const processingToast = toast({ title: '全店舗へ商品データを同期中...', description: `処理が完了するまでお待ちください...` });
+    const processingToast = toast({ title: '全店舗へ商品データを同期中...' });
 
     await Promise.all(targetStores.map(async (store) => {
         try {
             const productsCollection = collection(firestore, 'stores', store.id, 'products');
             const existingProductsSnap = await getDocs(productsCollection);
             
-            const existingProductMap = new Map<string, string>(); // Map productCode to docId
+            const existingProductMap = new Map<string, string>();
             existingProductsSnap.forEach(doc => {
                 const data = doc.data();
                 if (data.productCode) {
@@ -307,10 +285,7 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
             
             sourceProducts.forEach(product => {
                 if (!product.productCode) return;
-                
                 const existingId = existingProductMap.get(product.productCode);
-                
-                // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 const { id, storeId, ...productDataForStore } = product;
 
                 if (existingId) {
@@ -334,21 +309,13 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
     }));
 
     processingToast.dismiss();
-    refetchProducts();
 
     if (failedStores.length > 0) {
-        toast({
-            variant: 'destructive',
-            title: "一括同期が一部失敗しました",
-            description: `次の店舗への同期に失敗しました: ${failedStores.join(', ')}。`
-        });
+        toast({ variant: 'destructive', title: "一括同期が一部失敗しました", description: `次の店舗への同期に失敗しました: ${failedStores.join(', ')}。` });
     } else {
-        toast({ 
-            title: "一括同期が完了しました", 
-            description: `${targetStores.length}店舗に商品を同期しました。合計で新規${totalNewCount}件、更新${totalUpdateCount}件を処理しました。`
-        });
+        toast({ title: "一括同期が完了しました", description: `${targetStores.length}店舗に商品を同期しました。` });
     }
-  }, [firestore, isAdmin, stores, products, toast, refetchProducts]);
+  }, [firestore, isAdmin, stores, products, toast]);
 
  const updateSchedules = useCallback(async (storeId: string, schedules: Record<string, Partial<DailyProduction>>) => {
     if (!firestore) return;
@@ -360,14 +327,13 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
 
     try {
       await batch.commit();
-      refetchProducts();
       toast({ title: "製造予定数を一括更新しました。" });
     } catch (e) {
        errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: `stores/${storeId}/products`, operation: 'write', 
       }));
     }
-  }, [firestore, toast, refetchProducts]);
+  }, [firestore, toast]);
 
  const bulkUpdateProducts = useCallback(async (storeId: string, productsToUpdate: Pick<Product, 'id' | 'category' | 'pricePattern'>[]) => {
     if (!firestore) return;
@@ -382,14 +348,13 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
 
     try {
         await batch.commit();
-        refetchProducts();
         toast({ title: `${productsToUpdate.length}件の商品を一括更新しました。` });
     } catch (e) {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: `stores/${storeId}/products`, operation: 'write',
         }));
     }
-  }, [firestore, toast, refetchProducts]);
+  }, [firestore, toast]);
 
 
   const value = useMemo(() => ({
@@ -402,8 +367,7 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
     syncAllProducts,
     updateSchedules,
     bulkUpdateProducts,
-    refetchProducts,
-  }), [products, loading, addProduct, updateProduct, deleteProducts, importProductsFromCSV, syncAllProducts, updateSchedules, bulkUpdateProducts, refetchProducts]);
+  }), [products, loading, addProduct, updateProduct, deleteProducts, importProductsFromCSV, syncAllProducts, updateSchedules, bulkUpdateProducts]);
 
   return (
     <ProductContext.Provider value={value}>
