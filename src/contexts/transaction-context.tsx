@@ -1,7 +1,6 @@
-
 'use client';
 
-import type { Transaction, WasteEntry, WasteItem } from '@/lib/types';
+import type { Transaction, WasteEntry, WasteItem, WeatherType } from '@/lib/types';
 import React, { createContext, useState, useContext, useCallback, useEffect, useMemo } from 'react';
 import { useFirestore, errorEmitter, FirestorePermissionError, useUser } from '@/firebase';
 import { useAdmin } from '@/hooks/use-admin';
@@ -16,7 +15,7 @@ interface TransactionContextType {
   loading: boolean;
   addWasteEntry: (wasteEntry: Omit<WasteEntry, 'id' | 'userId'>) => void;
   deleteWasteEntries: (storeId: string, entryIds: string[]) => Promise<void>;
-  updateWasteEntry: (storeId: string, entryId: string, items: WasteItem[], totalWasteCost: number) => Promise<void>;
+  updateWasteEntry: (storeId: string, entryId: string, items: WasteItem[], totalWasteCost: number, weather?: WeatherType) => Promise<void>;
 }
 
 export const TransactionContext = createContext<TransactionContextType | undefined>(undefined);
@@ -118,20 +117,26 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     }
   }, [firestore, toast]);
 
-  const updateWasteEntry = useCallback(async (storeId: string, entryId: string, items: WasteItem[], totalWasteCost: number) => {
+  const updateWasteEntry = useCallback(async (storeId: string, entryId: string, items: WasteItem[], totalWasteCost: number, weather?: WeatherType) => {
     if (!firestore) return;
     const entryRef = doc(firestore, 'stores', storeId, 'waste', entryId);
     
-    updateDoc(entryRef, {
+    const updateData: any = {
       items,
       totalWasteCost
-    }).then(() => {
+    };
+    
+    if (weather) {
+      updateData.weather = weather;
+    }
+    
+    updateDoc(entryRef, updateData).then(() => {
       toast({ title: 'データを更新しました' });
     }).catch(error => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
         path: entryRef.path,
         operation: 'update',
-        requestResourceData: { items, totalWasteCost }
+        requestResourceData: updateData
       }));
     });
   }, [firestore, toast]);

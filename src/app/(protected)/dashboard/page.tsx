@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -118,6 +117,13 @@ type WasteData = {
     opportunityLoss: number;
 };
 
+const weatherOptions: { value: WeatherType; label: string; icon: any }[] = [
+  { value: 'sunny', label: '晴れ', icon: Sun },
+  { value: 'cloudy', label: '曇り', icon: Cloud },
+  { value: 'rainy', label: '雨', icon: CloudRain },
+  { value: 'snowy', label: '雪', icon: Snowflake },
+];
+
 const weatherIcons: Record<WeatherType, any> = {
   sunny: Sun,
   cloudy: Cloud,
@@ -148,6 +154,7 @@ export default function DashboardPage() {
   const [selectedEntries, setSelectedEntries] = useState<string[]>([]);
   const [editEntry, setEditEntry] = useState<WasteEntry | null>(null);
   const [editItems, setEditItems] = useState<WasteItem[]>([]);
+  const [editWeather, setEditWeather] = useState<WeatherType | undefined>(undefined);
   const [isSaving, setIsSaving] = useState(false);
 
   const [date, setDate] = useState<DateRange | undefined>({
@@ -315,6 +322,7 @@ export default function DashboardPage() {
   const handleEditOpen = (entry: WasteEntry) => {
     setEditEntry(entry);
     setEditItems(JSON.parse(JSON.stringify(entry.items))); // Deep copy
+    setEditWeather(entry.weather);
   };
 
   const handleUpdateQuantity = (productId: string, delta: number) => {
@@ -338,7 +346,7 @@ export default function DashboardPage() {
         if (validItems.length === 0) {
             await deleteWasteEntries(editEntry.storeId, [editEntry.id]);
         } else {
-            await updateWasteEntry(editEntry.storeId, editEntry.id, validItems, newTotalCost);
+            await updateWasteEntry(editEntry.storeId, editEntry.id, validItems, newTotalCost, editWeather);
         }
         setEditEntry(null);
     } catch (e) {
@@ -563,29 +571,50 @@ export default function DashboardPage() {
       </Card>
 
       <Dialog open={!!editEntry} onOpenChange={(open) => !open && !isSaving && setEditEntry(null)}>
-          <DialogContent className="sm:max-w-md max-h-[80vh] flex flex-col p-0 overflow-hidden">
+          <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col p-0 overflow-hidden">
               <DialogHeader className="p-6 pb-2">
                   <DialogTitle>廃棄データの編集</DialogTitle>
                   <DialogDescription>
-                      数量を調整してください。数量を0にするとその項目は削除されます。
+                      数量や天気を調整してください。数量を0にするとその項目は削除されます。
                   </DialogDescription>
               </DialogHeader>
               <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
-                  <div className="space-y-4">
-                      {editItems.map(item => (
-                          <div key={item.productId} className="flex items-center justify-between gap-4 border-b pb-2 last:border-0">
-                              <span className="text-sm font-medium flex-1 truncate">{item.name}</span>
-                              <div className="flex items-center gap-2">
-                                  <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleUpdateQuantity(item.productId, -1)} disabled={isSaving}>
-                                      <Minus className="h-4 w-4" />
+                  <div className="space-y-6">
+                      <div className="space-y-2">
+                          <Label className="text-sm font-semibold">天気を修正</Label>
+                          <div className="grid grid-cols-4 gap-2">
+                              {weatherOptions.map((option) => (
+                                  <Button
+                                      key={option.value}
+                                      variant={editWeather === option.value ? "default" : "outline"}
+                                      className="flex flex-col h-14 gap-1 p-1"
+                                      onClick={() => setEditWeather(option.value)}
+                                      disabled={isSaving}
+                                  >
+                                      <option.icon className="h-4 w-4" />
+                                      <span className="text-[10px]">{option.label}</span>
                                   </Button>
-                                  <span className="w-8 text-center tabular-nums font-semibold">{item.quantity}</span>
-                                  <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleUpdateQuantity(item.productId, 1)} disabled={isSaving}>
-                                      <Plus className="h-4 w-4" />
-                                  </Button>
-                              </div>
+                              ))}
                           </div>
-                      ))}
+                      </div>
+                      <Separator />
+                      <div className="space-y-4">
+                          <Label className="text-sm font-semibold">数量を修正</Label>
+                          {editItems.map(item => (
+                              <div key={item.productId} className="flex items-center justify-between gap-4 border-b pb-2 last:border-0">
+                                  <span className="text-sm font-medium flex-1 truncate">{item.name}</span>
+                                  <div className="flex items-center gap-2">
+                                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleUpdateQuantity(item.productId, -1)} disabled={isSaving}>
+                                          <Minus className="h-4 w-4" />
+                                      </Button>
+                                      <span className="w-8 text-center tabular-nums font-semibold">{item.quantity}</span>
+                                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleUpdateQuantity(item.productId, 1)} disabled={isSaving}>
+                                          <Plus className="h-4 w-4" />
+                                      </Button>
+                                  </div>
+                              </div>
+                          ))}
+                      </div>
                   </div>
               </div>
               <DialogFooter className="p-6 pt-2 border-t mt-auto flex-row justify-end gap-2">
