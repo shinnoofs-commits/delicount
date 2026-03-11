@@ -177,45 +177,32 @@ export default function AbcAnalysisPage() {
     const abcAnalysisData: AbcAnalysisData[] = useMemo(() => {
         if (wasteLoading || productsLoading || filteredWasteEntries.length === 0) return [];
 
-        let aggregatedWaste: Map<string, { name: string, totalQuantity: number, totalCost: number }>;
+        const aggregatedWaste = new Map<string, { name: string, totalQuantity: number, totalCost: number }>();
+        
+        // 商品情報をマッピング（isAdminの場合は店ID+商品ID、店舗の場合は商品ID）
+        const productsMap = new Map(products.map(p => [isAdmin ? `${p.storeId}-${p.id}` : p.id, p]));
 
-        if (isAdmin) {
-            aggregatedWaste = new Map<string, { name: string, totalQuantity: number, totalCost: number }>();
-            
-            const productsByCompositeKey = new Map(products.map(p => [`${p.storeId}-${p.id}`, p]));
-
-            filteredWasteEntries.forEach(entry => {
-                entry.items.forEach(item => {
-                    const product = productsByCompositeKey.get(`${entry.storeId}-${item.productId}`);
-                    const productCode = item.productCode || product?.productCode;
-
-                    if (!productCode) return;
-
-                    const current = aggregatedWaste.get(productCode) || { 
-                        name: item.name, 
-                        totalQuantity: 0,
-                        totalCost: 0
-                    };
-                    current.totalQuantity += item.quantity;
-                    current.totalCost += item.quantity * (item.costPrice || 0);
-                    aggregatedWaste.set(productCode, current);
-                });
-            });
-        } else {
-           aggregatedWaste = new Map<string, { name: string, totalQuantity: number, totalCost: number }>();
-           filteredWasteEntries.forEach(entry => {
+        filteredWasteEntries.forEach(entry => {
             entry.items.forEach(item => {
-              const current = aggregatedWaste.get(item.productId) || { 
-                name: item.name, 
-                totalQuantity: 0,
-                totalCost: 0
-              };
-              current.totalQuantity += item.quantity;
-              current.totalCost += item.quantity * (item.costPrice || 0);
-              aggregatedWaste.set(item.productId, current);
+                const productKey = isAdmin ? `${entry.storeId}-${item.productId}` : item.productId;
+                const product = productsMap.get(productKey);
+                
+                // 最新の商品マスタから原価を取得（なければ保存時のものを使用）
+                const currentCostPrice = product ? product.costPrice : (item.costPrice || 0);
+                
+                // 集計のキー（管理者の場合は商品コードで名寄せ、店舗の場合は商品ID）
+                const aggregationKey = isAdmin ? (item.productCode || product?.productCode || item.productId) : item.productId;
+
+                const current = aggregatedWaste.get(aggregationKey) || { 
+                    name: product?.name || item.name, 
+                    totalQuantity: 0,
+                    totalCost: 0
+                };
+                current.totalQuantity += item.quantity;
+                current.totalCost += item.quantity * currentCostPrice;
+                aggregatedWaste.set(aggregationKey, current);
             });
-          });
-        }
+        });
 
         const calculatedData = Array.from(aggregatedWaste.entries()).map(([key, data]) => ({
             key: key,
