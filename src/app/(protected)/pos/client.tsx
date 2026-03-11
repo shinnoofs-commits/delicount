@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { X, Plus, Minus, Trash2, Loader2, CalendarIcon, Sun, Cloud, CloudRain, Snowflake, RefreshCw } from 'lucide-react';
+import { X, Plus, Minus, Trash2, Loader2, CalendarIcon, Sun, Cloud, CloudRain, Snowflake, RefreshCw, MapPin } from 'lucide-react';
 import type { Product, WasteItem, WasteEntry, WeatherType } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -47,49 +47,66 @@ export default function PosClient() {
 
   const categories = useMemo(() => ['すべて', ...Array.from(new Set(allProducts.map(p => p.category)))], [allProducts]);
 
-  // 天気を自動取得する関数
-  const fetchCurrentWeather = useCallback(async () => {
-    if (!navigator.geolocation) return;
+  // 気象コードからWeatherTypeへの変換
+  const interpretWeatherCode = (code: number): WeatherType => {
+    if (code === 0) return 'sunny';
+    if ([1, 2, 3, 45, 48].includes(code)) return 'cloudy';
+    if ([51, 53, 55, 61, 63, 65, 80, 81, 82, 95, 96, 99].includes(code)) return 'rainy';
+    if ([71, 73, 75, 77, 85, 86].includes(code)) return 'snowy';
+    return 'sunny';
+  };
+
+  // 22時の天気を取得する関数
+  const fetch2200Weather = useCallback(async (targetDate: Date) => {
+    if (!userStore) return;
 
     setIsFetchingWeather(true);
-    navigator.geolocation.getCurrentPosition(async (position) => {
-      try {
-        const { latitude, longitude } = position.coords;
-        // Open-Meteo API (Free, no key required)
-        const response = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`
-        );
-        const data = await response.json();
-        const code = data.current_weather.weathercode;
+    try {
+      let lat, lon;
 
-        // WMO Weather interpretation codes (WW)
-        // https://open-meteo.com/en/docs
-        let autoWeather: WeatherType = 'sunny';
-        if (code === 0) {
-          autoWeather = 'sunny';
-        } else if ([1, 2, 3, 45, 48].includes(code)) {
-          autoWeather = 'cloudy';
-        } else if ([51, 53, 55, 61, 63, 65, 80, 81, 82, 95, 96, 99].includes(code)) {
-          autoWeather = 'rainy';
-        } else if ([71, 73, 75, 77, 85, 86].includes(code)) {
-          autoWeather = 'snowy';
-        }
+      // 1. 店舗名から緯度経度を検索 (店舗名 = 地域名)
+      // 「店」や「支店」などの接尾辞を除去して精度を上げる
+      const cityName = userStore.name.replace(/(店|支店|営業所)$/, '');
+      const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ja&format=json`);
+      const geoData = await geoRes.json();
 
-        setWeather(autoWeather);
-      } catch (error) {
-        // Silent error
-      } finally {
-        setIsFetchingWeather(false);
+      if (geoData.results && geoData.results.length > 0) {
+        lat = geoData.results[0].latitude;
+        lon = geoData.results[0].longitude;
+      } else {
+        // 店舗名で見つからない場合は現在地を試みる
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject);
+        });
+        lat = pos.coords.latitude;
+        lon = pos.coords.longitude;
       }
-    }, () => {
-      setIsFetchingWeather(false);
-    });
-  }, []);
 
-  // 初期読み込み時に天気を取得
+      // 2. 指定日の22時の天気を取得
+      const dateStr = format(targetDate, 'yyyy-MM-dd');
+      const weatherRes = await fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=weather_code&start_date=${dateStr}&end_date=${dateStr}&timezone=Asia%2FTokyo`
+      );
+      const weatherData = await weatherRes.json();
+
+      if (weatherData.hourly && weatherData.hourly.weather_code) {
+        // インデックス22が22:00のデータ
+        const codeAt22 = weatherData.hourly.weather_code[22];
+        setWeather(interpretWeatherCode(codeAt22));
+      }
+    } catch (error) {
+      console.warn('Weather fetch failed, falling back to manual selection.', error);
+    } finally {
+      setIsFetchingWeather(false);
+    }
+  }, [userStore]);
+
+  // 初期読み込み時、または日付変更時に22時の天気を自動取得
   useEffect(() => {
-    fetchCurrentWeather();
-  }, [fetchCurrentWeather]);
+    if (userStore) {
+      fetch2200Weather(date);
+    }
+  }, [fetch2200Weather, date, userStore]);
 
   const addToWasteList = useCallback((product: Product) => {
     setWasteList(prevList => {
@@ -285,10 +302,10 @@ export default function PosClient() {
                 </div>
                 <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                        <Label className="font-medium text-sm">天気:</Label>
-                        <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={fetchCurrentWeather} disabled={isFetchingWeather}>
+                        <Label className="font-medium text-sm">22時の天気 (自動取得):</Label>
+                        <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => fetch2200Weather(date)} disabled={isFetchingWeather}>
                             {isFetchingWeather ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
-                            自動取得
+                            再取得
                         </Button>
                     </div>
                     <div className="grid grid-cols-4 gap-2">
@@ -303,6 +320,10 @@ export default function PosClient() {
                                 <span className="text-[10px]">{option.label}</span>
                             </Button>
                         ))}
+                    </div>
+                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                        <MapPin className="h-3 w-3" />
+                        地域: {userStore.name.replace(/(店|支店|営業所)$/, '')}
                     </div>
                 </div>
             </div>
