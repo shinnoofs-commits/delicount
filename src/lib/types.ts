@@ -93,6 +93,8 @@ export type WasteItem = {
   costPrice: number;
 };
 
+export type WeatherType = 'sunny' | 'cloudy' | 'rainy' | 'snowy';
+
 export type WasteEntry = {
   id: string;
   storeId: string;
@@ -100,6 +102,7 @@ export type WasteEntry = {
   date: Date;
   items: WasteItem[];
   totalWasteCost: number;
+  weather?: WeatherType;
 };
 
 export type ProductionItem = {

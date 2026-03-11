@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -19,9 +20,9 @@ import { useTransactions } from "@/contexts/transaction-context";
 import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid, getDay, addDays } from "date-fns"
 import { ja } from "date-fns/locale"
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts"
-import { Calendar as CalendarIcon, Trash2, TrendingDown, Edit, MoreHorizontal, Plus, Minus, Loader2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Trash2, TrendingDown, Edit, MoreHorizontal, Plus, Minus, Loader2, Sun, Cloud, CloudRain, Snowflake } from 'lucide-react';
 import { useMemo, useState } from "react";
-import type { Category, Product, WasteEntry, WasteItem } from "@/lib/types";
+import type { Category, Product, WasteEntry, WasteItem, WeatherType } from "@/lib/types";
 import { useProducts } from "@/contexts/product-context";
 import { DateRange } from "react-day-picker"
 import { Button } from "@/components/ui/button"
@@ -117,6 +118,26 @@ type WasteData = {
     opportunityLoss: number;
 };
 
+const weatherIcons: Record<WeatherType, any> = {
+  sunny: Sun,
+  cloudy: Cloud,
+  rainy: CloudRain,
+  snowy: Snowflake,
+};
+
+const weatherLabels: Record<WeatherType, string> = {
+  sunny: '晴れ',
+  cloudy: '曇り',
+  rainy: '雨',
+  snowy: '雪',
+};
+
+const WeatherIcon = ({ type }: { type?: WeatherType }) => {
+    if (!type) return null;
+    const Icon = weatherIcons[type];
+    return <Icon className="h-4 w-4 inline-block mr-1 text-muted-foreground" />;
+};
+
 export default function DashboardPage() {
   const { wasteEntries, deleteWasteEntries, updateWasteEntry, loading: wasteLoading } = useTransactions();
   const { products } = useProducts();
@@ -210,7 +231,7 @@ export default function DashboardPage() {
   const dailyWasteData = useMemo(() => {
     if (!date?.from || !date?.to) return [];
 
-    const dailyTotals = new Map<string, { cost: number, price: number }>();
+    const dailyTotals = new Map<string, { cost: number, price: number, weather?: WeatherType }>();
 
     filteredWasteEntries.forEach(entry => {
       const entryDate = format(new Date(entry.date), 'yyyy-MM-dd');
@@ -223,11 +244,12 @@ export default function DashboardPage() {
 
       dailyTotals.set(entryDate, {
           cost: current.cost + entry.totalWasteCost,
-          price: current.price + entryTotalPrice
+          price: current.price + entryTotalPrice,
+          weather: current.weather || entry.weather // その日の最初の天気を採用
       });
     });
 
-    const allDaysData: { date: string, totalWaste: number, totalOpportunityLoss: number }[] = [];
+    const allDaysData: { date: string, totalWaste: number, totalOpportunityLoss: number, weatherLabel?: string }[] = [];
     let currentDate = startOfDay(date.from);
     const toDate = endOfDay(date.to);
 
@@ -238,6 +260,7 @@ export default function DashboardPage() {
         date: format(currentDate, 'M/d'),
         totalWaste: dayData.cost,
         totalOpportunityLoss: dayData.price,
+        weatherLabel: dayData.weather ? weatherLabels[dayData.weather] : undefined
       });
       currentDate = addDays(currentDate, 1);
     }
@@ -419,7 +442,15 @@ export default function DashboardPage() {
                       borderColor: 'hsl(var(--border))',
                       borderRadius: 'var(--radius)'
                   }}
-                  formatter={(value: number, name: string) => [`¥${value.toLocaleString()}`, name]}
+                  formatter={(value: number, name: string, props: any) => {
+                      const payload = props.payload;
+                      const label = name === 'totalWaste' ? '廃棄ロス額' : '機会損失額';
+                      return [`¥${value.toLocaleString()}`, label];
+                  }}
+                  labelFormatter={(label, payload) => {
+                      const weather = payload[0]?.payload.weatherLabel;
+                      return `${label} ${weather ? `(${weather})` : ''}`;
+                  }}
                 />
                 <Legend />
                 <Bar dataKey="totalWaste" fill="hsl(var(--primary))" name="廃棄ロス額" radius={[4, 4, 0, 0]} />
@@ -453,6 +484,7 @@ export default function DashboardPage() {
                               />
                           </TableHead>
                           <TableHead>日時</TableHead>
+                          <TableHead>天気</TableHead>
                           <TableHead>商品内容</TableHead>
                           <TableHead className="text-right">廃棄額（原価）</TableHead>
                           <TableHead className="w-12"></TableHead>
@@ -461,13 +493,13 @@ export default function DashboardPage() {
                   <TableBody>
                       {wasteLoading ? (
                           <TableRow>
-                              <TableCell colSpan={5} className="h-24 text-center">
+                              <TableCell colSpan={6} className="h-24 text-center">
                                   <Loader2 className="h-6 w-6 animate-spin inline-block" />
                               </TableCell>
                           </TableRow>
                       ) : filteredWasteEntries.length === 0 ? (
                           <TableRow>
-                              <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                              <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                                   廃棄データがありません。
                               </TableCell>
                           </TableRow>
@@ -482,6 +514,10 @@ export default function DashboardPage() {
                                   </TableCell>
                                   <TableCell className="whitespace-nowrap">
                                       {format(entry.date, "yyyy/MM/dd HH:mm", { locale: ja })}
+                                  </TableCell>
+                                  <TableCell>
+                                      <WeatherIcon type={entry.weather} />
+                                      <span className="text-xs text-muted-foreground">{entry.weather ? weatherLabels[entry.weather] : '-'}</span>
                                   </TableCell>
                                   <TableCell>
                                       <div className="flex flex-wrap gap-1">

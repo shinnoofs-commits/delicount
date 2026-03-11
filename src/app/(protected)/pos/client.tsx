@@ -1,13 +1,12 @@
+
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { X, Plus, Minus, Trash2, Loader2, CalendarIcon } from 'lucide-react';
-import type { Product, WasteItem, WasteEntry } from '@/lib/types';
-import { Input } from '@/components/ui/input';
+import { X, Plus, Minus, Trash2, Loader2, CalendarIcon, Sun, Cloud, CloudRain, Snowflake } from 'lucide-react';
+import type { Product, WasteItem, WasteEntry, WeatherType } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useTransactions } from '@/contexts/transaction-context';
@@ -19,11 +18,19 @@ import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { Label } from '@/components/ui/label';
 
 type WasteListItem = {
   product: Product;
   quantity: number;
 };
+
+const weatherOptions: { value: WeatherType; label: string; icon: any }[] = [
+  { value: 'sunny', label: '晴れ', icon: Sun },
+  { value: 'cloudy', label: '曇り', icon: Cloud },
+  { value: 'rainy', label: '雨', icon: CloudRain },
+  { value: 'snowy', label: '雪', icon: Snowflake },
+];
 
 export default function PosClient() {
   const { addWasteEntry, loading: wasteLoading } = useTransactions();
@@ -34,6 +41,7 @@ export default function PosClient() {
   const [selectedCategory, setSelectedCategory] = useState('すべて');
   const [wasteList, setWasteList] = useState<WasteListItem[]>([]);
   const [date, setDate] = useState<Date>(new Date());
+  const [weather, setWeather] = useState<WeatherType>('sunny');
   const { toast } = useToast();
 
   const categories = useMemo(() => ['すべて', ...Array.from(new Set(allProducts.map(p => p.category)))], [allProducts]);
@@ -100,6 +108,7 @@ export default function PosClient() {
     const newWasteEntry: Omit<WasteEntry, 'id' | 'userId'> = {
       storeId: userStore.id,
       date: date,
+      weather: weather,
       items: wasteList.map(item => ({
         productId: item.product.id,
         productCode: item.product.productCode,
@@ -195,32 +204,50 @@ export default function PosClient() {
                   <span className="sr-only">リストをクリア</span>
               </Button>
             </CardTitle>
-            <div className="flex items-center gap-2 pt-2 text-sm">
-                <p className="font-medium">廃棄日:</p>
-                <Popover>
-                    <PopoverTrigger asChild>
-                        <Button
-                            variant={"outline"}
-                            className={cn(
-                                "w-[200px] justify-start text-left font-normal",
-                                !date && "text-muted-foreground"
-                            )}
-                        >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {date ? format(date, "PPP", { locale: ja }) : <span>日付を選択</span>}
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                        <Calendar
-                            mode="single"
-                            selected={date}
-                            onSelect={(d) => { if(d) setDate(d) }}
-                            initialFocus
-                            locale={ja}
-                            disabled={(d) => d > new Date() || d < new Date("2000-01-01")}
-                        />
-                    </PopoverContent>
-                </Popover>
+            <div className="space-y-4 pt-2">
+                <div className="flex items-center gap-2 text-sm">
+                    <Label className="font-medium whitespace-nowrap">廃棄日:</Label>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                                variant={"outline"}
+                                className={cn(
+                                    "w-full justify-start text-left font-normal",
+                                    !date && "text-muted-foreground"
+                                )}
+                            >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {date ? format(date, "PPP", { locale: ja }) : <span>日付を選択</span>}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                            <Calendar
+                                mode="single"
+                                selected={date}
+                                onSelect={(d) => { if(d) setDate(d) }}
+                                initialFocus
+                                locale={ja}
+                                disabled={(d) => d > new Date() || d < new Date("2000-01-01")}
+                            />
+                        </PopoverContent>
+                    </Popover>
+                </div>
+                <div className="space-y-2">
+                    <Label className="font-medium text-sm">天気:</Label>
+                    <div className="grid grid-cols-4 gap-2">
+                        {weatherOptions.map((option) => (
+                            <Button
+                                key={option.value}
+                                variant={weather === option.value ? "default" : "outline"}
+                                className="flex flex-col h-14 gap-1 p-1"
+                                onClick={() => setWeather(option.value)}
+                            >
+                                <option.icon className="h-4 w-4" />
+                                <span className="text-[10px]">{option.label}</span>
+                            </Button>
+                        ))}
+                    </div>
+                </div>
             </div>
           </CardHeader>
           <div className="flex-grow">
