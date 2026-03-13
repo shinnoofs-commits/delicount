@@ -56,8 +56,8 @@ export default function AbcAnalysisPage() {
         to: endOfMonth(new Date()),
     });
 
-    const { validDateObjects, numberOfDays } = useMemo(() => {
-        if (!date || !date.from) return { validDateObjects: [], numberOfDays: 1 };
+    const { validDateObjects } = useMemo(() => {
+        if (!date || !date.from) return { validDateObjects: [] };
         const fromDate = startOfDay(date.from);
         const toDate = date.to ? endOfDay(date.to) : endOfDay(date.from);
         const objects: Date[] = [];
@@ -70,13 +70,13 @@ export default function AbcAnalysisPage() {
             }
             currentDate = addDays(currentDate, 1);
         }
-        return { validDateObjects: objects, numberOfDays: objects.length > 0 ? objects.length : 1 };
+        return { validDateObjects: objects };
     }, [date, selectedFilters]);
 
     const abcAnalysisData = useMemo((): AnalysisItem[] => {
         if (wasteLoading || productsLoading || productionLoading || validDateObjects.length === 0) return [];
         
-        const aggregatedWaste = new Map<string, { name: string, totalQuantity: number, totalCost: number, productCode: string }>();
+        const aggregatedWaste = new Map<string, { name: string, totalQuantity: number, totalCost: number }>();
         const aggregatedActualProduction = new Map<string, number>();
         
         const productsMap = new Map(products.map(p => [isAdmin ? `${p.storeId}-${p.id}` : p.id, p]));
@@ -89,12 +89,11 @@ export default function AbcAnalysisPage() {
             entry.items.forEach(item => {
                 const productKey = isAdmin ? `${entry.storeId}-${item.productId}` : item.productId;
                 const product = productsMap.get(productKey);
-                const currentCostPrice = product ? product.costPrice : (item.costPrice || 0);
                 const aggregationKey = isAdmin ? (item.productCode || product?.productCode || item.productId) : item.productId;
 
-                const current = aggregatedWaste.get(aggregationKey) || { name: product?.name || item.name, totalQuantity: 0, totalCost: 0, productCode: item.productCode || product?.productCode || '' };
+                const current = aggregatedWaste.get(aggregationKey) || { name: product?.name || item.name, totalQuantity: 0, totalCost: 0 };
                 current.totalQuantity += item.quantity;
-                current.totalCost += item.quantity * currentCostPrice;
+                current.totalCost += item.quantity * (product?.costPrice || item.costPrice || 0);
                 aggregatedWaste.set(aggregationKey, current);
             });
         });
@@ -149,16 +148,16 @@ export default function AbcAnalysisPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>ABC分析</CardTitle>
-                    <CardDescription>廃棄額基準のランク付けと、実際の製造数実績に対する廃棄率を表示します。</CardDescription>
+                    <CardDescription>廃棄ロス額に基づきランク付けし、製造実績（今回の製造数）に対する廃棄率を表示します。</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid md:grid-cols-2 gap-4">
-                        <div><Label className="mb-2 block">店舗</Label>{isAdmin ? <StoreSelector /> : <p className="text-sm">自店舗</p>}</div>
+                        <div><Label className="mb-2 block">対象店舗</Label>{isAdmin ? <StoreSelector /> : <p className="text-sm">自店舗</p>}</div>
                         <div>
-                            <Label className="mb-2 block">期間</Label>
+                            <Label className="mb-2 block">分析期間</Label>
                             <div className="flex gap-2">
                                 <Popover>
-                                    <PopoverTrigger asChild><Button variant="outline"><CalendarIcon className="mr-2 h-4 w-4" />期間選択</Button></PopoverTrigger>
+                                    <PopoverTrigger asChild><Button variant="outline"><CalendarIcon className="mr-2 h-4 w-4" />期間変更</Button></PopoverTrigger>
                                     <PopoverContent className="w-auto p-0"><Calendar mode="range" selected={date} onSelect={setDate} locale={ja} /></PopoverContent>
                                 </Popover>
                                 <Button variant="outline" size="sm" onClick={() => setDate({from: startOfMonth(new Date()), to: endOfMonth(new Date())})}>今月</Button>
@@ -186,9 +185,9 @@ export default function AbcAnalysisPage() {
                                         <TableHead>ランク</TableHead>
                                         <TableHead>商品名</TableHead>
                                         <TableHead className="text-right">廃棄合計(個数)</TableHead>
-                                        <TableHead className="text-right">廃棄ロス額</TableHead>
-                                        <TableHead className="text-right">期間中製造実績</TableHead>
-                                        <TableHead className="text-right">製造数対比(廃棄率)</TableHead>
+                                        <TableHead className="text-right">廃棄ロス額(原価)</TableHead>
+                                        <TableHead className="text-right">製造数実績</TableHead>
+                                        <TableHead className="text-right">廃棄率(実績対比)</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
