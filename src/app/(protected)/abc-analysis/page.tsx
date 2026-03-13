@@ -136,7 +136,7 @@ export default function AbcAnalysisPage() {
         }
     }
     
-    // 対象となる日付のリストと日数を計算
+    // 対象となる日付のリスト（期間内でフィルタに合致する日）を計算
     const { validDateObjects, numberOfDays } = useMemo(() => {
         if (!date || !date.from) return { validDateObjects: [], numberOfDays: 1 };
         
@@ -152,6 +152,7 @@ export default function AbcAnalysisPage() {
             const isDaySelected = selectedFilters.includes(dayOfWeek);
             const isHolidaySelected = selectedFilters.includes(7);
 
+            // 祝日選択中かつ祝日の場合、または当該曜日が選択中の場合
             const dayIsValid = (isHoliday && isHolidaySelected) || (!isHoliday && isDaySelected);
 
             if (dayIsValid) {
@@ -172,27 +173,29 @@ export default function AbcAnalysisPage() {
 
         const aggregatedWaste = new Map<string, { name: string, totalQuantity: number, totalCost: number, productCode: string }>();
         
-        // 商品情報をマッピング（isAdminの場合は店ID+商品ID、店舗の場合は商品ID）
+        // 商品マスタをマップ化
         const productsMap = new Map(products.map(p => [isAdmin ? `${p.storeId}-${p.id}` : p.id, p]));
         
-        // フィルタリングされた日付セットを作成
+        // フィルタリングされた有効な日付のセット
         const validDatesSet = new Set(validDateObjects.map(d => format(d, 'yyyy-MM-dd')));
 
+        // 廃棄エントリを日付で絞り込み
         const filteredWasteEntries = wasteEntries.filter(entry => {
             const entryDate = new Date(entry.date);
             if (!isValid(entryDate)) return false;
             return validDatesSet.has(format(startOfDay(entryDate), 'yyyy-MM-dd'));
         });
 
+        // 廃棄数を商品ごとに集計
         filteredWasteEntries.forEach(entry => {
             entry.items.forEach(item => {
                 const productKey = isAdmin ? `${entry.storeId}-${item.productId}` : item.productId;
                 const product = productsMap.get(productKey);
                 
-                // 最新の商品マスタから原価を取得（なければ保存時のものを使用）
+                // 最新の商品マスタから原価を取得
                 const currentCostPrice = product ? product.costPrice : (item.costPrice || 0);
                 
-                // 集計のキー（管理者の場合は商品コードで名寄せ、店舗の場合は商品ID）
+                // 集計キー（管理者の場合は商品コードで名寄せ）
                 const aggregationKey = isAdmin ? (item.productCode || product?.productCode || item.productId) : item.productId;
 
                 const current = aggregatedWaste.get(aggregationKey) || { 
@@ -207,13 +210,12 @@ export default function AbcAnalysisPage() {
             });
         });
 
-        // 商品マスタから各商品の予定製造数を計算
+        // 商品マスタから各商品の「期間内の累計予定製造数」を計算
         const calculatedData = Array.from(aggregatedWaste.entries()).map(([key, data]) => {
-            // 予定製造数の集計
-            let totalPlanned = 0;
+            let totalPlannedForPeriod = 0;
             
-            // 管理者の場合は、全店舗（選択中）の同コード商品の予定数を合算
             if (isAdmin) {
+                // 管理者の場合：選択中の全店舗における、同コード商品の予定数を全有効日程分足し合わせる
                 const sameCodeProducts = products.filter(p => p.productCode === data.productCode);
                 validDateObjects.forEach(d => {
                     const isHoliday = holiday_jp.isHoliday(d);
@@ -222,19 +224,19 @@ export default function AbcAnalysisPage() {
                     sameCodeProducts.forEach(p => {
                         const daily = p.dailyProduction;
                         if (daily) {
-                            totalPlanned += (isHoliday && daily.holiday !== undefined) ? daily.holiday : (daily[dayKey] || 0);
+                            totalPlannedForPeriod += (isHoliday && daily.holiday !== undefined) ? daily.holiday : (daily[dayKey] || 0);
                         }
                     });
                 });
             } else {
-                // 店舗の場合は、自店舗の該当商品の予定数を合算
+                // 店舗の場合：自店舗の該当商品の予定数を全有効日程分足し合わせる
                 const product = products.find(p => p.id === key);
                 if (product?.dailyProduction) {
                     const daily = product.dailyProduction;
                     validDateObjects.forEach(d => {
                         const isHoliday = holiday_jp.isHoliday(d);
                         const dayKey = dayMap[getDay(d)];
-                        totalPlanned += (isHoliday && daily.holiday !== undefined) ? daily.holiday : (daily[dayKey] || 0);
+                        totalPlannedForPeriod += (isHoliday && daily.holiday !== undefined) ? daily.holiday : (daily[dayKey] || 0);
                     });
                 }
             }
@@ -244,8 +246,8 @@ export default function AbcAnalysisPage() {
                 productName: data.name,
                 totalWasteCount: data.totalQuantity,
                 totalWasteCost: data.totalCost,
-                totalPlannedProduction: totalPlanned,
-                wasteRatio: totalPlanned > 0 ? (data.totalQuantity / totalPlanned) * 100 : 0,
+                totalPlannedProduction: totalPlannedForPeriod,
+                wasteRatio: totalPlannedForPeriod > 0 ? (data.totalQuantity / totalPlannedForPeriod) * 100 : 0,
                 averageDailyWaste: data.totalQuantity / numberOfDays,
             };
         });
@@ -253,7 +255,7 @@ export default function AbcAnalysisPage() {
 
         if (calculatedData.length === 0) return [];
 
-        // ABCランク付けは依然として「廃棄ロス額（原価）」の大きい順に行う
+        // ABCランク付け：廃棄ロス額（原価）の大きい順
         const sortedData = calculatedData.sort((a, b) => b.totalWasteCost - a.totalWasteCost);
         const grandTotalWasteCost = sortedData.reduce((sum, item) => sum + item.totalWasteCost, 0);
 
@@ -294,7 +296,7 @@ export default function AbcAnalysisPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>ABC分析</CardTitle>
-                    <CardDescription>指定した期間の廃棄ロス額（原価）を基準に商品をランク付けし、製造数に対する廃棄率を表示します。</CardDescription>
+                    <CardDescription>指定した期間の廃棄ロス額（原価）を基準に商品をランク付けし、その期間の合計製造数に対する廃棄率を表示します。</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
@@ -315,7 +317,7 @@ export default function AbcAnalysisPage() {
                         </div>
                     </div>
                     <div className="border-t pt-4">
-                        <Label className="text-sm font-medium mb-2 block">曜日・祝日を選択</Label>
+                        <Label className="text-sm font-medium mb-2 block">集計に含める曜日・祝日を選択</Label>
                         <div className="flex flex-wrap items-center gap-4">
                           {filterOptions.map(day => (
                             <div key={day.id} className="flex items-center space-x-2">
@@ -374,7 +376,7 @@ export default function AbcAnalysisPage() {
                         <CardHeader>
                             <CardTitle>分析結果</CardTitle>
                             <CardDescription>
-                                {isAdmin ? '選択された店舗' : 'あなたの店舗'}の廃棄分析結果です。製造数対比は、期間中の製造予定数の合計に対する廃棄数の割合です。
+                                {isAdmin ? '選択された店舗' : 'あなたの店舗'}の廃棄分析結果です。製造数対比は、期間中の累計製造予定数に対する廃棄数の割合です。
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -383,7 +385,7 @@ export default function AbcAnalysisPage() {
                                     <TableRow>
                                         <TableHead className="w-24">ランク</TableHead>
                                         <TableHead>商品名</TableHead>
-                                        <TableHead className="text-right">廃棄ロス(合計)</TableHead>
+                                        <TableHead className="text-right">廃棄ロス(期間合計)</TableHead>
                                         <TableHead className="text-right">製造数対比(廃棄率)</TableHead>
                                         <TableHead className="text-right">廃棄合計(個数)</TableHead>
                                         <TableHead className="text-right">1日平均廃棄数</TableHead>
