@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { Loader2, Sun, CloudRain, Save, Info, Zap } from "lucide-react"
-import type { Product, Store, DailyProduction } from "@/lib/types"
+import type { Product, DailyProduction } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -20,14 +20,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/tabs"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useProducts } from "@/contexts/product-context"
 import { useStores } from "@/contexts/store-context"
 import { useAdmin } from "@/hooks/use-admin"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 const daysOfWeek: (keyof DailyProduction)[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun', 'holiday'];
 const dayLabels: Record<keyof DailyProduction, string> = {
@@ -130,12 +129,12 @@ export default function ProductionPlanningClient() {
   return (
     <div className="flex flex-col gap-4">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <CardTitle>製造計画</CardTitle>
             <CardDescription>曜日・天気別の製造予定数を一括で設定します。</CardDescription>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
             {isAdmin && stores.length > 0 && (
               <Select value={managedStoreId} onValueChange={setManagedStoreId}>
                 <SelectTrigger className="w-[200px]">
@@ -192,11 +191,11 @@ export default function ProductionPlanningClient() {
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-muted/50">
-                        <TableHead className="w-[200px] sticky left-0 bg-muted/50 z-10">商品名</TableHead>
+                        <TableHead className="w-[200px] sticky left-0 bg-muted/50 z-10 border-r">商品名</TableHead>
                         {daysOfWeek.map(day => (
                           <TableHead key={day} className="text-center w-[80px]">{dayLabels[day]}</TableHead>
                         ))}
-                        <TableHead className="text-center w-[100px] bg-accent/10">
+                        <TableHead className="text-center w-[100px] bg-accent/10 border-l">
                           <div className="flex items-center justify-center gap-1">
                             <Zap className="h-3 w-3 text-accent" />
                             <span>一括</span>
@@ -207,7 +206,7 @@ export default function ProductionPlanningClient() {
                     <TableBody>
                       {products.filter(p => p.category === cat).map(product => (
                         <TableRow key={product.id}>
-                          <TableCell className="font-medium sticky left-0 bg-background z-10">{product.name}</TableCell>
+                          <TableCell className="font-medium sticky left-0 bg-background z-10 border-r">{product.name}</TableCell>
                           {daysOfWeek.map(day => (
                             <TableCell key={day} className="p-1">
                               <Input
@@ -219,7 +218,7 @@ export default function ProductionPlanningClient() {
                               />
                             </TableCell>
                           ))}
-                          <TableCell className="p-1 bg-accent/5">
+                          <TableCell className="p-1 bg-accent/5 border-l">
                             <Input
                               type="number"
                               placeholder="全曜日"
@@ -239,9 +238,9 @@ export default function ProductionPlanningClient() {
         </CardContent>
       </Card>
       
-      <div className="flex items-center gap-2 p-4 bg-primary/10 border rounded-lg text-sm text-primary-foreground/90">
-        <Info className="h-4 w-4 text-primary" />
-        <p>「一括」列に数値を入力すると、その行の全曜日の予定数が一括で書き換わります。製造数入力画面で「予定数を適用」ボタンを押すと、この計画に基づいた数値が自動入力されます。</p>
+      <div className="flex items-center gap-2 p-4 bg-primary/10 border rounded-lg text-sm">
+        <Info className="h-4 w-4 text-primary shrink-0" />
+        <p className="text-muted-foreground">「一括」列に数値を入力すると、その商品の月曜〜祝日までの全曜日に同じ数値が反映されます。製造数入力画面で「予定数を適用」ボタンを押すと、この計画に基づいた数値が自動入力されます。</p>
       </div>
     </div>
   );
