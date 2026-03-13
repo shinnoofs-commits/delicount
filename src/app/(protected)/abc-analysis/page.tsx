@@ -131,7 +131,7 @@ export default function AbcAnalysisPage() {
     }, [validDateObjects, isAdmin, numberOfDays, products, wasteEntries, productionEntries, wasteLoading, productsLoading, productionLoading]);
 
     const rankCounts = useMemo(() => {
-        const counts = { A: 0, B: 0, C: 0 };
+        const counts: Record<RankType, number> = { A: 0, B: 0, C: 0 };
         abcAnalysisData.forEach(item => {
             counts[item.rank]++;
         });

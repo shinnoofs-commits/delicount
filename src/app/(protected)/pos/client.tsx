@@ -65,7 +65,6 @@ export default function PosClient() {
       let lat, lon;
 
       // 1. 店舗名から緯度経度を検索 (店舗名 = 地域名)
-      // 「店」や「支店」などの接尾辞を除去して精度を上げる
       const cityName = userStore.name.replace(/(店|支店|営業所)$/, '');
       const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ja&format=json`);
       const geoData = await geoRes.json();
@@ -323,7 +322,7 @@ export default function PosClient() {
                     </div>
                     <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                         <MapPin className="h-3 w-3" />
-                        地域: {userStore.name.replace(/(店|支店|営業所)$/, '')}
+                        地域: {userStore?.name.replace(/(店|支店|営業所)$/, '') || '-'}
                     </div>
                 </div>
             </div>
