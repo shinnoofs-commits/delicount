@@ -21,7 +21,7 @@ import { ja } from "date-fns/locale"
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts"
 import { Calendar as CalendarIcon, Trash2, TrendingDown, Edit, MoreHorizontal, Plus, Minus, Loader2, Sun, Cloud, CloudRain, Snowflake } from 'lucide-react';
 import { useMemo, useState } from "react";
-import type { Category, Product, WasteEntry, WasteItem, WeatherType } from "@/lib/types";
+import type { WasteEntry, WasteItem, WeatherType } from "@/lib/types";
 import { useProducts } from "@/contexts/product-context";
 import { DateRange } from "react-day-picker"
 import { Button } from "@/components/ui/button"
@@ -253,7 +253,7 @@ export default function DashboardPage() {
       dailyTotals.set(entryDate, {
           cost: current.cost + entry.totalWasteCost,
           price: current.price + entryTotalPrice,
-          weather: current.weather || entry.weather // その日の最初の天気を採用
+          weather: current.weather || entry.weather
       });
     });
 
@@ -322,7 +322,7 @@ export default function DashboardPage() {
 
   const handleEditOpen = (entry: WasteEntry) => {
     setEditEntry(entry);
-    setEditItems(JSON.parse(JSON.stringify(entry.items))); // Deep copy
+    setEditItems(JSON.parse(JSON.stringify(entry.items)));
     setEditWeather(entry.weather);
   };
 
@@ -451,8 +451,7 @@ export default function DashboardPage() {
                       borderColor: 'hsl(var(--border))',
                       borderRadius: 'var(--radius)'
                   }}
-                  formatter={(value: number, name: string, props: any) => {
-                      const payload = props.payload;
+                  formatter={(value: number, name: string) => {
                       const label = name === 'totalWaste' ? '廃棄ロス額' : '機会損失額';
                       return [`¥${value.toLocaleString()}`, label];
                   }}
@@ -574,7 +573,6 @@ export default function DashboardPage() {
       <Dialog open={!!editEntry} onOpenChange={(open) => !open && !isSaving && setEditEntry(null)}>
           <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col p-0 overflow-hidden">
               <DialogHeader className="p-6 pb-2">
-                  <DialogTitle>廃棄データの編集</DialogTitle>
                   <DialogTitle>廃棄データの編集</DialogTitle>
                   <DialogDescription>
                       数量や天気を調整してください。数量を0にするとその項目は削除されます。

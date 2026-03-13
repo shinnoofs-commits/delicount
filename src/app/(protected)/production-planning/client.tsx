@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from "react"
@@ -41,7 +40,6 @@ const dayLabels: Record<keyof DailyProduction, string> = {
   holiday: '祝',
 };
 
-// 指定されたカテゴリー順
 const TARGET_CATEGORIES = ['弁当', '丼ぶり', '温惣菜', '揚げ物', '冷惣菜', 'おこわ'];
 
 export default function ProductionPlanningClient() {

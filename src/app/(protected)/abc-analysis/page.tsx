@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useMemo, useState } from "react";
@@ -35,6 +34,16 @@ import { StoreSelector } from "@/components/ui/store-selector";
 
 type RankType = 'A' | 'B' | 'C';
 
+interface AnalysisItem {
+    key: string;
+    productName: string;
+    totalWasteCount: number;
+    totalWasteCost: number;
+    totalActualProduction: number;
+    wasteRatio: number;
+    rank: RankType;
+}
+
 export default function AbcAnalysisPage() {
     const { wasteEntries, loading: wasteLoading } = useTransactions();
     const { products, loading: productsLoading } = useProducts();
@@ -64,7 +73,7 @@ export default function AbcAnalysisPage() {
         return { validDateObjects: objects, numberOfDays: objects.length > 0 ? objects.length : 1 };
     }, [date, selectedFilters]);
 
-    const abcAnalysisData = useMemo(() => {
+    const abcAnalysisData = useMemo((): AnalysisItem[] => {
         if (wasteLoading || productsLoading || productionLoading || validDateObjects.length === 0) return [];
         
         const aggregatedWaste = new Map<string, { name: string, totalQuantity: number, totalCost: number, productCode: string }>();
@@ -113,7 +122,6 @@ export default function AbcAnalysisPage() {
                 totalWasteCost: data.totalCost,
                 totalActualProduction,
                 wasteRatio: totalActualProduction > 0 ? (data.totalQuantity / totalActualProduction) * 100 : 0,
-                averageDailyWaste: data.totalQuantity / numberOfDays,
             };
         });
 
@@ -126,7 +134,7 @@ export default function AbcAnalysisPage() {
             const rank: RankType = cumulativeCostPercentage <= 70 ? 'A' : cumulativeCostPercentage <= 90 ? 'B' : 'C';
             return { ...item, rank };
         });
-    }, [validDateObjects, isAdmin, numberOfDays, products, wasteEntries, productionEntries, wasteLoading, productsLoading, productionLoading]);
+    }, [validDateObjects, isAdmin, products, wasteEntries, productionEntries, wasteLoading, productsLoading, productionLoading]);
 
     const rankCounts = useMemo(() => {
         const counts: Record<RankType, number> = { A: 0, B: 0, C: 0 };
@@ -163,10 +171,10 @@ export default function AbcAnalysisPage() {
             {(wasteLoading || productionLoading) ? <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div> : (
                 <>
                     <div className="grid gap-4 md:grid-cols-3">
-                        {['A', 'B', 'C'].map(r => (
+                        {(['A', 'B', 'C'] as RankType[]).map(r => (
                             <Card key={r}>
                                 <CardHeader className="pb-2"><CardTitle className="text-sm">{r}ランク</CardTitle></CardHeader>
-                                <CardContent><div className="text-2xl font-bold">{rankCounts[r as RankType]}品目</div></CardContent>
+                                <CardContent><div className="text-2xl font-bold">{rankCounts[r]}品目</div></CardContent>
                             </Card>
                         ))}
                     </div>
