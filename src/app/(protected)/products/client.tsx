@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react"
 import { MoreHorizontal, PlusCircle, Upload, Trash2, Download, Loader2, RefreshCw, Edit } from "lucide-react"
 import Papa from "papaparse"
 
-import type { Product, Store, DailyProduction } from "@/lib/types"
+import type { Product } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -53,7 +53,6 @@ import { useProducts } from "@/contexts/product-context"
 import { useToast } from "@/hooks/use-toast"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
-import Link from "next/link"
 import { useStores } from "@/contexts/store-context"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAdmin } from "@/hooks/use-admin"
@@ -215,7 +214,7 @@ export default function ProductsClient() {
   const { isAdmin } = useAdmin();
   const { products: allProducts, addProduct, updateProduct, deleteProducts, importProductsFromCSV, syncAllProducts, bulkUpdateProducts, loading: productsLoading, refetchProducts } = useProducts();
   
-  const [managedStoreId, setManagedStoreId] = useState<string | undefined>(stores[0]?.id);
+  const [managedStoreId, setManagedStoreId] = useState<string | undefined>(undefined);
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)

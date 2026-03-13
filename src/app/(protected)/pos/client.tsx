@@ -191,7 +191,7 @@ export default function PosClient() {
               <div className="space-y-4">
                 {wasteList.map(item => (
                   <div key={item.product.id} className="flex items-center justify-between">
-                    <span className="text-sm font-medium truncate flex-1">{item.name}</span>
+                    <span className="text-sm font-medium truncate flex-1">{item.product.name}</span>
                     <div className="flex items-center gap-2">
                       <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setWasteList(prev => prev.map(i => i.product.id === item.product.id ? { ...i, quantity: Math.max(0, i.quantity - 1) } : i).filter(i => i.quantity > 0))}><Minus className="h-4 w-4" /></Button>
                       <span className="w-6 text-center">{item.quantity}</span>
