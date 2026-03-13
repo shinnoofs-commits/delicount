@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from "react"
-import { Loader2, Sun, CloudRain, Save, Info } from "lucide-react"
+import { Loader2, Sun, CloudRain, Save, Info, Zap } from "lucide-react"
 import type { Product, Store, DailyProduction } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/tabs"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useProducts } from "@/contexts/product-context"
@@ -91,6 +91,24 @@ export default function ProductionPlanningClient() {
       [productId]: {
         ...prev[productId],
         [day]: isNaN(numValue) ? 0 : numValue,
+      }
+    }));
+  };
+
+  const handleBulkChange = (productId: string, value: string) => {
+    const numValue = parseInt(value, 10);
+    const val = isNaN(numValue) ? 0 : numValue;
+    setSchedules(prev => ({
+      ...prev,
+      [productId]: {
+        mon: val,
+        tue: val,
+        wed: val,
+        thu: val,
+        fri: val,
+        sat: val,
+        sun: val,
+        holiday: val,
       }
     }));
   };
@@ -176,8 +194,14 @@ export default function ProductionPlanningClient() {
                       <TableRow className="bg-muted/50">
                         <TableHead className="w-[200px] sticky left-0 bg-muted/50 z-10">商品名</TableHead>
                         {daysOfWeek.map(day => (
-                          <TableHead key={day} className="text-center w-[100px]">{dayLabels[day]}</TableHead>
+                          <TableHead key={day} className="text-center w-[80px]">{dayLabels[day]}</TableHead>
                         ))}
+                        <TableHead className="text-center w-[100px] bg-accent/10">
+                          <div className="flex items-center justify-center gap-1">
+                            <Zap className="h-3 w-3 text-accent" />
+                            <span>一括</span>
+                          </div>
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -185,16 +209,25 @@ export default function ProductionPlanningClient() {
                         <TableRow key={product.id}>
                           <TableCell className="font-medium sticky left-0 bg-background z-10">{product.name}</TableCell>
                           {daysOfWeek.map(day => (
-                            <TableCell key={day} className="p-2">
+                            <TableCell key={day} className="p-1">
                               <Input
                                 type="number"
-                                className="text-center h-8"
+                                className="text-center h-8 px-1"
                                 value={schedules[product.id]?.[day] ?? 0}
                                 onChange={(e) => handleScheduleChange(product.id, day, e.target.value)}
                                 min="0"
                               />
                             </TableCell>
                           ))}
+                          <TableCell className="p-1 bg-accent/5">
+                            <Input
+                              type="number"
+                              placeholder="全曜日"
+                              className="text-center h-8 px-1 border-accent/20 focus-visible:ring-accent"
+                              onChange={(e) => handleBulkChange(product.id, e.target.value)}
+                              min="0"
+                            />
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -208,7 +241,7 @@ export default function ProductionPlanningClient() {
       
       <div className="flex items-center gap-2 p-4 bg-primary/10 border rounded-lg text-sm text-primary-foreground/90">
         <Info className="h-4 w-4 text-primary" />
-        <p>製造数入力画面で「予定数を適用」ボタンを押すと、その日の22時時点の天気（晴れ・雨）に応じた数値が自動入力されます。</p>
+        <p>「一括」列に数値を入力すると、その行の全曜日の予定数が一括で書き換わります。製造数入力画面で「予定数を適用」ボタンを押すと、この計画に基づいた数値が自動入力されます。</p>
       </div>
     </div>
   );

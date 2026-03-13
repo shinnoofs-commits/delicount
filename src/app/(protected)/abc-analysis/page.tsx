@@ -18,28 +18,25 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
+import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Badge } from "@/components/ui/badge";
 import { Calendar as CalendarIcon, Loader2 } from 'lucide-react';
-import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid, getDay, addDays } from "date-fns"
+import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid, getDay, addDays } from "date-fns"
 import { ja } from "date-fns/locale"
 import holiday_jp from '@holiday-jp/holiday_jp';
 import { DateRange } from "react-day-picker"
 import { useTransactions } from "@/contexts/transaction-context";
 import { useProducts } from "@/contexts/product-context";
+import { useProduction } from "@/contexts/production-context";
 import { useAdmin } from "@/hooks/use-admin";
 import { StoreSelector } from "@/components/ui/store-selector";
-import { cn } from "@/lib/utils";
-import type { DailyProduction, WasteEntry } from "@/lib/types";
-
-const dayMap: (keyof DailyProduction)[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 
 export default function AbcAnalysisPage() {
     const { wasteEntries, loading: wasteLoading } = useTransactions();
     const { products, loading: productsLoading } = useProducts();
+    const { productionEntries, loading: productionLoading } = useProduction();
     const { isAdmin } = useAdmin();
 
     const [selectedFilters, setSelectedFilters] = useState<number[]>([0, 1, 2, 3, 4, 5, 6, 7]);
@@ -66,17 +63,19 @@ export default function AbcAnalysisPage() {
     }, [date, selectedFilters]);
 
     const abcAnalysisData = useMemo(() => {
-        if (wasteLoading || productsLoading || validDateObjects.length === 0) return [];
+        if (wasteLoading || productsLoading || productionLoading || validDateObjects.length === 0) return [];
+        
         const aggregatedWaste = new Map<string, { name: string, totalQuantity: number, totalCost: number, productCode: string }>();
+        const aggregatedActualProduction = new Map<string, number>();
+        
         const productsMap = new Map(products.map(p => [isAdmin ? `${p.storeId}-${p.id}` : p.id, p]));
         const validDatesSet = new Set(validDateObjects.map(d => format(d, 'yyyy-MM-dd')));
 
-        const filteredWasteEntries = wasteEntries.filter(entry => {
+        // 廃棄データの集計
+        wasteEntries.filter(entry => {
             const entryDate = new Date(entry.date);
             return isValid(entryDate) && validDatesSet.has(format(startOfDay(entryDate), 'yyyy-MM-dd'));
-        });
-
-        filteredWasteEntries.forEach(entry => {
+        }).forEach(entry => {
             entry.items.forEach(item => {
                 const productKey = isAdmin ? `${entry.storeId}-${item.productId}` : item.productId;
                 const product = productsMap.get(productKey);
@@ -90,39 +89,30 @@ export default function AbcAnalysisPage() {
             });
         });
 
-        // 日付ごとの天気をマップ化（製造予定数算出用）
-        const weatherMap = new Map(filteredWasteEntries.map(e => [format(e.date, 'yyyy-MM-dd'), e.weather]));
+        // 製造実績データの集計（今回の製造数）
+        productionEntries.filter(entry => {
+            const entryDate = new Date(entry.date);
+            return isValid(entryDate) && validDatesSet.has(format(startOfDay(entryDate), 'yyyy-MM-dd'));
+        }).forEach(entry => {
+            entry.items.forEach(item => {
+                const productKey = isAdmin ? `${entry.storeId}-${item.productId}` : item.productId;
+                const product = productsMap.get(productKey);
+                const aggregationKey = isAdmin ? (item.productCode || product?.productCode || item.productId) : item.productId;
+
+                const currentQty = aggregatedActualProduction.get(aggregationKey) || 0;
+                aggregatedActualProduction.set(aggregationKey, currentQty + item.quantity);
+            });
+        });
 
         const calculatedData = Array.from(aggregatedWaste.entries()).map(([key, data]) => {
-            let totalPlannedForPeriod = 0;
-            const sameCodeProducts = products.filter(p => p.productCode === data.productCode);
-            
-            validDateObjects.forEach(d => {
-                const dateKey = format(d, 'yyyy-MM-dd');
-                const weatherAtDate = weatherMap.get(dateKey) || 'sunny';
-                const isHoliday = holiday_jp.isHoliday(d);
-                const dayKey = dayMap[getDay(d)];
-                const productionPatternKey = weatherAtDate === 'rainy' ? 'dailyProductionRainy' : 'dailyProductionSunny';
-
-                if (isAdmin) {
-                    sameCodeProducts.forEach(p => {
-                        const daily = p[productionPatternKey];
-                        if (daily) totalPlannedForPeriod += (isHoliday && daily.holiday !== undefined) ? daily.holiday : (daily[dayKey] || 0);
-                    });
-                } else {
-                    const product = products.find(p => p.id === key);
-                    const daily = product?.[productionPatternKey];
-                    if (daily) totalPlannedForPeriod += (isHoliday && daily.holiday !== undefined) ? daily.holiday : (daily[dayKey] || 0);
-                }
-            });
-
+            const totalActualProduction = aggregatedActualProduction.get(key) || 0;
             return {
                 key,
                 productName: data.name,
                 totalWasteCount: data.totalQuantity,
                 totalWasteCost: data.totalCost,
-                totalPlannedProduction: totalPlannedForPeriod,
-                wasteRatio: totalPlannedForPeriod > 0 ? (data.totalQuantity / totalPlannedForPeriod) * 100 : 0,
+                totalActualProduction,
+                wasteRatio: totalActualProduction > 0 ? (data.totalQuantity / totalActualProduction) * 100 : 0,
                 averageDailyWaste: data.totalQuantity / numberOfDays,
             };
         });
@@ -130,12 +120,13 @@ export default function AbcAnalysisPage() {
         const sortedData = calculatedData.sort((a, b) => b.totalWasteCost - a.totalWasteCost);
         const grandTotalWasteCost = sortedData.reduce((sum, item) => sum + item.totalWasteCost, 0);
         let cumulativeCostPercentage = 0;
+        
         return sortedData.map(item => {
             cumulativeCostPercentage += grandTotalWasteCost > 0 ? (item.totalWasteCost / grandTotalWasteCost) * 100 : 0;
             const rank = cumulativeCostPercentage <= 70 ? 'A' : cumulativeCostPercentage <= 90 ? 'B' : 'C';
             return { ...item, rank };
         });
-    }, [validDateObjects, isAdmin, numberOfDays, products, wasteEntries, wasteLoading, productsLoading]);
+    }, [validDateObjects, isAdmin, numberOfDays, products, wasteEntries, productionEntries, wasteLoading, productsLoading, productionLoading]);
 
     const rankCounts = useMemo(() => {
         return abcAnalysisData.reduce((acc, item) => { acc[item.rank]++; return acc; }, { A: 0, B: 0, C: 0 });
@@ -146,7 +137,7 @@ export default function AbcAnalysisPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>ABC分析</CardTitle>
-                    <CardDescription>廃棄額（原価）基準のランク付けと、製造予定数に対する廃棄率を表示します。</CardDescription>
+                    <CardDescription>廃棄額基準のランク付けと、実際の製造数実績に対する廃棄率を表示します。</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid md:grid-cols-2 gap-4">
@@ -165,7 +156,7 @@ export default function AbcAnalysisPage() {
                 </CardContent>
             </Card>
 
-            {wasteLoading ? <Loader2 className="h-8 w-8 animate-spin mx-auto" /> : (
+            {(wasteLoading || productionLoading) ? <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div> : (
                 <>
                     <div className="grid gap-4 md:grid-cols-3">
                         {['A', 'B', 'C'].map(r => (
@@ -180,20 +171,25 @@ export default function AbcAnalysisPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>ランク</TableHead><TableHead>商品名</TableHead>
-                                        <TableHead className="text-right">廃棄ロス</TableHead>
+                                        <TableHead>ランク</TableHead>
+                                        <TableHead>商品名</TableHead>
+                                        <TableHead className="text-right">廃棄合計(個数)</TableHead>
+                                        <TableHead className="text-right">廃棄ロス額</TableHead>
+                                        <TableHead className="text-right">期間中製造実績</TableHead>
                                         <TableHead className="text-right">製造数対比(廃棄率)</TableHead>
-                                        <TableHead className="text-right">1日平均廃棄</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {abcAnalysisData.map((item) => (
                                         <TableRow key={item.key}>
                                             <TableCell><Badge variant={item.rank === 'A' ? 'destructive' : item.rank === 'B' ? 'secondary' : 'outline'}>{item.rank}</Badge></TableCell>
-                                            <TableCell>{item.productName}</TableCell>
+                                            <TableCell className="font-medium">{item.productName}</TableCell>
+                                            <TableCell className="text-right font-semibold">{item.totalWasteCount.toLocaleString()} 個</TableCell>
                                             <TableCell className="text-right">¥{item.totalWasteCost.toLocaleString()}</TableCell>
-                                            <TableCell className="text-right font-bold text-primary">{item.totalPlannedProduction > 0 ? `${item.wasteRatio.toFixed(1)}%` : '-'}</TableCell>
-                                            <TableCell className="text-right">{item.averageDailyWaste.toFixed(2)}</TableCell>
+                                            <TableCell className="text-right text-muted-foreground">{item.totalActualProduction.toLocaleString()} 個</TableCell>
+                                            <TableCell className="text-right font-bold text-primary">
+                                                {item.totalActualProduction > 0 ? `${item.wasteRatio.toFixed(1)}%` : '実績なし'}
+                                            </TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
