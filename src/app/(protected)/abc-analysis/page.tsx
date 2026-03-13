@@ -39,7 +39,7 @@ import { useProducts } from "@/contexts/product-context";
 import { useAdmin } from "@/hooks/use-admin";
 import { StoreSelector } from "@/components/ui/store-selector";
 import { cn } from "@/lib/utils";
-import type { WasteEntry } from "@/lib/types";
+import type { DailyProduction } from "@/lib/types";
 
 const DateRangePicker = ({ date, setDate }: { date: DateRange | undefined, setDate: (date: DateRange | undefined) => void }) => {
   return (
@@ -94,6 +94,7 @@ const filterOptions = [
   { id: 7, label: '祝' }
 ];
 
+const dayMap: (keyof DailyProduction)[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 
 type AbcAnalysisData = {
     key: string; 
@@ -101,8 +102,9 @@ type AbcAnalysisData = {
     productName: string;
     totalWasteCount: number;
     totalWasteCost: number;
+    totalPlannedProduction: number;
+    wasteRatio: number;
     averageDailyWaste: number;
-    cumulativePercentage: number;
 };
 
 
@@ -134,14 +136,14 @@ export default function AbcAnalysisPage() {
         }
     }
     
-    const { filteredWasteEntries, numberOfDays } = useMemo(() => {
-        if (!date || !date.from) return { filteredWasteEntries: [], numberOfDays: 1 };
+    // 対象となる日付のリストと日数を計算
+    const { validDateObjects, numberOfDays } = useMemo(() => {
+        if (!date || !date.from) return { validDateObjects: [], numberOfDays: 1 };
         
         const fromDate = startOfDay(date.from);
         const toDate = date.to ? endOfDay(date.to) : endOfDay(date.from);
 
-        let dayCount = 0;
-        const validDates = new Set<string>();
+        const objects: Date[] = [];
         let currentDate = fromDate;
 
         while (currentDate <= toDate) {
@@ -153,34 +155,34 @@ export default function AbcAnalysisPage() {
             const dayIsValid = (isHoliday && isHolidaySelected) || (!isHoliday && isDaySelected);
 
             if (dayIsValid) {
-                dayCount++;
-                validDates.add(format(currentDate, 'yyyy-MM-dd'));
+                objects.push(new Date(currentDate));
             }
             currentDate = addDays(currentDate, 1);
         }
         
-        const entries = wasteEntries.filter(entry => {
-            const entryDate = new Date(entry.date);
-            if (!isValid(entryDate)) return false;
-
-            const formattedEntryDate = format(startOfDay(entryDate), 'yyyy-MM-dd');
-            return validDates.has(formattedEntryDate);
-        });
-
         return { 
-            filteredWasteEntries: entries, 
-            numberOfDays: dayCount > 0 ? dayCount : 1 
+            validDateObjects: objects, 
+            numberOfDays: objects.length > 0 ? objects.length : 1 
         };
-    }, [date, wasteEntries, selectedFilters]);
+    }, [date, selectedFilters]);
 
 
     const abcAnalysisData: AbcAnalysisData[] = useMemo(() => {
-        if (wasteLoading || productsLoading || filteredWasteEntries.length === 0) return [];
+        if (wasteLoading || productsLoading || validDateObjects.length === 0) return [];
 
-        const aggregatedWaste = new Map<string, { name: string, totalQuantity: number, totalCost: number }>();
+        const aggregatedWaste = new Map<string, { name: string, totalQuantity: number, totalCost: number, productCode: string }>();
         
         // 商品情報をマッピング（isAdminの場合は店ID+商品ID、店舗の場合は商品ID）
         const productsMap = new Map(products.map(p => [isAdmin ? `${p.storeId}-${p.id}` : p.id, p]));
+        
+        // フィルタリングされた日付セットを作成
+        const validDatesSet = new Set(validDateObjects.map(d => format(d, 'yyyy-MM-dd')));
+
+        const filteredWasteEntries = wasteEntries.filter(entry => {
+            const entryDate = new Date(entry.date);
+            if (!isValid(entryDate)) return false;
+            return validDatesSet.has(format(startOfDay(entryDate), 'yyyy-MM-dd'));
+        });
 
         filteredWasteEntries.forEach(entry => {
             entry.items.forEach(item => {
@@ -196,7 +198,8 @@ export default function AbcAnalysisPage() {
                 const current = aggregatedWaste.get(aggregationKey) || { 
                     name: product?.name || item.name, 
                     totalQuantity: 0,
-                    totalCost: 0
+                    totalCost: 0,
+                    productCode: item.productCode || product?.productCode || ''
                 };
                 current.totalQuantity += item.quantity;
                 current.totalCost += item.quantity * currentCostPrice;
@@ -204,30 +207,66 @@ export default function AbcAnalysisPage() {
             });
         });
 
-        const calculatedData = Array.from(aggregatedWaste.entries()).map(([key, data]) => ({
-            key: key,
-            productName: data.name,
-            totalWasteCount: data.totalQuantity,
-            totalWasteCost: data.totalCost,
-            averageDailyWaste: data.totalQuantity / numberOfDays,
-        }));
+        // 商品マスタから各商品の予定製造数を計算
+        const calculatedData = Array.from(aggregatedWaste.entries()).map(([key, data]) => {
+            // 予定製造数の集計
+            let totalPlanned = 0;
+            
+            // 管理者の場合は、全店舗（選択中）の同コード商品の予定数を合算
+            if (isAdmin) {
+                const sameCodeProducts = products.filter(p => p.productCode === data.productCode);
+                validDateObjects.forEach(d => {
+                    const isHoliday = holiday_jp.isHoliday(d);
+                    const dayKey = dayMap[getDay(d)];
+                    
+                    sameCodeProducts.forEach(p => {
+                        const daily = p.dailyProduction;
+                        if (daily) {
+                            totalPlanned += (isHoliday && daily.holiday !== undefined) ? daily.holiday : (daily[dayKey] || 0);
+                        }
+                    });
+                });
+            } else {
+                // 店舗の場合は、自店舗の該当商品の予定数を合算
+                const product = products.find(p => p.id === key);
+                if (product?.dailyProduction) {
+                    const daily = product.dailyProduction;
+                    validDateObjects.forEach(d => {
+                        const isHoliday = holiday_jp.isHoliday(d);
+                        const dayKey = dayMap[getDay(d)];
+                        totalPlanned += (isHoliday && daily.holiday !== undefined) ? daily.holiday : (daily[dayKey] || 0);
+                    });
+                }
+            }
+
+            return {
+                key: key,
+                productName: data.name,
+                totalWasteCount: data.totalQuantity,
+                totalWasteCost: data.totalCost,
+                totalPlannedProduction: totalPlanned,
+                wasteRatio: totalPlanned > 0 ? (data.totalQuantity / totalPlanned) * 100 : 0,
+                averageDailyWaste: data.totalQuantity / numberOfDays,
+            };
+        });
 
 
         if (calculatedData.length === 0) return [];
 
+        // ABCランク付けは依然として「廃棄ロス額（原価）」の大きい順に行う
         const sortedData = calculatedData.sort((a, b) => b.totalWasteCost - a.totalWasteCost);
         const grandTotalWasteCost = sortedData.reduce((sum, item) => sum + item.totalWasteCost, 0);
 
-        if (grandTotalWasteCost === 0) return sortedData.map(item => ({ ...item, rank: 'C', cumulativePercentage: 100 }));
+        if (grandTotalWasteCost === 0) return sortedData.map(item => ({ ...item, rank: 'C' as const }));
 
-        let cumulativePercentage = 0;
+        let cumulativeCostPercentage = 0;
         return sortedData.map(item => {
             const percentage = (item.totalWasteCost / grandTotalWasteCost) * 100;
-            cumulativePercentage += percentage;
+            cumulativeCostPercentage += percentage;
             let rank: 'A' | 'B' | 'C';
-            if (cumulativePercentage <= 70) {
+            if (cumulativeCostPercentage <= 70) {
                 rank = 'A';
-            } else if (cumulativePercentage <= 90) {
+            } else if (cumulativeCostPercentage <= 90) {
                 rank = 'B';
             } else {
                 rank = 'C';
@@ -236,11 +275,10 @@ export default function AbcAnalysisPage() {
             return {
                 ...item,
                 rank,
-                cumulativePercentage,
             };
         });
 
-    }, [filteredWasteEntries, isAdmin, numberOfDays, products, wasteLoading, productsLoading]);
+    }, [validDateObjects, isAdmin, numberOfDays, products, wasteEntries, wasteLoading, productsLoading]);
 
     const rankCounts = useMemo(() => {
         return abcAnalysisData.reduce((acc, item) => {
@@ -256,7 +294,7 @@ export default function AbcAnalysisPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>ABC分析</CardTitle>
-                    <CardDescription>指定した期間の廃棄ロス額（原価）を基準に商品をランク付けします。改善の優先順位付けに活用ください。</CardDescription>
+                    <CardDescription>指定した期間の廃棄ロス額（原価）を基準に商品をランク付けし、製造数に対する廃棄率を表示します。</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
@@ -336,7 +374,7 @@ export default function AbcAnalysisPage() {
                         <CardHeader>
                             <CardTitle>分析結果</CardTitle>
                             <CardDescription>
-                                {isAdmin ? '選択された店舗' : 'あなたの店舗'}の廃棄分析結果です。
+                                {isAdmin ? '選択された店舗' : 'あなたの店舗'}の廃棄分析結果です。製造数対比は、期間中の製造予定数の合計に対する廃棄数の割合です。
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -346,7 +384,7 @@ export default function AbcAnalysisPage() {
                                         <TableHead className="w-24">ランク</TableHead>
                                         <TableHead>商品名</TableHead>
                                         <TableHead className="text-right">廃棄ロス(合計)</TableHead>
-                                        <TableHead className="text-right">累計構成比</TableHead>
+                                        <TableHead className="text-right">製造数対比(廃棄率)</TableHead>
                                         <TableHead className="text-right">廃棄合計(個数)</TableHead>
                                         <TableHead className="text-right">1日平均廃棄数</TableHead>
                                     </TableRow>
@@ -364,7 +402,9 @@ export default function AbcAnalysisPage() {
                                                 <TableCell><Badge variant={item.rank === 'A' ? 'destructive' : item.rank === 'B' ? 'secondary' : 'outline'} className={cn(item.rank === 'B' && 'bg-yellow-500 text-white')}>{item.rank}</Badge></TableCell>
                                                 <TableCell className="font-medium">{item.productName}</TableCell>
                                                 <TableCell className="text-right">¥{item.totalWasteCost.toLocaleString()}</TableCell>
-                                                <TableCell className="text-right">{item.cumulativePercentage.toFixed(1)}%</TableCell>
+                                                <TableCell className="text-right font-semibold text-primary">
+                                                    {item.totalPlannedProduction > 0 ? `${item.wasteRatio.toFixed(1)}%` : '-'}
+                                                </TableCell>
                                                 <TableCell className="text-right">{item.totalWasteCount.toLocaleString()} 個</TableCell>
                                                 <TableCell className="text-right">{item.averageDailyWaste.toFixed(2)} 個</TableCell>
                                             </TableRow>
