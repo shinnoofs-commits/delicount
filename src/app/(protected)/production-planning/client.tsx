@@ -66,7 +66,6 @@ export default function ProductionPlanningClient() {
     return allProducts.filter(p => p.storeId === managedStoreId);
   }, [allProducts, managedStoreId]);
 
-  // 指定カテゴリーに存在するカテゴリーのみを抽出（順序を維持）
   const categories = useMemo(() => {
     const existingCats = new Set(products.map(p => p.category));
     return TARGET_CATEGORIES.filter(cat => existingCats.has(cat));
@@ -83,9 +82,8 @@ export default function ProductionPlanningClient() {
   useEffect(() => {
     const initialSchedules: Record<string, Partial<DailyProduction>> = {};
     products.forEach(product => {
-      initialSchedules[product.id] = weatherPattern === 'sunny' 
-        ? (product.dailyProductionSunny || { sun: 0, mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, holiday: 0 })
-        : (product.dailyProductionRainy || { sun: 0, mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, holiday: 0 });
+      const patternData = weatherPattern === 'sunny' ? product.dailyProductionSunny : product.dailyProductionRainy;
+      initialSchedules[product.id] = patternData || { sun: 0, mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, holiday: 0 };
     });
     setSchedules(initialSchedules);
   }, [products, weatherPattern]);
