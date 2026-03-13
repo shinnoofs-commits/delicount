@@ -73,7 +73,6 @@ export default function AbcAnalysisPage() {
         const productsMap = new Map(products.map(p => [isAdmin ? `${p.storeId}-${p.id}` : p.id, p]));
         const validDatesSet = new Set(validDateObjects.map(d => format(d, 'yyyy-MM-dd')));
 
-        // 廃棄データの集計
         wasteEntries.filter(entry => {
             const entryDate = new Date(entry.date);
             return isValid(entryDate) && validDatesSet.has(format(startOfDay(entryDate), 'yyyy-MM-dd'));
@@ -91,7 +90,6 @@ export default function AbcAnalysisPage() {
             });
         });
 
-        // 製造実績データの集計（今回の製造数）
         productionEntries.filter(entry => {
             const entryDate = new Date(entry.date);
             return isValid(entryDate) && validDatesSet.has(format(startOfDay(entryDate), 'yyyy-MM-dd'));

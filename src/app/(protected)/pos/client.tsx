@@ -47,7 +47,6 @@ export default function PosClient() {
 
   const categories = useMemo(() => ['すべて', ...Array.from(new Set(allProducts.map(p => p.category)))], [allProducts]);
 
-  // 気象コードからWeatherTypeへの変換
   const interpretWeatherCode = (code: number): WeatherType => {
     if (code === 0) return 'sunny';
     if ([1, 2, 3, 45, 48].includes(code)) return 'cloudy';
@@ -56,15 +55,12 @@ export default function PosClient() {
     return 'sunny';
   };
 
-  // 22時の天気を取得する関数
   const fetch2200Weather = useCallback(async (targetDate: Date) => {
     if (!userStore) return;
 
     setIsFetchingWeather(true);
     try {
       let lat, lon;
-
-      // 1. 店舗名から緯度経度を検索 (店舗名 = 地域名)
       const cityName = userStore.name.replace(/(店|支店|営業所)$/, '');
       const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ja&format=json`);
       const geoData = await geoRes.json();
@@ -73,7 +69,6 @@ export default function PosClient() {
         lat = geoData.results[0].latitude;
         lon = geoData.results[0].longitude;
       } else {
-        // 店舗名で見つからない場合は現在地を試みる
         const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
           navigator.geolocation.getCurrentPosition(resolve, reject);
         });
@@ -81,7 +76,6 @@ export default function PosClient() {
         lon = pos.coords.longitude;
       }
 
-      // 2. 指定日の22時の天気を取得
       const dateStr = format(targetDate, 'yyyy-MM-dd');
       const weatherRes = await fetch(
         `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=weather_code&start_date=${dateStr}&end_date=${dateStr}&timezone=Asia%2FTokyo`
@@ -89,18 +83,16 @@ export default function PosClient() {
       const weatherData = await weatherRes.json();
 
       if (weatherData.hourly && weatherData.hourly.weather_code) {
-        // インデックス22が22:00のデータ
         const codeAt22 = weatherData.hourly.weather_code[22];
         setWeather(interpretWeatherCode(codeAt22));
       }
     } catch (error) {
-      console.warn('Weather fetch failed, falling back to manual selection.', error);
+      console.warn('Weather fetch failed', error);
     } finally {
       setIsFetchingWeather(false);
     }
   }, [userStore]);
 
-  // 初期読み込み時、または日付変更時に22時の天気を自動取得
   useEffect(() => {
     if (userStore) {
       fetch2200Weather(date);
@@ -149,20 +141,12 @@ export default function PosClient() {
 
   const handleRecordWaste = async () => {
     if (wasteList.length === 0) {
-      toast({
-        variant: "destructive",
-        title: "リストが空です",
-        description: "廃棄する商品を追加してください。",
-      });
+      toast({ variant: "destructive", title: "リストが空です", description: "廃棄する商品を追加してください。" });
       return;
     }
     
     if (!userStore) {
-        toast({
-            variant: "destructive",
-            title: "店舗が設定されていません",
-            description: "このアカウントには店舗が紐付いていません。管理者に連絡してください。",
-        });
+        toast({ variant: "destructive", title: "店舗が設定されていません", description: "管理者に連絡してください。" });
         return;
     }
 
@@ -190,48 +174,30 @@ export default function PosClient() {
     return (
         <div className="flex items-center justify-center h-full">
             <Card className="w-full max-w-md text-center">
-                <CardHeader>
-                    <CardTitle>管理者アカウント</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-muted-foreground">廃棄入力は店舗アカウントで行ってください。</p>
-                </CardContent>
+                <CardHeader><CardTitle>管理者アカウント</CardTitle></CardHeader>
+                <CardContent><p className="text-muted-foreground">廃棄入力は店舗アカウントで行ってください。</p></CardContent>
             </Card>
         </div>
     )
   }
 
-  if (isLoading) {
-    return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
-  }
+  if (isLoading) return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   
-  if (!isLoading && !userStore) {
-    return (
-        <div className="flex items-center justify-center h-full">
-            <Card className="w-full max-w-md text-center">
-                <CardHeader>
-                    <CardTitle>店舗が紐付いていません</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-muted-foreground">このアカウントには店舗が紐付いていません。管理者に連絡して店舗を割り当ててもらってください。</p>
-                </CardContent>
-            </Card>
-        </div>
-    )
-  }
+  if (!userStore) return (
+      <div className="flex items-center justify-center h-full">
+          <Card className="w-full max-w-md text-center">
+              <CardHeader><CardTitle>店舗が紐付いていません</CardTitle></CardHeader>
+          </Card>
+      </div>
+  );
 
   return (
     <div className="grid flex-1 grid-cols-1 gap-4 items-start lg:grid-cols-3">
-      {/* Product Selection */}
       <div className="lg:col-span-2 flex flex-col gap-4">
         <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
           <TabsList className="flex flex-wrap h-auto gap-1 bg-transparent p-0 justify-start">
               {categories.map(category => (
-                  <TabsTrigger 
-                    key={category} 
-                    value={category}
-                    className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border"
-                  >
+                  <TabsTrigger key={category} value={category} className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border">
                     {category}
                   </TabsTrigger>
               ))}
@@ -241,16 +207,10 @@ export default function PosClient() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 pt-4">
                     {(category === 'すべて' ? allProducts : allProducts.filter(p => p.category === category))
                     .map(product => (
-                        <Card 
-                            key={product.id} 
-                            onClick={() => addToWasteList(product)} 
-                            className="cursor-pointer hover:shadow-lg hover:border-destructive transition-all flex flex-col min-h-24"
-                        >
-                        <CardContent className="p-4 flex-1 flex flex-col justify-center">
-                            <div className="text-center">
-                                <p className="font-semibold text-sm break-words">{product.name}</p>
-                                <p className="text-xs text-muted-foreground">原価: ¥{product.costPrice.toLocaleString()}</p>
-                            </div>
+                        <Card key={product.id} onClick={() => addToWasteList(product)} className="cursor-pointer hover:shadow-lg hover:border-destructive transition-all flex flex-col min-h-24">
+                        <CardContent className="p-4 flex-1 flex flex-col justify-center text-center">
+                            <p className="font-semibold text-sm break-words">{product.name}</p>
+                            <p className="text-xs text-muted-foreground">原価: ¥{product.costPrice.toLocaleString()}</p>
                         </CardContent>
                         </Card>
                     ))}
@@ -260,7 +220,6 @@ export default function PosClient() {
         </Tabs>
       </div>
 
-      {/* Waste List Section */}
       <div className="lg:col-span-1 sticky top-6">
         <Card className="flex flex-col h-auto">
           <CardHeader>
@@ -268,7 +227,6 @@ export default function PosClient() {
               廃棄商品リスト
               <Button variant="ghost" size="icon" onClick={clearWasteList} disabled={wasteList.length === 0}>
                   <X className="h-4 w-4" />
-                  <span className="sr-only">リストをクリア</span>
               </Button>
             </CardTitle>
             <div className="space-y-4 pt-2">
@@ -276,45 +234,27 @@ export default function PosClient() {
                     <Label className="font-medium whitespace-nowrap">廃棄日:</Label>
                     <Popover>
                         <PopoverTrigger asChild>
-                            <Button
-                                variant={"outline"}
-                                className={cn(
-                                    "w-full justify-start text-left font-normal",
-                                    !date && "text-muted-foreground"
-                                )}
-                            >
+                            <Button variant="outline" className="w-full justify-start text-left font-normal">
                                 <CalendarIcon className="mr-2 h-4 w-4" />
                                 {date ? format(date, "PPP", { locale: ja }) : <span>日付を選択</span>}
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
-                            <Calendar
-                                mode="single"
-                                selected={date}
-                                onSelect={(d) => { if(d) setDate(d) }}
-                                initialFocus
-                                locale={ja}
-                                disabled={(d) => d > new Date() || d < new Date("2000-01-01")}
-                            />
+                            <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} initialFocus locale={ja} disabled={(d) => d > new Date()} />
                         </PopoverContent>
                     </Popover>
                 </div>
                 <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                        <Label className="font-medium text-sm">22時の天気 (自動取得):</Label>
+                        <Label className="font-medium text-sm">22時の天気:</Label>
                         <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={() => fetch2200Weather(date)} disabled={isFetchingWeather}>
                             {isFetchingWeather ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
-                            再取得
+                            取得
                         </Button>
                     </div>
                     <div className="grid grid-cols-4 gap-2">
                         {weatherOptions.map((option) => (
-                            <Button
-                                key={option.value}
-                                variant={weather === option.value ? "default" : "outline"}
-                                className="flex flex-col h-14 gap-1 p-1"
-                                onClick={() => setWeather(option.value)}
-                            >
+                            <Button key={option.value} variant={weather === option.value ? "default" : "outline"} className="flex flex-col h-14 gap-1 p-1" onClick={() => setWeather(option.value)}>
                                 <option.icon className="h-4 w-4" />
                                 <span className="text-[10px]">{option.label}</span>
                             </Button>
@@ -322,60 +262,39 @@ export default function PosClient() {
                     </div>
                     <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                         <MapPin className="h-3 w-3" />
-                        地域: {userStore?.name.replace(/(店|支店|営業所)$/, '') || '-'}
+                        地域: {userStore?.name?.replace(/(店|支店|営業所)$/, '') || '-'}
                     </div>
                 </div>
             </div>
           </CardHeader>
-          <div className="flex-grow">
-            <div className="p-6">
-              {wasteList.length === 0 ? (
-                <div className="text-center text-muted-foreground py-10">
-                  <p>廃棄リストは空です。</p>
-                  <p className="text-sm">商品をクリックして追加してください。</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {wasteList.map(item => (
-                    <div key={item.product.id} className="space-y-2">
-                       <div className="flex items-start justify-between gap-2">
-                        <span className="font-medium text-sm flex-grow min-w-0 break-words pr-2">{item.product.name}</span>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                            <span className="font-medium text-sm w-20 text-right text-destructive">¥{(item.product.price * item.quantity).toLocaleString()}</span>
-                            <span className="font-medium text-sm w-20 text-right">¥{(item.product.costPrice * item.quantity).toLocaleString()}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                         <span className="w-12 text-center text-lg">x{item.quantity}</span>
-                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateQuantity(item.product.id, item.quantity - 1)}>
-                          <Minus className="h-4 w-4" />
-                        </Button>
-                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateQuantity(item.product.id, item.quantity + 1)}>
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                         <div className="flex-1 text-right text-xs text-muted-foreground">
-                            <span>売: ¥{item.product.price.toLocaleString()}</span> / <span>原: ¥{item.product.costPrice.toLocaleString()}</span>
-                        </div>
-                      </div>
+          <div className="p-6">
+            {wasteList.length === 0 ? (
+              <div className="text-center text-muted-foreground py-10"><p>リストは空です</p></div>
+            ) : (
+              <div className="space-y-4">
+                {wasteList.map(item => (
+                  <div key={item.product.id} className="space-y-2">
+                     <div className="flex items-start justify-between gap-2">
+                      <span className="font-medium text-sm flex-grow min-w-0 break-words pr-2">{item.product.name}</span>
+                      <span className="font-medium text-sm w-20 text-right">¥{(item.product.costPrice * item.quantity).toLocaleString()}</span>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                    <div className="flex items-center gap-2">
+                       <span className="w-12 text-center text-lg">x{item.quantity}</span>
+                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateQuantity(item.product.id, item.quantity - 1)}><Minus className="h-4 w-4" /></Button>
+                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateQuantity(item.product.id, item.quantity + 1)}><Plus className="h-4 w-4" /></Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <CardFooter className="flex flex-col gap-4 mt-auto !p-6 bg-muted/50">
             <div className="w-full space-y-2 text-sm">
               <Separator />
-               <div className="flex justify-between">
-                  <span>機会損失額 (売価)</span>
-                  <span className="text-destructive">¥{totalWastePrice.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between font-bold text-lg">
-                  <span>廃棄合計額 (原価)</span>
-                  <span>¥{totalWasteCost.toLocaleString()}</span>
-              </div>
+               <div className="flex justify-between"><span>売価合計</span><span className="text-destructive">¥{totalWastePrice.toLocaleString()}</span></div>
+              <div className="flex justify-between font-bold text-lg"><span>廃棄合計(原価)</span><span>¥{totalWasteCost.toLocaleString()}</span></div>
             </div>
-            <Button className="w-full bg-destructive hover:bg-destructive/90 text-destructive-foreground" size="lg" disabled={wasteList.length === 0 || wasteLoading} onClick={handleRecordWaste}>
+            <Button className="w-full bg-destructive" size="lg" disabled={wasteList.length === 0 || wasteLoading} onClick={handleRecordWaste}>
                {wasteLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <Trash2 className="mr-2 h-5 w-5"/>}
                廃棄を記録
             </Button>
