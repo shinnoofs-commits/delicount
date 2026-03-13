@@ -1,10 +1,10 @@
+
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
-import { Loader2, CalendarIcon, Factory, Info } from 'lucide-react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { Loader2, CalendarIcon, Factory, Info, Sun, CloudRain, RefreshCw, MapPin } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useProducts } from '@/contexts/product-context';
@@ -16,7 +16,7 @@ import { format, getDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useProduction } from '@/contexts/production-context';
-import type { ProductionEntry, DailyProduction, Product } from '@/lib/types';
+import type { ProductionEntry, DailyProduction, Product, WeatherType } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -33,9 +33,53 @@ export default function ProductionClient() {
   const [selectedCategory, setSelectedCategory] = useState('すべて');
   const [quantities, setQuantities] = useState<Record<string, string>>({});
   const [date, setDate] = useState<Date>(new Date());
+  const [weather, setWeather] = useState<WeatherType>('sunny');
+  const [isFetchingWeather, setIsFetchingWeather] = useState(false);
   const { toast } = useToast();
 
   const categories = useMemo(() => ['すべて', ...Array.from(new Set(allProducts.map(p => p.category)))], [allProducts]);
+
+  const interpretWeatherCode = (code: number): WeatherType => {
+    if (code === 0) return 'sunny';
+    if ([1, 2, 3, 45, 48].includes(code)) return 'cloudy';
+    if ([51, 53, 55, 61, 63, 65, 80, 81, 82, 95, 96, 99].includes(code)) return 'rainy';
+    if ([71, 73, 75, 77, 85, 86].includes(code)) return 'snowy';
+    return 'sunny';
+  };
+
+  const fetch2200Weather = useCallback(async (targetDate: Date) => {
+    if (!userStore) return;
+    setIsFetchingWeather(true);
+    try {
+      const cityName = userStore.name.replace(/(店|支店|営業所)$/, '');
+      const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ja&format=json`);
+      const geoData = await geoRes.json();
+      let lat, lon;
+      if (geoData.results && geoData.results.length > 0) {
+        lat = geoData.results[0].latitude;
+        lon = geoData.results[0].longitude;
+      } else {
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject));
+        lat = pos.coords.latitude;
+        lon = pos.coords.longitude;
+      }
+      const dateStr = format(targetDate, 'yyyy-MM-dd');
+      const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=weather_code&start_date=${dateStr}&end_date=${dateStr}&timezone=Asia%2FTokyo`);
+      const weatherData = await weatherRes.json();
+      if (weatherData.hourly && weatherData.hourly.weather_code) {
+        const codeAt22 = weatherData.hourly.weather_code[22];
+        setWeather(interpretWeatherCode(codeAt22));
+      }
+    } catch (error) {
+      console.warn('Weather fetch failed', error);
+    } finally {
+      setIsFetchingWeather(false);
+    }
+  }, [userStore]);
+
+  useEffect(() => {
+    if (userStore) fetch2200Weather(date);
+  }, [fetch2200Weather, date, userStore]);
 
   const handleQuantityChange = (productId: string, value: string) => {
     setQuantities(prev => ({ ...prev, [productId]: value }));
@@ -49,9 +93,14 @@ export default function ProductionClient() {
 
     const productsToApply = selectedCategory === 'すべて' ? allProducts : allProducts.filter(p => p.category === selectedCategory);
     
+    // 天気に基づいて予定数パターンを選択
+    const patternKey = (weather === 'rainy') ? 'dailyProductionRainy' : 'dailyProductionSunny';
+    const weatherLabel = (weather === 'rainy') ? '雨の日' : '晴れの日';
+
     productsToApply.forEach(product => {
-      const holidayQuantity = product.dailyProduction?.holiday;
-      const dayQuantity = product.dailyProduction?.[dayKey];
+      const dailyProduction = product[patternKey];
+      const holidayQuantity = dailyProduction?.holiday;
+      const dayQuantity = dailyProduction?.[dayKey];
 
       const scheduledQuantity = (isHoliday && holidayQuantity !== undefined)
         ? holidayQuantity
@@ -65,8 +114,8 @@ export default function ProductionClient() {
 
     setQuantities(prev => ({ ...prev, ...newQuantities }));
     toast({
-        title: "製造予定数を適用しました",
-        description: `${appliedCount}件の商品に${format(date, 'PPPP', { locale: ja })}の予定数を反映しました。`
+        title: `${weatherLabel}の予定数を適用しました`,
+        description: `${appliedCount}件の商品に適用しました。`
     })
   };
 
@@ -90,22 +139,11 @@ export default function ProductionClient() {
       .filter((item): item is NonNullable<typeof item> => item !== null);
 
     if (itemsToRecord.length === 0) {
-      toast({
-        variant: "destructive",
-        title: "製造数が入力されていません",
-        description: "製造した商品の数量を入力してください。",
-      });
+      toast({ variant: "destructive", title: "入力エラー", description: "製造数を入力してください。" });
       return;
     }
     
-    if (!userStore) {
-        toast({
-            variant: "destructive",
-            title: "店舗が設定されていません",
-            description: "このアカウントには店舗が紐付いていません。管理者に連絡してください。",
-        });
-        return;
-    }
+    if (!userStore) return;
 
     const newProductionEntry: Omit<ProductionEntry, 'id' | 'userId'> = {
       storeId: userStore.id,
@@ -126,35 +164,13 @@ export default function ProductionClient() {
     return (
         <div className="flex items-center justify-center h-full">
             <Card className="w-full max-w-md text-center">
-                <CardHeader>
-                    <CardTitle>管理者アカウント</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-muted-foreground">製造数入力は店舗アカウントで行ってください。</p>
-                </CardContent>
+                <CardHeader><CardTitle>店舗アカウントでログインしてください</CardTitle></CardHeader>
             </Card>
         </div>
     )
   }
 
-  if (isLoading) {
-    return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
-  }
-  
-  if (!isLoading && !userStore) {
-    return (
-        <div className="flex items-center justify-center h-full">
-            <Card className="w-full max-w-md text-center">
-                <CardHeader>
-                    <CardTitle>店舗が紐付いていません</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-muted-foreground">このアカウントには店舗が紐付いていません。管理者に連絡して店舗を割り当ててもらってください。</p>
-                </CardContent>
-            </Card>
-        </div>
-    )
-  }
+  if (isLoading) return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
 
   return (
     <div className="flex flex-col gap-4">
@@ -163,34 +179,27 @@ export default function ProductionClient() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <CardTitle>製造数入力</CardTitle>
-              <CardDescription>商品の製造数を入力してください。</CardDescription>
+              <CardDescription>当日の製造数を記録します。</CardDescription>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <p className="font-medium text-sm">製造日:</p>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-[200px] justify-start text-left font-normal",
-                      !date && "text-muted-foreground"
-                    )}
-                  >
+                  <Button variant={"outline"} className="w-[180px] justify-start text-left font-normal">
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {date ? format(date, "PPP", { locale: ja }) : <span>日付を選択</span>}
+                    {format(date, "PPP", { locale: ja })}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={(d) => { if(d) setDate(d) }}
-                    initialFocus
-                    locale={ja}
-                    disabled={(d) => d > new Date() || d < new Date("2000-01-01")}
-                  />
+                  <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} initialFocus locale={ja} />
                 </PopoverContent>
               </Popover>
+              <div className="flex items-center gap-2 border px-3 py-1.5 rounded-md bg-muted/50">
+                 {weather === 'rainy' ? <CloudRain className="h-4 w-4 text-blue-500" /> : <Sun className="h-4 w-4 text-yellow-500" />}
+                 <span className="text-sm font-medium">{weather === 'rainy' ? '雨予報' : '晴れ予報'} (22:00)</span>
+                 <Button variant="ghost" size="icon" className="h-6 w-6 ml-1" onClick={() => fetch2200Weather(date)} disabled={isFetchingWeather}>
+                    <RefreshCw className={cn("h-3 w-3", isFetchingWeather && "animate-spin")} />
+                 </Button>
+              </div>
               <Button onClick={handleApplySchedule}>
                 <Factory className="mr-2 h-4 w-4"/>
                 予定数を適用
@@ -200,69 +209,35 @@ export default function ProductionClient() {
         </CardHeader>
         <CardContent>
             <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
-                <TabsList>
+                <TabsList className="bg-transparent h-auto p-0 justify-start gap-1 flex-wrap">
                     {categories.map(category => (
-                        <TabsTrigger key={category} value={category}>{category}</TabsTrigger>
+                        <TabsTrigger key={category} value={category} className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border rounded-md">{category}</TabsTrigger>
                     ))}
                 </TabsList>
                  {categories.map(category => (
-                    <TabsContent value={category} key={category}>
-                        <div className="border rounded-md mt-4">
+                    <TabsContent value={category} key={category} className="mt-4">
+                        <div className="border rounded-md">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>商品名</TableHead>
-                                        <TableHead className="w-32 text-right">
-                                          <div className="flex items-center justify-end gap-1">
-                                            予定数
-                                            <TooltipProvider>
-                                              <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                  <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                  <p>商品マスタに登録された製造予定数です。</p>
-                                                  <p className="text-xs text-muted-foreground">祝日の場合は祝日、それ以外は曜日の数が適用されます。</p>
-                                                </TooltipContent>
-                                              </Tooltip>
-                                            </TooltipProvider>
-                                          </div>
-                                        </TableHead>
+                                        <TableHead className="w-32 text-right">予定数({weather === 'rainy' ? '雨' : '晴'})</TableHead>
                                         <TableHead className="w-32 text-right">今回の製造数</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {allProducts.filter(p => category === 'すべて' || p.category === category).length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={3} className="h-24 text-center">
-                                                対象の商品がありません。
-                                            </TableCell>
+                                    {allProducts.filter(p => category === 'すべて' || p.category === category).map(product => {
+                                        const dailyProduction = weather === 'rainy' ? product.dailyProductionRainy : product.dailyProductionSunny;
+                                        const scheduledQuantity = (isHoliday && dailyProduction?.holiday !== undefined)
+                                            ? dailyProduction.holiday
+                                            : dailyProduction?.[dayKey] ?? 0;
+                                        return (
+                                        <TableRow key={product.id}>
+                                            <TableCell className="font-medium">{product.name}</TableCell>
+                                            <TableCell className="text-right text-muted-foreground">{scheduledQuantity.toLocaleString()} 個</TableCell>
+                                            <TableCell><Input type="number" className="text-right" value={quantities[product.id] || ''} onChange={(e) => handleQuantityChange(product.id, e.target.value)} min="0" /></TableCell>
                                         </TableRow>
-                                    ) : (
-                                        allProducts.filter(p => category === 'すべて' || p.category === category).map(product => {
-                                            const scheduledQuantity = (isHoliday && product.dailyProduction?.holiday !== undefined)
-                                                ? product.dailyProduction.holiday
-                                                : product.dailyProduction?.[dayKey] ?? 0;
-                                            
-                                            return (
-                                            <TableRow key={product.id}>
-                                                <TableCell className="font-medium">{product.name}</TableCell>
-                                                <TableCell className="text-right text-muted-foreground">
-                                                    {scheduledQuantity.toLocaleString()} 個
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Input
-                                                        type="number"
-                                                        className="text-right"
-                                                        placeholder="0"
-                                                        value={quantities[product.id] || ''}
-                                                        onChange={(e) => handleQuantityChange(product.id, e.target.value)}
-                                                        min="0"
-                                                    />
-                                                </TableCell>
-                                            </TableRow>
-                                        )})
-                                    )}
+                                    )})}
                                 </TableBody>
                             </Table>
                         </div>
@@ -270,12 +245,10 @@ export default function ProductionClient() {
                  ))}
             </Tabs>
         </CardContent>
-        <CardFooter className="flex flex-col items-end gap-4 mt-auto bg-muted/50 p-6">
-          <div className="w-full max-w-sm space-y-2 text-sm">
-            <div className="flex justify-between font-bold text-lg">
-                <span>製造合計数</span>
-                <span>{totalProductionCount.toLocaleString()} 個</span>
-            </div>
+        <CardFooter className="flex flex-col items-end gap-4 bg-muted/50 p-6">
+          <div className="w-full max-w-sm flex justify-between font-bold text-lg">
+              <span>合計製造数</span>
+              <span>{totalProductionCount.toLocaleString()} 個</span>
           </div>
           <Button className="w-full max-w-sm" size="lg" disabled={totalProductionCount === 0 || productionLoading} onClick={handleRecordProduction}>
              {productionLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <Factory className="mr-2 h-5 w-5"/>}

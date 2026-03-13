@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useUser } from '@/firebase';
@@ -15,6 +16,7 @@ import {
   Building,
   Sigma,
   Factory,
+  CalendarDays,
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -41,6 +43,7 @@ import { ProductionProvider } from '@/contexts/production-context';
 const navItems = [
   { href: '/pos', icon: ShoppingCart, label: '廃棄入力', adminOnly: false },
   { href: '/production', icon: Factory, label: '製造数入力', adminOnly: false },
+  { href: '/production-planning', icon: CalendarDays, label: '製造計画', adminOnly: false },
   { href: '/dashboard', icon: LineChart, label: 'ダッシュボード', adminOnly: false },
   { href: '/abc-analysis', icon: Sigma, label: 'ABC分析', adminOnly: false },
   { href: '/products', icon: Package, label: '商品', adminOnly: false },

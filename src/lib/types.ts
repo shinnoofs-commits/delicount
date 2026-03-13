@@ -55,7 +55,8 @@ export type Product = {
   pricePattern?: string;
   materials?: Material[];
   containers?: Container[];
-  dailyProduction?: DailyProduction;
+  dailyProductionSunny?: DailyProduction;
+  dailyProductionRainy?: DailyProduction;
 };
 
 export type CartItem = {

@@ -19,63 +19,49 @@
           "type": "number",
           "description": "Price of the product."
         },
-        "stock": {
+        "costPrice": {
           "type": "number",
-          "description": "Current stock level of the product."
+          "description": "Cost price of the product."
         },
-        "sku": {
+        "productCode": {
           "type": "string",
-          "description": "Stock Keeping Unit code for the product."
+          "description": "Product code."
         },
         "category": {
           "type": "string",
           "description": "Category of the product."
         },
-        "imageUrl": {
-          "type": "string",
-          "description": "URL of the product image.",
-          "format": "uri"
+        "pricePattern": {
+          "type": "string"
         },
-        "dailyProduction": {
-          "type": "object",
-          "description": "Planned production quantity for each day of the week, plus holidays.",
-          "properties": {
-            "sun": {
-              "type": "number"
-            },
-            "mon": {
-              "type": "number"
-            },
-            "tue": {
-              "type": "number"
-            },
-            "wed": {
-              "type": "number"
-            },
-            "thu": {
-              "type": "number"
-            },
-            "fri": {
-              "type": "number"
-            },
-            "sat": {
-              "type": "number"
-            },
-            "holiday": {
-              "type": "number"
-            }
-          }
+        "dailyProductionSunny": {
+          "$ref": "#/backend/entities/DailyProduction"
+        },
+        "dailyProductionRainy": {
+          "$ref": "#/backend/entities/DailyProduction"
         }
       },
       "required": [
         "id",
         "name",
         "price",
-        "stock",
-        "sku",
-        "category",
-        "imageUrl"
+        "costPrice",
+        "productCode",
+        "category"
       ]
+    },
+    "DailyProduction": {
+      "type": "object",
+      "properties": {
+        "sun": { "type": "number" },
+        "mon": { "type": "number" },
+        "tue": { "type": "number" },
+        "wed": { "type": "number" },
+        "thu": { "type": "number" },
+        "fri": { "type": "number" },
+        "sat": { "type": "number" },
+        "holiday": { "type": "number" }
+      }
     },
     "Transaction": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -333,7 +319,7 @@
           "schema": {
             "$ref": "#/backend/entities/Transaction"
           },
-          "description": "Transactions subcollection under each store. Includes denormalized 'storeId' for authorization independence.",
+          "description": "Transactions subcollection under each store.",
           "params": [
             {
               "name": "storeId",
@@ -347,25 +333,21 @@
         }
       },
       {
-        "path": "stores/{storeId}/transactions/{transactionId}/soldItems/{soldItemId}",
+        "path": "stores/{storeId}/production/{productionId}",
         "definition": {
-          "entityName": "SoldItem",
+          "entityName": "ProductionEntry",
           "schema": {
-            "$ref": "#/backend/entities/SoldItem"
+            "$ref": "#/backend/entities/ProductionEntry"
           },
-          "description": "Sold Items subcollection under each Transaction.",
+          "description": "Production subcollection.",
           "params": [
             {
               "name": "storeId",
-              "description": "Unique identifier for the store."
+              "description": "Store ID."
             },
             {
-              "name": "transactionId",
-              "description": "Unique identifier for the transaction."
-            },
-            {
-              "name": "soldItemId",
-              "description": "Unique identifier for the sold item."
+              "name": "productionId",
+              "description": "Production entry ID."
             }
           ]
         }
@@ -373,42 +355,19 @@
       {
         "path": "roles_admin/{uid}",
         "definition": {
-          "entityName": "admin_role",
+          "entityName": "AdminRole",
           "schema": {
             "$ref": "#/backend/entities/AdminRole"
           },
-          "description": "Admin roles collection, existence of a document grants admin privileges.",
+          "description": "Admin roles.",
           "params": [
             {
               "name": "uid",
-              "description": "User ID for the admin."
-            }
-          ]
-        }
-      },
-      {
-        "path": "stores/{storeId}/production/{productionEntryId}",
-        "definition": {
-          "entityName": "ProductionEntry",
-          "schema": {
-            "$ref": "#/backend/entities/ProductionEntry"
-          },
-          "description": "Production entries subcollection under each store.",
-          "params": [
-            {
-              "name": "storeId",
-              "description": "Unique identifier for the store."
-            },
-            {
-              "name": "productionEntryId",
-              "description": "Unique identifier for the production entry."
+              "description": "User UID."
             }
           ]
         }
       }
-    ],
-    "reasoning": "The Firestore structure is designed to support the SwiftPOS application's requirements for product management, sales tracking, user/permission management, and reporting. The core principle is Authorization Independence, achieved through denormalization where necessary. The structure leverages path-based ownership and membership maps to simplify security rules and enable QAPs. Specifically, the `stores/{storeId}` collection holds store-specific data. Products are located at `stores/{storeId}/products/{productId}` to associate them with a store. Transactions are located at `stores/{storeId}/transactions/{transactionId}`. The `storeId` is denormalized into the transaction. The main collections and subcollections are used to maintain data segregation by store. This design enables straightforward security rules that prevent unauthorized access to data. Finally, to easily show a dashboard with all the transactions, the `transactions` collection will also contain the storeId so that the dashboard can filter by store ID, and global admins will have access to all transactions. To support listing products and transactions securely (QAPs), each collection is scoped to a store. This structure allows us to write security rules that check the user's role and grant access accordingly, ensuring that only authorized users can access the data."
+    ]
   }
 }
-
-    
