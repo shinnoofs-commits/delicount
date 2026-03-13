@@ -269,32 +269,32 @@ export default function ProductionPlanningClient() {
                 ))}
             </Tabs>
           ) : (
-            <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {categories.map(cat => {
                     const filteredProducts = products.filter(p => p.category === cat);
                     if (filteredProducts.length === 0) return null;
                     return (
-                        <div key={cat} className="space-y-2">
-                            <h3 className="text-sm font-bold bg-muted/50 px-3 py-1.5 rounded-md border-l-4 border-primary flex items-center">
-                                {cat}
-                                <span className="ml-2 text-[10px] font-normal text-muted-foreground">({filteredProducts.length}品目)</span>
+                        <div key={cat} className="space-y-1 bg-card border rounded-md overflow-hidden flex flex-col">
+                            <h3 className="text-[11px] font-bold bg-muted/50 px-2 py-1 border-l-2 border-primary flex items-center justify-between">
+                                <span>{cat}</span>
+                                <span className="text-[9px] font-normal text-muted-foreground">{filteredProducts.length}品目</span>
                             </h3>
-                            <div className="rounded-md border overflow-hidden">
-                                <Table className="text-[11px]">
+                            <div className="overflow-x-auto flex-1">
+                                <Table className="text-[10px] w-full min-w-max">
                                     <TableHeader>
-                                        <TableRow className="bg-muted/30 h-8">
-                                            <TableHead className="h-8 p-2 font-bold text-foreground min-w-[150px]">商品名</TableHead>
+                                        <TableRow className="bg-muted/30 h-6">
+                                            <TableHead className="h-6 p-1 pl-2 font-bold text-foreground min-w-[80px]">品名</TableHead>
                                             {daysOfWeek.map(day => (
-                                                <TableHead key={day} className="h-8 p-1 text-center font-bold text-foreground w-[45px]">{dayLabels[day]}</TableHead>
+                                                <TableHead key={day} className="h-6 p-0.5 text-center font-bold text-foreground w-[28px]">{dayLabels[day]}</TableHead>
                                             ))}
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {filteredProducts.map(product => (
-                                            <TableRow key={product.id} className="h-7 hover:bg-muted/10">
-                                                <TableCell className="h-7 p-2 py-1 font-medium border-r">{product.name}</TableCell>
+                                            <TableRow key={product.id} className="h-6 hover:bg-muted/10 border-b last:border-0">
+                                                <TableCell className="h-6 p-1 pl-2 py-0.5 font-medium border-r truncate max-w-[100px]">{product.name}</TableCell>
                                                 {daysOfWeek.map(day => (
-                                                    <TableCell key={day} className="h-7 p-1 text-center tabular-nums">
+                                                    <TableCell key={day} className="h-6 p-0.5 text-center tabular-nums">
                                                         {schedules[product.id]?.[day] || 0}
                                                     </TableCell>
                                                 ))}
