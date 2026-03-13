@@ -33,6 +33,8 @@ import { useProduction } from "@/contexts/production-context";
 import { useAdmin } from "@/hooks/use-admin";
 import { StoreSelector } from "@/components/ui/store-selector";
 
+type RankType = 'A' | 'B' | 'C';
+
 export default function AbcAnalysisPage() {
     const { wasteEntries, loading: wasteLoading } = useTransactions();
     const { products, loading: productsLoading } = useProducts();
@@ -123,13 +125,17 @@ export default function AbcAnalysisPage() {
         
         return sortedData.map(item => {
             cumulativeCostPercentage += grandTotalWasteCost > 0 ? (item.totalWasteCost / grandTotalWasteCost) * 100 : 0;
-            const rank = cumulativeCostPercentage <= 70 ? 'A' : cumulativeCostPercentage <= 90 ? 'B' : 'C';
+            const rank: RankType = cumulativeCostPercentage <= 70 ? 'A' : cumulativeCostPercentage <= 90 ? 'B' : 'C';
             return { ...item, rank };
         });
     }, [validDateObjects, isAdmin, numberOfDays, products, wasteEntries, productionEntries, wasteLoading, productsLoading, productionLoading]);
 
     const rankCounts = useMemo(() => {
-        return abcAnalysisData.reduce((acc, item) => { acc[item.rank]++; return acc; }, { A: 0, B: 0, C: 0 });
+        const counts = { A: 0, B: 0, C: 0 };
+        abcAnalysisData.forEach(item => {
+            counts[item.rank]++;
+        });
+        return counts;
     }, [abcAnalysisData]);
 
     return (
@@ -162,7 +168,7 @@ export default function AbcAnalysisPage() {
                         {['A', 'B', 'C'].map(r => (
                             <Card key={r}>
                                 <CardHeader className="pb-2"><CardTitle className="text-sm">{r}ランク</CardTitle></CardHeader>
-                                <CardContent><div className="text-2xl font-bold">{rankCounts[r as keyof typeof rankCounts]}品目</div></CardContent>
+                                <CardContent><div className="text-2xl font-bold">{rankCounts[r as RankType]}品目</div></CardContent>
                             </Card>
                         ))}
                     </div>
