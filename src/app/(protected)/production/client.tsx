@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
@@ -51,7 +50,9 @@ export default function ProductionClient() {
     if (!userStore) return;
     setIsFetchingWeather(true);
     try {
-      const cityName = userStore.name.replace(/(店|支店|営業所)$/, '');
+      const cityName = userStore?.name?.replace(/(店|支店|営業所)$/, '') || '';
+      if (!cityName) return;
+      
       const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ja&format=json`);
       const geoData = await geoRes.json();
       let lat, lon;
@@ -176,7 +177,7 @@ export default function ProductionClient() {
     <div className="flex flex-col gap-4">
       <Card>
         <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
               <CardTitle>製造数入力</CardTitle>
               <CardDescription>当日の製造数を記録します。</CardDescription>
@@ -200,10 +201,16 @@ export default function ProductionClient() {
                     <RefreshCw className={cn("h-3 w-3", isFetchingWeather && "animate-spin")} />
                  </Button>
               </div>
-              <Button onClick={handleApplySchedule}>
-                <Factory className="mr-2 h-4 w-4"/>
-                予定数を適用
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={handleApplySchedule} disabled={productionLoading}>
+                  <Factory className="mr-2 h-4 w-4"/>
+                  予定数を適用
+                </Button>
+                <Button className="bg-primary text-primary-foreground" onClick={handleRecordProduction} disabled={totalProductionCount === 0 || productionLoading}>
+                  {productionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Factory className="mr-2 h-4 w-4"/>}
+                  製造数を記録
+                </Button>
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -250,10 +257,6 @@ export default function ProductionClient() {
               <span>合計製造数</span>
               <span>{totalProductionCount.toLocaleString()} 個</span>
           </div>
-          <Button className="w-full max-w-sm" size="lg" disabled={totalProductionCount === 0 || productionLoading} onClick={handleRecordProduction}>
-             {productionLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <Factory className="mr-2 h-5 w-5"/>}
-             製造数を記録
-          </Button>
         </CardFooter>
       </Card>
     </div>

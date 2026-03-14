@@ -59,7 +59,9 @@ export default function PosClient() {
     setIsFetchingWeather(true);
     try {
       let lat, lon;
-      const cityName = userStore.name.replace(/(店|支店|営業所)$/, '');
+      const cityName = userStore?.name?.replace(/(店|支店|営業所)$/, '') || '';
+      if (!cityName) return;
+      
       const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ja&format=json`);
       const geoData = await geoRes.json();
 
