@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from "react"
-import { MoreHorizontal, PlusCircle, Upload, Trash2, Download, Loader2, RefreshCw, Edit } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Upload, RefreshCw, Edit, Loader2 } from "lucide-react"
 import Papa from "papaparse"
 
 import type { Product } from "@/lib/types"
@@ -10,7 +10,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
@@ -26,9 +25,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import {
   Dialog,
@@ -338,7 +335,7 @@ export default function ProductsClient() {
             {isAdmin && (
               <>
                 <Button asChild variant="outline" size="sm">
-                    <label htmlFor="csv-upload" className="cursor-pointer"><Upload className="h-4 w-4 mr-2" />CSVインポート</label>
+                    <label htmlFor="csv-upload" className="cursor-pointer">CSVインポート</label>
                 </Button>
                 <Input id="csv-upload" type="file" accept=".csv" onChange={handleCsvImport} className="hidden" />
                 <Button variant="outline" size="sm" onClick={handleSyncAll} disabled={isSyncing}><RefreshCw className="h-4 w-4 mr-2" />全店舗同期</Button>

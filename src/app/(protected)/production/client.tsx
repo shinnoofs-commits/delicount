@@ -18,7 +18,6 @@ import { useProduction } from '@/contexts/production-context';
 import type { ProductionEntry, DailyProduction, Product, WeatherType } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import holiday_jp from '@holiday-jp/holiday_jp';
 
 const dayMap: (keyof DailyProduction)[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
@@ -94,7 +93,6 @@ export default function ProductionClient() {
 
     const productsToApply = selectedCategory === 'すべて' ? allProducts : allProducts.filter(p => p.category === selectedCategory);
     
-    // 天気に基づいて予定数パターンを選択
     const patternKey = (weather === 'rainy') ? 'dailyProductionRainy' : 'dailyProductionSunny';
     const weatherLabel = (weather === 'rainy') ? '雨の日' : '晴れの日';
 
@@ -203,7 +201,6 @@ export default function ProductionClient() {
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="outline" onClick={handleApplySchedule} disabled={productionLoading}>
-                  <Factory className="mr-2 h-4 w-4"/>
                   予定数を適用
                 </Button>
                 <Button className="bg-primary text-primary-foreground" onClick={handleRecordProduction} disabled={totalProductionCount === 0 || productionLoading}>

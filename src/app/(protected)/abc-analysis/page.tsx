@@ -41,6 +41,7 @@ interface AnalysisItem {
     totalWasteCost: number;
     totalActualProduction: number;
     wasteRatio: number;
+    cumulativePercentage: number;
     rank: RankType;
 }
 
@@ -112,26 +113,33 @@ export default function AbcAnalysisPage() {
             });
         });
 
-        const calculatedData = Array.from(aggregatedWaste.entries()).map(([key, data]) => {
-            const totalActualProduction = aggregatedActualProduction.get(key) || 0;
-            return {
-                key,
-                productName: data.name,
-                totalWasteCount: data.totalQuantity,
-                totalWasteCost: data.totalCost,
-                totalActualProduction,
-                wasteRatio: totalActualProduction > 0 ? (data.totalQuantity / totalActualProduction) * 100 : 0,
-            };
-        });
+        const sortedDataByCost = Array.from(aggregatedWaste.entries())
+            .map(([key, data]) => {
+                const totalActualProduction = aggregatedActualProduction.get(key) || 0;
+                return {
+                    key,
+                    productName: data.name,
+                    totalWasteCount: data.totalQuantity,
+                    totalWasteCost: data.totalCost,
+                    totalActualProduction,
+                    wasteRatio: totalActualProduction > 0 ? (data.totalQuantity / totalActualProduction) * 100 : 0,
+                };
+            })
+            .sort((a, b) => b.totalWasteCost - a.totalWasteCost);
 
-        const sortedData = calculatedData.sort((a, b) => b.totalWasteCost - a.totalWasteCost);
-        const grandTotalWasteCost = sortedData.reduce((sum, item) => sum + item.totalWasteCost, 0);
-        let cumulativeCostPercentage = 0;
+        const grandTotalWasteCost = sortedDataByCost.reduce((sum, item) => sum + item.totalWasteCost, 0);
+        let cumulativeCost = 0;
         
-        return sortedData.map(item => {
-            cumulativeCostPercentage += grandTotalWasteCost > 0 ? (item.totalWasteCost / grandTotalWasteCost) * 100 : 0;
-            const rank: RankType = cumulativeCostPercentage <= 70 ? 'A' : cumulativeCostPercentage <= 90 ? 'B' : 'C';
-            return { ...item, rank };
+        return sortedDataByCost.map(item => {
+            cumulativeCost += item.totalWasteCost;
+            const cumulativePercentage = grandTotalWasteCost > 0 ? (cumulativeCost / grandTotalWasteCost) * 100 : 0;
+            
+            // 一般的なABC分析の基準: A=累計70%まで, B=累計90%まで, C=それ以降
+            let rank: RankType = 'C';
+            if (cumulativePercentage <= 70) rank = 'A';
+            else if (cumulativePercentage <= 90) rank = 'B';
+
+            return { ...item, cumulativePercentage, rank };
         });
     }, [validDateObjects, isAdmin, products, wasteEntries, productionEntries, wasteLoading, productsLoading, productionLoading]);
 
@@ -148,7 +156,9 @@ export default function AbcAnalysisPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>ABC分析</CardTitle>
-                    <CardDescription>廃棄ロス額に基づきランク付けし、製造実績（今回の製造数）に対する廃棄率を表示します。</CardDescription>
+                    <CardDescription>
+                        廃棄ロス額（原価）の累積構成比に基づきランク付けします。製造実績に対する廃棄率も表示します。
+                    </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid md:grid-cols-2 gap-4">
@@ -172,8 +182,13 @@ export default function AbcAnalysisPage() {
                     <div className="grid gap-4 md:grid-cols-3">
                         {(['A', 'B', 'C'] as RankType[]).map(r => (
                             <Card key={r}>
-                                <CardHeader className="pb-2"><CardTitle className="text-sm">{r}ランク</CardTitle></CardHeader>
-                                <CardContent><div className="text-2xl font-bold">{rankCounts[r]}品目</div></CardContent>
+                                <CardHeader className="pb-2"><CardTitle className="text-sm">{r}ランク (最重要管理品目)</CardTitle></CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold">{rankCounts[r]}品目</div>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        {r === 'A' ? '累積ロス額の70%を占める品目' : r === 'B' ? '累積ロス額の70〜90%を占める品目' : '累積ロス額の残り10%を占める品目'}
+                                    </p>
+                                </CardContent>
                             </Card>
                         ))}
                     </div>
@@ -184,22 +199,28 @@ export default function AbcAnalysisPage() {
                                     <TableRow>
                                         <TableHead>ランク</TableHead>
                                         <TableHead>商品名</TableHead>
-                                        <TableHead className="text-right">廃棄合計(個数)</TableHead>
+                                        <TableHead className="text-right">廃棄(個数)</TableHead>
                                         <TableHead className="text-right">廃棄ロス額(原価)</TableHead>
-                                        <TableHead className="text-right">製造数実績</TableHead>
+                                        <TableHead className="text-right">構成比(累積%)</TableHead>
+                                        <TableHead className="text-right">製造実績</TableHead>
                                         <TableHead className="text-right">廃棄率(実績対比)</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {abcAnalysisData.map((item) => (
+                                    {abcAnalysisData.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">データがありません</TableCell>
+                                        </TableRow>
+                                    ) : abcAnalysisData.map((item) => (
                                         <TableRow key={item.key}>
                                             <TableCell><Badge variant={item.rank === 'A' ? 'destructive' : item.rank === 'B' ? 'secondary' : 'outline'}>{item.rank}</Badge></TableCell>
                                             <TableCell className="font-medium">{item.productName}</TableCell>
-                                            <TableCell className="text-right font-semibold">{item.totalWasteCount.toLocaleString()} 個</TableCell>
+                                            <TableCell className="text-right">{item.totalWasteCount.toLocaleString()} 個</TableCell>
                                             <TableCell className="text-right">¥{item.totalWasteCost.toLocaleString()}</TableCell>
+                                            <TableCell className="text-right text-xs text-muted-foreground">{item.cumulativePercentage.toFixed(1)}%</TableCell>
                                             <TableCell className="text-right text-muted-foreground">{item.totalActualProduction.toLocaleString()} 個</TableCell>
                                             <TableCell className="text-right font-bold text-primary">
-                                                {item.totalActualProduction > 0 ? `${item.wasteRatio.toFixed(1)}%` : '実績なし'}
+                                                {item.totalActualProduction > 0 ? `${item.wasteRatio.toFixed(1)}%` : '-'}
                                             </TableCell>
                                         </TableRow>
                                     ))}
