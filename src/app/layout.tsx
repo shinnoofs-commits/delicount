@@ -1,12 +1,11 @@
-
 import type { Metadata } from 'next';
 import { Toaster } from '@/components/ui/toaster';
 import './globals.css';
 import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
-  title: '廃棄分析ツール',
-  description: '廃棄分析に特化したツールです。',
+  title: '商品構成・廃棄管理パートナー',
+  description: '商品構成の最適化と廃棄分析に特化したパートナーツールです。',
 };
 
 export default function RootLayout({

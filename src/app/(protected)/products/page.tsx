@@ -1,8 +1,7 @@
-
 import ProductsClient from "./client"
 
 export const metadata = {
-  title: "商品 - 廃棄分析ツール",
+  title: "商品 - 商品構成・廃棄管理パートナー",
 };
 
 export default function ProductsPage() {

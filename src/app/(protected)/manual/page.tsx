@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -27,7 +26,7 @@ const manualSlides = [
             "リスト内の商品の「+」「-」ボタンで数量を調整できます。",
             "すべての商品を追加したら、「廃棄を記録」ボタンを押して登録を完了します。"
         ],
-        important: "リスト下部に表示される「廃棄合計額（原価）」を確認する習慣をつけましょう。"
+        important: "リスト下部に表示される「廃棄合計額（売価）」を確認する習慣をつけましょう。"
     },
     {
         title: "ダッシュボード（管理者のみ）",
@@ -68,7 +67,7 @@ export default function ManualPage() {
   return (
     <div className="flex flex-col gap-4 items-center justify-center">
         <div className="text-center">
-            <h1 className="text-3xl font-bold">廃棄分析ツール 操作説明</h1>
+            <h1 className="text-3xl font-bold">商品構成・廃棄管理パートナー 操作説明</h1>
             <p className="text-muted-foreground">左右の矢印をクリックしてスライドを切り替えてください。</p>
         </div>
       <Carousel className="w-full max-w-4xl">

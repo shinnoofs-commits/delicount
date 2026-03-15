@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useUser } from '@/firebase';
@@ -109,7 +108,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     const allItems: { href: string; label: string; isPage: boolean }[] = [
       {
         href: '/',
-        label: '廃棄分析ツール',
+        label: '商品構成・廃棄管理パートナー',
         isPage: pathParts.length === 0,
       },
       ...mappedItems,
@@ -135,7 +134,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
         <div className="flex h-14 items-center border-b px-6">
           <Link href="/pos" className="flex items-center gap-2 font-semibold" onClick={handleLinkClick}>
             <Icons.logo className="h-6 w-6" />
-            <span className="">廃棄分析ツール</span>
+            <span className="">商品構成・廃棄管理パートナー</span>
           </Link>
         </div>
         <div className="flex-1 overflow-auto py-2">

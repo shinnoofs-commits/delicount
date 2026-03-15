@@ -1,8 +1,7 @@
-
 import ProductionPlanningClient from './client';
 
 export const metadata = {
-  title: '製造計画 - 廃棄分析ツール',
+  title: '製造計画 - 商品構成・廃棄管理パートナー',
 };
 
 export default function ProductionPlanningPage() {
