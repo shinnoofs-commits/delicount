@@ -93,6 +93,7 @@ export default function ProductionClient() {
 
     const productsToApply = selectedCategory === 'すべて' ? allProducts : allProducts.filter(p => p.category === selectedCategory);
     
+    // 天気に応じた予定数を選択
     const patternKey = (weather === 'rainy') ? 'dailyProductionRainy' : 'dailyProductionSunny';
     const weatherLabel = (weather === 'rainy') ? '雨の日' : '晴れの日';
 

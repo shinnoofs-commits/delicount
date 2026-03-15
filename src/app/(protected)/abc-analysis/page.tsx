@@ -99,6 +99,7 @@ export default function AbcAnalysisPage() {
             });
         });
 
+        // 実際の製造実績データを集計
         productionEntries.filter(entry => {
             const entryDate = new Date(entry.date);
             return isValid(entryDate) && validDatesSet.has(format(startOfDay(entryDate), 'yyyy-MM-dd'));

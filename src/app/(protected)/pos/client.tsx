@@ -99,6 +99,7 @@ export default function PosClient() {
 
   const handleRecordWaste = async () => {
     if (wasteList.length === 0 || !userStore) return;
+    // 内部記録（分析用）は原価の合計を使用
     const totalWasteCost = wasteList.reduce((acc, item) => acc + item.product.costPrice * item.quantity, 0);
     const newWasteEntry: Omit<WasteEntry, 'id' | 'userId'> = {
       storeId: userStore.id,
@@ -151,7 +152,7 @@ export default function PosClient() {
                             return [...prev, { product, quantity: 1 }];
                         })} className="cursor-pointer hover:shadow-lg transition-all text-center min-h-24 p-4 flex flex-col justify-center">
                             <p className="font-semibold text-sm">{product.name}</p>
-                            <p className="text-xs text-muted-foreground">¥{product.costPrice.toLocaleString()}</p>
+                            <p className="text-xs text-muted-foreground">¥{product.price.toLocaleString()}</p>
                         </Card>
                     ))}
                 </div>
@@ -206,7 +207,7 @@ export default function PosClient() {
           </CardContent>
           <CardFooter className="flex flex-col gap-4 bg-muted/50 p-6">
             <div className="w-full flex justify-between font-bold text-lg">
-                <span>合計(原価)</span><span>¥{wasteList.reduce((acc, i) => acc + i.product.costPrice * i.quantity, 0).toLocaleString()}</span>
+                <span>合計(売価)</span><span>¥{wasteList.reduce((acc, i) => acc + i.product.price * i.quantity, 0).toLocaleString()}</span>
             </div>
             <Button className="w-full bg-destructive" size="lg" disabled={wasteList.length === 0 || wasteLoading} onClick={handleRecordWaste}>
                {wasteLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin"/> : <Trash2 className="mr-2 h-5 w-5"/>}
