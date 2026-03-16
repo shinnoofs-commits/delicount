@@ -21,215 +21,288 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Badge } from "@/components/ui/badge";
-import { Calendar as CalendarIcon, Loader2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calendar as CalendarIcon, Loader2, TrendingDown, CalendarDays, Sun, Filter, PieChart } from 'lucide-react';
 import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid, getDay, addDays } from "date-fns"
 import { ja } from "date-fns/locale"
 import holiday_jp from '@holiday-jp/holiday_jp';
 import { DateRange } from "react-day-picker"
 import { useTransactions } from "@/contexts/transaction-context";
 import { useProducts } from "@/contexts/product-context";
-import { useProduction } from "@/contexts/production-context";
 import { useAdmin } from "@/hooks/use-admin";
 import { StoreSelector } from "@/components/ui/store-selector";
+import type { WeatherType } from "@/lib/types";
 
-type RankType = 'A' | 'B' | 'C';
+const dayLabels = ['日', '月', '火', '水', '木', '金', '土', '祝'];
+const weatherLabels: Record<string, string> = {
+  sunny: '晴れ',
+  cloudy: '曇り',
+  rainy: '雨',
+  snowy: '雪',
+};
 
-interface AnalysisItem {
-    key: string;
-    productName: string;
-    totalWasteCount: number;
-    totalWasteCost: number;
-    totalActualProduction: number;
-    wasteRatio: number;
-    cumulativePercentage: number;
-    rank: RankType;
-}
-
-export default function AbcAnalysisPage() {
+export default function WasteAnalysisPage() {
     const { wasteEntries, loading: wasteLoading } = useTransactions();
     const { products, loading: productsLoading } = useProducts();
-    const { productionEntries, loading: productionLoading } = useProduction();
     const { isAdmin } = useAdmin();
 
-    const [selectedFilters, setSelectedFilters] = useState<number[]>([0, 1, 2, 3, 4, 5, 6, 7]);
     const [date, setDate] = useState<DateRange | undefined>({
         from: startOfMonth(new Date()),
         to: endOfMonth(new Date()),
     });
+    const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
-    const { validDateObjects } = useMemo(() => {
-        if (!date || !date.from) return { validDateObjects: [] };
+    const categories = useMemo(() => {
+        return ['all', ...Array.from(new Set(products.map(p => p.category)))];
+    }, [products]);
+
+    // 期間内の有効な日付リストを生成
+    const validDates = useMemo(() => {
+        if (!date || !date.from) return [];
         const fromDate = startOfDay(date.from);
         const toDate = date.to ? endOfDay(date.to) : endOfDay(date.from);
-        const objects: Date[] = [];
-        let currentDate = fromDate;
-        while (currentDate <= toDate) {
-            const dayOfWeek = getDay(currentDate);
-            const isHoliday = holiday_jp.isHoliday(currentDate);
-            if ((isHoliday && selectedFilters.includes(7)) || (!isHoliday && selectedFilters.includes(dayOfWeek))) {
-                objects.push(new Date(currentDate));
-            }
-            currentDate = addDays(currentDate, 1);
+        const dates: string[] = [];
+        let current = fromDate;
+        while (current <= toDate) {
+            dates.push(format(current, 'yyyy-MM-dd'));
+            current = addDays(current, 1);
         }
-        return { validDateObjects: objects };
-    }, [date, selectedFilters]);
+        return dates;
+    }, [date]);
 
-    const abcAnalysisData = useMemo((): AnalysisItem[] => {
-        if (wasteLoading || productsLoading || productionLoading || validDateObjects.length === 0) return [];
-        
-        const aggregatedWaste = new Map<string, { name: string, totalQuantity: number, totalCost: number }>();
-        const aggregatedActualProduction = new Map<string, number>();
-        
-        const productsMap = new Map(products.map(p => [isAdmin ? `${p.storeId}-${p.id}` : p.id, p]));
-        const validDatesSet = new Set(validDateObjects.map(d => format(d, 'yyyy-MM-dd')));
+    // データ集計ロジック
+    const analysisData = useMemo(() => {
+        if (wasteLoading || productsLoading || validDates.length === 0) return null;
 
-        wasteEntries.filter(entry => {
+        const dateSet = new Set(validDates);
+        const filteredEntries = wasteEntries.filter(entry => 
+            dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd'))
+        );
+
+        const productStats = new Map<string, any>();
+        const dayStats: Record<number, number> = { 0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 };
+        const weatherStats: Record<string, number> = { sunny:0, cloudy:0, rainy:0, snowy:0 };
+        const dayWeatherMatrix: Record<string, number> = {};
+
+        filteredEntries.forEach(entry => {
             const entryDate = new Date(entry.date);
-            return isValid(entryDate) && validDatesSet.has(format(startOfDay(entryDate), 'yyyy-MM-dd'));
-        }).forEach(entry => {
+            const isHoliday = holiday_jp.isHoliday(entryDate);
+            const dow = isHoliday ? 7 : getDay(entryDate);
+            const weather = entry.weather || 'unknown';
+
             entry.items.forEach(item => {
-                const productKey = isAdmin ? `${entry.storeId}-${item.productId}` : item.productId;
-                const product = productsMap.get(productKey);
-                const aggregationKey = isAdmin ? (item.productCode || product?.productCode || item.productId) : item.productId;
+                const product = products.find(p => p.id === item.productId);
+                if (selectedCategory !== 'all' && product?.category !== selectedCategory) return;
 
-                const current = aggregatedWaste.get(aggregationKey) || { name: product?.name || item.name, totalQuantity: 0, totalCost: 0 };
-                current.totalQuantity += item.quantity;
-                current.totalCost += item.quantity * (product?.costPrice || item.costPrice || 0);
-                aggregatedWaste.set(aggregationKey, current);
-            });
-        });
-
-        // 実際の製造実績データを集計
-        productionEntries.filter(entry => {
-            const entryDate = new Date(entry.date);
-            return isValid(entryDate) && validDatesSet.has(format(startOfDay(entryDate), 'yyyy-MM-dd'));
-        }).forEach(entry => {
-            entry.items.forEach(item => {
-                const productKey = isAdmin ? `${entry.storeId}-${item.productId}` : item.productId;
-                const product = productsMap.get(productKey);
-                const aggregationKey = isAdmin ? (item.productCode || product?.productCode || item.productId) : item.productId;
-
-                const currentQty = aggregatedActualProduction.get(aggregationKey) || 0;
-                aggregatedActualProduction.set(aggregationKey, currentQty + item.quantity);
-            });
-        });
-
-        const sortedDataByCost = Array.from(aggregatedWaste.entries())
-            .map(([key, data]) => {
-                const totalActualProduction = aggregatedActualProduction.get(key) || 0;
-                return {
-                    key,
-                    productName: data.name,
-                    totalWasteCount: data.totalQuantity,
-                    totalWasteCost: data.totalCost,
-                    totalActualProduction,
-                    wasteRatio: totalActualProduction > 0 ? (data.totalQuantity / totalActualProduction) * 100 : 0,
+                // 商品別集計
+                const stats = productStats.get(item.productId) || {
+                    id: item.productId,
+                    name: item.name,
+                    category: product?.category || '未設定',
+                    totalCount: 0,
+                    totalCost: 0,
+                    dowCount: { 0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 },
+                    weatherCount: { sunny:0, cloudy:0, rainy:0, snowy:0 }
                 };
-            })
-            .sort((a, b) => b.totalWasteCost - a.totalWasteCost);
+                stats.totalCount += item.quantity;
+                stats.totalCost += item.quantity * item.costPrice;
+                stats.dowCount[dow] += item.quantity;
+                if (weather !== 'unknown') stats.weatherCount[weather] += item.quantity;
+                productStats.set(item.productId, stats);
 
-        const grandTotalWasteCost = sortedDataByCost.reduce((sum, item) => sum + item.totalWasteCost, 0);
-        let cumulativeCost = 0;
-        
-        return sortedDataByCost.map(item => {
-            cumulativeCost += item.totalWasteCost;
-            const cumulativePercentage = grandTotalWasteCost > 0 ? (cumulativeCost / grandTotalWasteCost) * 100 : 0;
-            
-            // 一般的なABC分析の基準: A=累計70%まで, B=累計90%まで, C=それ以降
-            let rank: RankType = 'C';
-            if (cumulativePercentage <= 70) rank = 'A';
-            else if (cumulativePercentage <= 90) rank = 'B';
-
-            return { ...item, cumulativePercentage, rank };
+                // 全体集計
+                dayStats[dow] += item.quantity;
+                if (weather !== 'unknown') {
+                    weatherStats[weather] += item.quantity;
+                    const matrixKey = `${dow}-${weather}`;
+                    dayWeatherMatrix[matrixKey] = (dayWeatherMatrix[matrixKey] || 0) + item.quantity;
+                }
+            });
         });
-    }, [validDateObjects, isAdmin, products, wasteEntries, productionEntries, wasteLoading, productsLoading, productionLoading]);
 
-    const rankCounts = useMemo(() => {
-        const counts: Record<RankType, number> = { A: 0, B: 0, C: 0 };
-        abcAnalysisData.forEach(item => {
-            counts[item.rank]++;
-        });
-        return counts;
-    }, [abcAnalysisData]);
+        return {
+            products: Array.from(productStats.values()).sort((a, b) => b.totalCount - a.totalCount),
+            dayStats,
+            weatherStats,
+            dayWeatherMatrix
+        };
+    }, [wasteEntries, products, validDates, wasteLoading, productsLoading, selectedCategory]);
+
+    if (wasteLoading || productsLoading) {
+        return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+    }
 
     return (
         <div className="flex flex-col gap-4">
             <Card>
                 <CardHeader>
-                    <CardTitle>ABC分析</CardTitle>
+                    <CardTitle>多角的廃棄分析</CardTitle>
                     <CardDescription>
-                        廃棄ロス額（原価）の累積構成比に基づきランク付けします。製造実績に対する廃棄率も表示します。
+                        曜日、天気、商品を掛け合わせたクロス分析により、ロスの真因を特定します。
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="grid md:grid-cols-2 gap-4">
-                        <div><Label className="mb-2 block">対象店舗</Label>{isAdmin ? <StoreSelector /> : <p className="text-sm">自店舗</p>}</div>
-                        <div>
-                            <Label className="mb-2 block">分析期間</Label>
-                            <div className="flex gap-2">
-                                <Popover>
-                                    <PopoverTrigger asChild><Button variant="outline"><CalendarIcon className="mr-2 h-4 w-4" />期間変更</Button></PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0"><Calendar mode="range" selected={date} onSelect={setDate} locale={ja} /></PopoverContent>
-                                </Popover>
-                                <Button variant="outline" size="sm" onClick={() => setDate({from: startOfMonth(new Date()), to: endOfMonth(new Date())})}>今月</Button>
-                            </div>
+                    <div className="flex flex-wrap gap-4 items-end">
+                        <div className="space-y-2">
+                            <Label>対象店舗</Label>
+                            {isAdmin ? <StoreSelector /> : <div className="text-sm font-medium border p-2 rounded-md bg-muted/50">自店舗</div>}
+                        </div>
+                        <div className="space-y-2">
+                            <Label>分析期間</Label>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" className="w-[240px] justify-start text-left font-normal">
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {date?.from ? (date.to ? `${format(date.from, "M/d")} - ${format(date.to, "M/d")}` : format(date.from, "M/d")) : "期間を選択"}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0"><Calendar mode="range" selected={date} onSelect={setDate} locale={ja} /></PopoverContent>
+                            </Popover>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>カテゴリー</Label>
+                            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                                <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="全カテゴリー" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {categories.map(cat => (
+                                        <SelectItem key={cat} value={cat}>{cat === 'all' ? '全カテゴリー' : cat}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
                 </CardContent>
             </Card>
 
-            {(wasteLoading || productionLoading) ? <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div> : (
-                <>
-                    <div className="grid gap-4 md:grid-cols-3">
-                        {(['A', 'B', 'C'] as RankType[]).map(r => (
-                            <Card key={r}>
-                                <CardHeader className="pb-2"><CardTitle className="text-sm">{r}ランク (最重要管理品目)</CardTitle></CardHeader>
+            {!analysisData || analysisData.products.length === 0 ? (
+                <Card className="p-20 text-center text-muted-foreground">対象期間にデータがありません</Card>
+            ) : (
+                <Tabs defaultValue="overview" className="space-y-4">
+                    <TabsList>
+                        <TabsTrigger value="overview"><PieChart className="h-4 w-4 mr-2" />概況分析</TabsTrigger>
+                        <TabsTrigger value="product"><TrendingDown className="h-4 w-4 mr-2" />商品別詳細</TabsTrigger>
+                        <TabsTrigger value="cross"><Filter className="h-4 w-4 mr-2" />クロス分析</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="overview" className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Card>
+                                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium flex items-center"><CalendarDays className="h-4 w-4 mr-2" />曜日別廃棄（個数）</CardTitle></CardHeader>
                                 <CardContent>
-                                    <div className="text-2xl font-bold">{rankCounts[r]}品目</div>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                        {r === 'A' ? '累積ロス額の70%を占める品目' : r === 'B' ? '累積ロス額の70〜90%を占める品目' : '累積ロス額の残り10%を占める品目'}
-                                    </p>
+                                    <div className="flex items-end justify-between h-40 gap-1 pt-4">
+                                        {dayLabels.map((label, i) => {
+                                            const val = analysisData.dayStats[i] || 0;
+                                            const max = Math.max(...Object.values(analysisData.dayStats));
+                                            const height = max > 0 ? (val / max) * 100 : 0;
+                                            return (
+                                                <div key={label} className="flex-1 flex flex-col items-center gap-2">
+                                                    <div className="text-[10px] font-bold">{val > 0 ? val : ''}</div>
+                                                    <div className="w-full bg-primary rounded-t-sm transition-all" style={{ height: `${height}%` }} />
+                                                    <div className={cn("text-xs font-medium p-1 rounded", i === 7 ? "text-destructive" : i === 0 ? "text-destructive" : i === 6 ? "text-blue-500" : "")}>{label}</div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 </CardContent>
                             </Card>
-                        ))}
-                    </div>
-                    <Card>
-                        <CardContent className="pt-6">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>ランク</TableHead>
-                                        <TableHead>商品名</TableHead>
-                                        <TableHead className="text-right">廃棄(個数)</TableHead>
-                                        <TableHead className="text-right">廃棄ロス額(原価)</TableHead>
-                                        <TableHead className="text-right">構成比(累積%)</TableHead>
-                                        <TableHead className="text-right">製造実績</TableHead>
-                                        <TableHead className="text-right">廃棄率(実績対比)</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {abcAnalysisData.length === 0 ? (
+                            <Card>
+                                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium flex items-center"><Sun className="h-4 w-4 mr-2" />天気別廃棄（個数）</CardTitle></CardHeader>
+                                <CardContent>
+                                    <div className="flex items-end justify-around h-40 gap-4 pt-4">
+                                        {Object.entries(weatherLabels).map(([key, label]) => {
+                                            const val = analysisData.weatherStats[key] || 0;
+                                            const max = Math.max(...Object.values(analysisData.weatherStats));
+                                            const height = max > 0 ? (val / max) * 100 : 0;
+                                            return (
+                                                <div key={key} className="flex-1 flex flex-col items-center gap-2 max-w-[60px]">
+                                                    <div className="text-[10px] font-bold">{val > 0 ? val : ''}</div>
+                                                    <div className="w-full bg-accent rounded-t-sm transition-all" style={{ height: `${height}%` }} />
+                                                    <div className="text-xs font-medium">{label}</div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </TabsContent>
+
+                    <TabsContent value="product">
+                        <Card>
+                            <CardContent className="pt-6">
+                                <Table>
+                                    <TableHeader>
                                         <TableRow>
-                                            <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">データがありません</TableCell>
+                                            <TableHead>商品名</TableHead>
+                                            <TableHead>カテゴリー</TableHead>
+                                            <TableHead className="text-right">廃棄個数</TableHead>
+                                            <TableHead className="text-right">廃棄ロス額(原価)</TableHead>
+                                            <TableHead className="text-center">主な要因(曜日)</TableHead>
+                                            <TableHead className="text-center">主な要因(天気)</TableHead>
                                         </TableRow>
-                                    ) : abcAnalysisData.map((item) => (
-                                        <TableRow key={item.key}>
-                                            <TableCell><Badge variant={item.rank === 'A' ? 'destructive' : item.rank === 'B' ? 'secondary' : 'outline'}>{item.rank}</Badge></TableCell>
-                                            <TableCell className="font-medium">{item.productName}</TableCell>
-                                            <TableCell className="text-right">{item.totalWasteCount.toLocaleString()} 個</TableCell>
-                                            <TableCell className="text-right">¥{item.totalWasteCost.toLocaleString()}</TableCell>
-                                            <TableCell className="text-right text-xs text-muted-foreground">{item.cumulativePercentage.toFixed(1)}%</TableCell>
-                                            <TableCell className="text-right text-muted-foreground">{item.totalActualProduction.toLocaleString()} 個</TableCell>
-                                            <TableCell className="text-right font-bold text-primary">
-                                                {item.totalActualProduction > 0 ? `${item.wasteRatio.toFixed(1)}%` : '-'}
-                                            </TableCell>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {analysisData.products.map((p) => {
+                                            const topDow = Object.entries(p.dowCount).sort((a: any, b: any) => b[1] - a[1])[0];
+                                            const topWeather = Object.entries(p.weatherCount).sort((a: any, b: any) => b[1] - a[1])[0];
+                                            return (
+                                                <TableRow key={p.id}>
+                                                    <TableCell className="font-medium">{p.name}</TableCell>
+                                                    <TableCell><Badge variant="outline">{p.category}</Badge></TableCell>
+                                                    <TableCell className="text-right font-bold">{p.totalCount.toLocaleString()} 個</TableCell>
+                                                    <TableCell className="text-right">¥{p.totalCost.toLocaleString()}</TableCell>
+                                                    <TableCell className="text-center text-xs">
+                                                        {topDow && Number(topDow[1]) > 0 ? <span className="text-destructive font-bold">{dayLabels[Number(topDow[0])]}</span> : '-'}
+                                                    </TableCell>
+                                                    <TableCell className="text-center text-xs">
+                                                        {topWeather && Number(topWeather[1]) > 0 ? weatherLabels[topWeather[0]] : '-'}
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    <TabsContent value="cross">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-base">曜日 × 天気 クロス集計（廃棄個数）</CardTitle>
+                                <CardDescription>どの曜日のどの天気の時に、最もロスが発生しているかを確認できます。</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="w-20">曜日 \ 天気</TableHead>
+                                            {Object.entries(weatherLabels).map(([_, label]) => <TableHead key={label} className="text-center">{label}</TableHead>)}
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </CardContent>
-                    </Card>
-                </>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {dayLabels.map((label, dowIndex) => (
+                                            <TableRow key={label}>
+                                                <TableHead className={cn("font-bold", dowIndex === 7 || dowIndex === 0 ? "text-destructive" : "")}>{label}</TableHead>
+                                                {Object.keys(weatherLabels).map(weatherKey => {
+                                                    const val = analysisData.dayWeatherMatrix[`${dowIndex}-${weatherKey}`] || 0;
+                                                    return (
+                                                        <TableCell key={weatherKey} className={cn("text-center tabular-nums", val > 0 ? "bg-primary/5 font-bold" : "text-muted-foreground")}>
+                                                            {val > 0 ? `${val}個` : '-'}
+                                                        </TableCell>
+                                                    );
+                                                })}
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
             )}
         </div>
     );
