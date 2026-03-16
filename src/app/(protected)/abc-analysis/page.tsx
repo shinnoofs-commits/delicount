@@ -24,7 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar as CalendarIcon, Loader2, TrendingDown, CalendarDays, Sun, Filter, PieChart } from 'lucide-react';
-import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid, getDay, addDays } from "date-fns"
+import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, getDay, addDays } from "date-fns"
 import { ja } from "date-fns/locale"
 import holiday_jp from '@holiday-jp/holiday_jp';
 import { DateRange } from "react-day-picker"
@@ -32,7 +32,7 @@ import { useTransactions } from "@/contexts/transaction-context";
 import { useProducts } from "@/contexts/product-context";
 import { useAdmin } from "@/hooks/use-admin";
 import { StoreSelector } from "@/components/ui/store-selector";
-import type { WeatherType } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 const dayLabels = ['日', '月', '火', '水', '木', '金', '土', '祝'];
 const weatherLabels: Record<string, string> = {
@@ -195,7 +195,8 @@ export default function WasteAnalysisPage() {
                                     <div className="flex items-end justify-between h-40 gap-1 pt-4">
                                         {dayLabels.map((label, i) => {
                                             const val = analysisData.dayStats[i] || 0;
-                                            const max = Math.max(...Object.values(analysisData.dayStats));
+                                            const maxArray = Object.values(analysisData.dayStats);
+                                            const max = maxArray.length > 0 ? Math.max(...maxArray) : 0;
                                             const height = max > 0 ? (val / max) * 100 : 0;
                                             return (
                                                 <div key={label} className="flex-1 flex flex-col items-center gap-2">
@@ -214,7 +215,8 @@ export default function WasteAnalysisPage() {
                                     <div className="flex items-end justify-around h-40 gap-4 pt-4">
                                         {Object.entries(weatherLabels).map(([key, label]) => {
                                             const val = analysisData.weatherStats[key] || 0;
-                                            const max = Math.max(...Object.values(analysisData.weatherStats));
+                                            const maxArray = Object.values(analysisData.weatherStats);
+                                            const max = maxArray.length > 0 ? Math.max(...maxArray) : 0;
                                             const height = max > 0 ? (val / max) * 100 : 0;
                                             return (
                                                 <div key={key} className="flex-1 flex flex-col items-center gap-2 max-w-[60px]">
