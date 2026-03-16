@@ -1,11 +1,10 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { X, Plus, Minus, Trash2, Loader2, CalendarIcon, Sun, Cloud, CloudRain, Snowflake, RefreshCw, MapPin } from 'lucide-react';
-import type { Product, WasteItem, WasteEntry, WeatherType } from '@/lib/types';
+import { Plus, Minus, Trash2, Loader2, Sun, Cloud, CloudRain, Snowflake, MapPin } from 'lucide-react';
+import type { Product, WasteEntry, WeatherType } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useTransactions } from '@/contexts/transaction-context';
@@ -58,12 +57,12 @@ export default function PosClient() {
     if (!userStore) return;
     setIsFetchingWeather(true);
     try {
-      let lat, lon;
       const cityName = userStore?.name?.replace(/(店|支店|営業所)$/, '') || '';
       if (!cityName) return;
       
       const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ja&format=json`);
       const geoData = await geoRes.json();
+      let lat, lon;
 
       if (geoData.results && geoData.results.length > 0) {
         lat = geoData.results[0].latitude;
@@ -99,7 +98,6 @@ export default function PosClient() {
 
   const handleRecordWaste = async () => {
     if (wasteList.length === 0 || !userStore) return;
-    // 内部記録（分析用）は原価の合計を使用
     const totalWasteCost = wasteList.reduce((acc, item) => acc + item.product.costPrice * item.quantity, 0);
     const newWasteEntry: Omit<WasteEntry, 'id' | 'userId'> = {
       storeId: userStore.id,

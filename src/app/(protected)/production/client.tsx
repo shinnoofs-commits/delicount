@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Loader2, CalendarIcon, Factory, Info, Sun, CloudRain, RefreshCw, MapPin } from 'lucide-react';
+import { Loader2, CalendarIcon, Factory, Sun, CloudRain, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -15,7 +15,7 @@ import { format, getDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useProduction } from '@/contexts/production-context';
-import type { ProductionEntry, DailyProduction, Product, WeatherType } from '@/lib/types';
+import type { ProductionEntry, DailyProduction, WeatherType } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import holiday_jp from '@holiday-jp/holiday_jp';
@@ -93,7 +93,6 @@ export default function ProductionClient() {
 
     const productsToApply = selectedCategory === 'すべて' ? allProducts : allProducts.filter(p => p.category === selectedCategory);
     
-    // 天気に応じた予定数を選択
     const patternKey = (weather === 'rainy') ? 'dailyProductionRainy' : 'dailyProductionSunny';
     const weatherLabel = (weather === 'rainy') ? '雨の日' : '晴れの日';
 

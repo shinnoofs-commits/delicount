@@ -57,7 +57,6 @@ export default function WasteAnalysisPage() {
         return ['all', ...Array.from(new Set(products.map(p => p.category)))];
     }, [products]);
 
-    // 期間内の有効な日付リストを生成
     const validDates = useMemo(() => {
         if (!date || !date.from) return [];
         const fromDate = startOfDay(date.from);
@@ -71,7 +70,6 @@ export default function WasteAnalysisPage() {
         return dates;
     }, [date]);
 
-    // データ集計ロジック
     const analysisData = useMemo(() => {
         if (wasteLoading || productsLoading || validDates.length === 0) return null;
 
@@ -95,7 +93,6 @@ export default function WasteAnalysisPage() {
                 const product = products.find(p => p.id === item.productId);
                 if (selectedCategory !== 'all' && product?.category !== selectedCategory) return;
 
-                // 商品別集計
                 const stats = productStats.get(item.productId) || {
                     id: item.productId,
                     name: item.name,
@@ -108,13 +105,14 @@ export default function WasteAnalysisPage() {
                 stats.totalCount += item.quantity;
                 stats.totalCost += item.quantity * item.costPrice;
                 stats.dowCount[dow] += item.quantity;
-                if (weather !== 'unknown') stats.weatherCount[weather] += item.quantity;
+                if (weather !== 'unknown') {
+                  stats.weatherCount[weather as string] = (stats.weatherCount[weather as string] || 0) + item.quantity;
+                }
                 productStats.set(item.productId, stats);
 
-                // 全体集計
                 dayStats[dow] += item.quantity;
                 if (weather !== 'unknown') {
-                    weatherStats[weather] += item.quantity;
+                    weatherStats[weather as string] = (weatherStats[weather as string] || 0) + item.quantity;
                     const matrixKey = `${dow}-${weather}`;
                     dayWeatherMatrix[matrixKey] = (dayWeatherMatrix[matrixKey] || 0) + item.quantity;
                 }
@@ -196,8 +194,8 @@ export default function WasteAnalysisPage() {
                                         {dayLabels.map((label, i) => {
                                             const val = analysisData.dayStats[i] || 0;
                                             const maxArray = Object.values(analysisData.dayStats);
-                                            const max = maxArray.length > 0 ? Math.max(...maxArray) : 0;
-                                            const height = max > 0 ? (val / max) * 100 : 0;
+                                            const max = maxArray.length > 0 ? Math.max(...maxArray) : 1;
+                                            const height = (val / max) * 100;
                                             return (
                                                 <div key={label} className="flex-1 flex flex-col items-center gap-2">
                                                     <div className="text-[10px] font-bold">{val > 0 ? val : ''}</div>
@@ -216,8 +214,8 @@ export default function WasteAnalysisPage() {
                                         {Object.entries(weatherLabels).map(([key, label]) => {
                                             const val = analysisData.weatherStats[key] || 0;
                                             const maxArray = Object.values(analysisData.weatherStats);
-                                            const max = maxArray.length > 0 ? Math.max(...maxArray) : 0;
-                                            const height = max > 0 ? (val / max) * 100 : 0;
+                                            const max = maxArray.length > 0 ? Math.max(...maxArray) : 1;
+                                            const height = (val / max) * 100;
                                             return (
                                                 <div key={key} className="flex-1 flex flex-col items-center gap-2 max-w-[60px]">
                                                     <div className="text-[10px] font-bold">{val > 0 ? val : ''}</div>
@@ -242,25 +240,46 @@ export default function WasteAnalysisPage() {
                                             <TableHead>カテゴリー</TableHead>
                                             <TableHead className="text-right">廃棄個数</TableHead>
                                             <TableHead className="text-right">廃棄ロス額(原価)</TableHead>
-                                            <TableHead className="text-center">主な要因(曜日)</TableHead>
+                                            <TableHead className="w-[220px]">主な要因(曜日Top3)</TableHead>
                                             <TableHead className="text-center">主な要因(天気)</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {analysisData.products.map((p) => {
-                                            const topDow = Object.entries(p.dowCount).sort((a: any, b: any) => b[1] - a[1])[0];
-                                            const topWeather = Object.entries(p.weatherCount).sort((a: any, b: any) => b[1] - a[1])[0];
+                                            const topDows = Object.entries(p.dowCount)
+                                                .map(([dow, count]) => ({ dow: Number(dow), count: count as number }))
+                                                .filter(item => item.count > 0)
+                                                .sort((a, b) => b.count - a.count)
+                                                .slice(0, 3);
+
+                                            const topWeather = Object.entries(p.weatherCount)
+                                                .sort((a: any, b: any) => b[1] - a[1])[0];
+
                                             return (
                                                 <TableRow key={p.id}>
                                                     <TableCell className="font-medium">{p.name}</TableCell>
                                                     <TableCell><Badge variant="outline">{p.category}</Badge></TableCell>
                                                     <TableCell className="text-right font-bold">{p.totalCount.toLocaleString()} 個</TableCell>
                                                     <TableCell className="text-right">¥{p.totalCost.toLocaleString()}</TableCell>
-                                                    <TableCell className="text-center text-xs">
-                                                        {topDow && Number(topDow[1]) > 0 ? <span className="text-destructive font-bold">{dayLabels[Number(topDow[0])]}</span> : '-'}
+                                                    <TableCell>
+                                                        <div className="flex flex-col gap-1">
+                                                            {topDows.length > 0 ? topDows.map((item, index) => (
+                                                                <div key={item.dow} className="flex items-center gap-2 text-[11px]">
+                                                                    <span className="w-4 text-muted-foreground font-mono">{index + 1}.</span>
+                                                                    <Badge variant={index === 0 ? "destructive" : "outline"} className="h-5 px-1 text-[10px]">
+                                                                        {dayLabels[item.dow]}
+                                                                    </Badge>
+                                                                    <span className="font-bold tabular-nums">{item.count}個</span>
+                                                                </div>
+                                                            )) : <span className="text-muted-foreground text-xs">-</span>}
+                                                        </div>
                                                     </TableCell>
                                                     <TableCell className="text-center text-xs">
-                                                        {topWeather && Number(topWeather[1]) > 0 ? weatherLabels[topWeather[0]] : '-'}
+                                                        {topWeather && Number(topWeather[1]) > 0 ? (
+                                                            <Badge variant="secondary" className="font-normal">
+                                                                {weatherLabels[topWeather[0]]}
+                                                            </Badge>
+                                                        ) : '-'}
                                                     </TableCell>
                                                 </TableRow>
                                             );
@@ -278,29 +297,31 @@ export default function WasteAnalysisPage() {
                                 <CardDescription>どの曜日のどの天気の時に、最もロスが発生しているかを確認できます。</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead className="w-20">曜日 \ 天気</TableHead>
-                                            {Object.entries(weatherLabels).map(([_, label]) => <TableHead key={label} className="text-center">{label}</TableHead>)}
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {dayLabels.map((label, dowIndex) => (
-                                            <TableRow key={label}>
-                                                <TableHead className={cn("font-bold", dowIndex === 7 || dowIndex === 0 ? "text-destructive" : "")}>{label}</TableHead>
-                                                {Object.keys(weatherLabels).map(weatherKey => {
-                                                    const val = analysisData.dayWeatherMatrix[`${dowIndex}-${weatherKey}`] || 0;
-                                                    return (
-                                                        <TableCell key={weatherKey} className={cn("text-center tabular-nums", val > 0 ? "bg-primary/5 font-bold" : "text-muted-foreground")}>
-                                                            {val > 0 ? `${val}個` : '-'}
-                                                        </TableCell>
-                                                    );
-                                                })}
+                                <div className="overflow-x-auto border rounded-md">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead className="w-20 bg-muted/50 border-r">曜日 \ 天気</TableHead>
+                                                {Object.entries(weatherLabels).map(([_, label]) => <TableHead key={label} className="text-center">{label}</TableHead>)}
                                             </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {dayLabels.map((label, dowIndex) => (
+                                                <TableRow key={label}>
+                                                    <TableHead className={cn("font-bold border-r", dowIndex === 7 || dowIndex === 0 ? "text-destructive" : "")}>{label}</TableHead>
+                                                    {Object.keys(weatherLabels).map(weatherKey => {
+                                                        const val = analysisData.dayWeatherMatrix[`${dowIndex}-${weatherKey}`] || 0;
+                                                        return (
+                                                            <TableCell key={weatherKey} className={cn("text-center tabular-nums", val > 0 ? "bg-primary/5 font-bold" : "text-muted-foreground")}>
+                                                                {val > 0 ? `${val}個` : '-'}
+                                                            </TableCell>
+                                                        );
+                                                    })}
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
                             </CardContent>
                         </Card>
                     </TabsContent>
