@@ -22,6 +22,13 @@ import { Calendar } from "@/components/ui/calendar"
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription 
+} from "@/components/ui/dialog";
 import { Calendar as CalendarIcon, Loader2, CalendarDays, Sun, Filter, PieChart, Package, AlertCircle } from 'lucide-react';
 import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, getDay, addDays } from "date-fns"
 import { ja } from "date-fns/locale"
@@ -53,6 +60,7 @@ export default function WasteAnalysisPage() {
         to: endOfMonth(new Date()),
     });
     const [selectedCategory, setSelectedCategory] = useState<string>('all');
+    const [selectedDayIdx, setSelectedDayIdx] = useState<number | null>(null);
 
     const categories = useMemo(() => {
         return ['all', ...Array.from(new Set(products.map(p => p.category)))];
@@ -160,7 +168,6 @@ export default function WasteAnalysisPage() {
             });
         });
 
-        // 曜日x天気マトリクスの製造数を補完
         filteredWaste.forEach(wasteEntry => {
             const dateStr = format(startOfDay(wasteEntry.date), 'yyyy-MM-dd');
             const weather = wasteEntry.weather;
@@ -260,11 +267,11 @@ export default function WasteAnalysisPage() {
 
             {!analysisData || analysisData.products.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground bg-muted/20 rounded-lg border-2 border-dashed m-2">
-                    <AlertCircle className="h-8 w-8 mb-2 opacity-20" />
+                    <PieChart className="h-8 w-8 mb-2 opacity-20" />
                     <p className="font-bold text-sm">対象期間にデータがありません</p>
                 </div>
             ) : (
-                <div className="flex-1 flex flex-col gap-1.5 min-h-0">
+                <div className="flex-1 flex flex-col gap-1 min-h-0">
                     {/* KPI Section */}
                     <div className="grid grid-cols-3 gap-1.5 shrink-0 px-1">
                         <Card className="bg-background border-l-[3px] border-l-blue-400 shadow-sm">
@@ -289,7 +296,7 @@ export default function WasteAnalysisPage() {
 
                     {/* Main Analysis Tabs */}
                     <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0">
-                        <TabsList className="grid grid-cols-3 h-8 p-1 bg-muted/60 mx-1 rounded-md">
+                        <TabsList className="grid grid-cols-3 h-7 p-1 bg-muted/60 mx-1 rounded-md">
                             <TabsTrigger value="overview" className="text-[10px] font-bold"><PieChart className="h-3 w-3 mr-1" />概況分析</TabsTrigger>
                             <TabsTrigger value="product" className="text-[10px] font-bold"><Package className="h-3 w-3 mr-1" />商品分析</TabsTrigger>
                             <TabsTrigger value="cross" className="text-[10px] font-bold"><Filter className="h-3 w-3 mr-1" />クロス分析</TabsTrigger>
@@ -297,16 +304,16 @@ export default function WasteAnalysisPage() {
 
                         <div className="flex-1 overflow-auto mt-1 px-1">
                             {/* Overview Tab */}
-                            <TabsContent value="overview" className="m-0 space-y-2 pb-2">
+                            <TabsContent value="overview" className="m-0 space-y-1.5 pb-2">
                                 {/* Day of Week Analysis */}
                                 <Card className="border-none shadow-sm bg-background">
                                     <CardHeader className="p-2 pb-0">
                                         <CardTitle className="text-[9px] text-muted-foreground font-black uppercase flex items-center tracking-wider">
-                                            <CalendarDays className="h-3.5 w-3.5 mr-1.5 text-primary" />曜日別 廃棄率
+                                            <CalendarDays className="h-3.5 w-3.5 mr-1.5 text-primary" />曜日別 廃棄率 <span className="text-[7px] lowercase ml-2 opacity-60">(タップで天気別詳細)</span>
                                         </CardTitle>
                                     </CardHeader>
-                                    <CardContent className="p-2 pt-2">
-                                        <div className="grid grid-cols-4 sm:grid-cols-8 gap-1.5">
+                                    <CardContent className="p-1.5 pt-1">
+                                        <div className="grid grid-cols-4 sm:grid-cols-8 gap-1">
                                             {dayLabels.map((label, i) => {
                                                 const stats = analysisData.dayStats[i];
                                                 const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
@@ -314,18 +321,18 @@ export default function WasteAnalysisPage() {
                                                 const isSpecial = i === 7 || i === 0;
                                                 
                                                 return (
-                                                    <div key={label} className={cn(
-                                                        "flex flex-col gap-1 p-1.5 rounded-lg border-l-[2px] transition-all",
-                                                        isAlert ? "bg-destructive/5 border-l-destructive" : "bg-muted/30 border-l-primary"
+                                                    <div key={label} 
+                                                        onClick={() => setSelectedDayIdx(i)}
+                                                        className={cn(
+                                                        "flex flex-col gap-0.5 p-1.5 rounded-md border-l-[3px] transition-all cursor-pointer hover:bg-muted/40",
+                                                        isAlert ? "bg-destructive/5 border-l-destructive" : "bg-muted/20 border-l-blue-800"
                                                     )}>
-                                                        <div className="flex flex-col">
-                                                            <span className={cn("text-[9px] font-black leading-tight", isSpecial ? "text-destructive" : "text-muted-foreground")}>{label}</span>
-                                                            <div className={cn("text-lg font-black mt-0.5", isAlert ? "text-destructive" : "text-primary")}>
-                                                                {rate.toFixed(1)}<span className="text-[9px] ml-0.5">%</span>
-                                                            </div>
+                                                        <span className={cn("text-[9px] font-black leading-none", isSpecial ? "text-destructive" : "text-muted-foreground")}>{label}</span>
+                                                        <div className={cn("text-xl font-black tracking-tight", isAlert ? "text-destructive" : "text-blue-900")}>
+                                                            {rate.toFixed(1)}<span className="text-[9px] ml-0.5 font-normal">%</span>
                                                         </div>
-                                                        <div className="w-full h-1 bg-muted rounded-full overflow-hidden">
-                                                            <div className={cn("h-full", isAlert ? "bg-destructive" : "bg-primary")} style={{ width: `${Math.min(rate * 2.5, 100)}%` }} />
+                                                        <div className="w-full h-1 bg-muted rounded-full overflow-hidden mt-0.5">
+                                                            <div className={cn("h-full", isAlert ? "bg-destructive" : "bg-blue-800")} style={{ width: `${Math.min(rate * 2.5, 100)}%` }} />
                                                         </div>
                                                     </div>
                                                 );
@@ -341,8 +348,8 @@ export default function WasteAnalysisPage() {
                                             <Sun className="h-3.5 w-3.5 mr-1.5 text-accent" />天気別 廃棄率
                                         </CardTitle>
                                     </CardHeader>
-                                    <CardContent className="p-2 pt-2">
-                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                                    <CardContent className="p-1.5 pt-1">
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1">
                                             {Object.entries(weatherLabels).map(([key, label]) => {
                                                 const stats = analysisData.weatherStats[key];
                                                 const rate = stats && stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
@@ -350,17 +357,15 @@ export default function WasteAnalysisPage() {
                                                 
                                                 return (
                                                     <div key={key} className={cn(
-                                                        "flex flex-col gap-1 p-1.5 rounded-lg border-l-[2px] transition-all",
-                                                        isAlert ? "bg-destructive/5 border-l-destructive" : "bg-accent/5 border-l-accent"
+                                                        "flex flex-col gap-0.5 p-1.5 rounded-md border-l-[3px] transition-all",
+                                                        isAlert ? "bg-destructive/5 border-l-destructive" : "bg-muted/20 border-l-blue-800"
                                                     )}>
-                                                        <div className="flex flex-col">
-                                                            <span className="text-[9px] font-black leading-tight text-muted-foreground">{label}</span>
-                                                            <div className={cn("text-lg font-black mt-0.5", isAlert ? "text-destructive" : "text-accent")}>
-                                                                {rate.toFixed(1)}<span className="text-[9px] ml-0.5">%</span>
-                                                            </div>
+                                                        <span className="text-[9px] font-black leading-none text-muted-foreground">{label}</span>
+                                                        <div className={cn("text-xl font-black tracking-tight", isAlert ? "text-destructive" : "text-blue-900")}>
+                                                            {rate.toFixed(1)}<span className="text-[9px] ml-0.5 font-normal">%</span>
                                                         </div>
-                                                        <div className="w-full h-1 bg-muted rounded-full overflow-hidden">
-                                                            <div className={cn("h-full", isAlert ? "bg-destructive" : "bg-accent")} style={{ width: `${Math.min(rate * 2.5, 100)}%` }} />
+                                                        <div className="w-full h-1 bg-muted rounded-full overflow-hidden mt-0.5">
+                                                            <div className={cn("h-full", isAlert ? "bg-destructive" : "bg-blue-800")} style={{ width: `${Math.min(rate * 2.5, 100)}%` }} />
                                                         </div>
                                                     </div>
                                                 );
@@ -372,32 +377,32 @@ export default function WasteAnalysisPage() {
                                 {/* Category Summary Table */}
                                 <Card className="border-none shadow-sm overflow-hidden bg-background">
                                     <CardHeader className="p-2 bg-primary/5 pb-1">
-                                        <CardTitle className="text-[10px] font-black flex items-center">
-                                            <Filter className="h-3.5 w-3.5 mr-1.5 text-primary" />
+                                        <CardTitle className="text-[9px] font-black flex items-center">
+                                            <Filter className="h-3 w-3 mr-1.5 text-primary" />
                                             カテゴリー別サマリー <span className="text-[8px] font-normal text-muted-foreground ml-2">(廃棄率順)</span>
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="p-0">
                                         <Table>
                                             <TableHeader className="bg-muted/40">
-                                                <TableRow className="h-7">
-                                                    <TableHead className="h-7 text-[9px] font-black px-3">カテゴリー</TableHead>
-                                                    <TableHead className="h-7 text-[9px] font-black px-3 text-right">製造 (個)</TableHead>
-                                                    <TableHead className="h-7 text-[9px] font-black px-3 text-right">廃棄 (個)</TableHead>
-                                                    <TableHead className="h-7 text-[9px] font-black px-3 text-right">廃棄率 (%)</TableHead>
+                                                <TableRow className="h-6">
+                                                    <TableHead className="h-6 text-[8px] font-black px-3">カテゴリー</TableHead>
+                                                    <TableHead className="h-6 text-[8px] font-black px-3 text-right">製造 (個)</TableHead>
+                                                    <TableHead className="h-6 text-[8px] font-black px-3 text-right">廃棄 (個)</TableHead>
+                                                    <TableHead className="h-6 text-[8px] font-black px-3 text-right">廃棄率 (%)</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
                                                 {sortedCategoryStats.map((item) => (
-                                                    <TableRow key={item.cat} className="h-8 hover:bg-primary/5 transition-colors">
+                                                    <TableRow key={item.cat} className="h-7 hover:bg-primary/5 transition-colors">
                                                         <TableCell className="px-3 py-0.5 text-[10px] font-black">{item.cat}</TableCell>
-                                                        <TableCell className="px-3 py-0.5 text-[10px] text-right tabular-nums">{item.production.toLocaleString()}</TableCell>
-                                                        <TableCell className="px-3 py-0.5 text-[10px] text-right text-destructive font-black tabular-nums">{item.waste.toLocaleString()}</TableCell>
+                                                        <TableCell className="px-3 py-0.5 text-[9px] text-right tabular-nums">{item.production.toLocaleString()}</TableCell>
+                                                        <TableCell className="px-3 py-0.5 text-[9px] text-right text-destructive font-black tabular-nums">{item.waste.toLocaleString()}</TableCell>
                                                         <TableCell className="px-3 py-0.5 text-right">
                                                             <div className="flex items-center justify-end gap-1.5">
-                                                                <span className={cn("text-xs font-black tabular-nums", item.rate > 15 ? "text-destructive" : "text-primary")}>{item.rate.toFixed(1)}%</span>
-                                                                <div className="w-10 h-1 bg-muted rounded-full overflow-hidden">
-                                                                    <div className={cn("h-full", item.rate > 15 ? "bg-destructive" : "bg-primary")} style={{ width: `${Math.min(item.rate * 2, 100)}%` }} />
+                                                                <span className={cn("text-[11px] font-black tabular-nums", item.rate > 15 ? "text-destructive" : "text-blue-900")}>{item.rate.toFixed(1)}%</span>
+                                                                <div className="w-8 h-1 bg-muted rounded-full overflow-hidden">
+                                                                    <div className={cn("h-full", item.rate > 15 ? "bg-destructive" : "bg-blue-800")} style={{ width: `${Math.min(item.rate * 2, 100)}%` }} />
                                                                 </div>
                                                             </div>
                                                         </TableCell>
@@ -447,9 +452,9 @@ export default function WasteAnalysisPage() {
                                                             </TableCell>
                                                             <TableCell className="px-3 py-0.5 text-right">
                                                                 <div className="flex flex-col items-end gap-0.5">
-                                                                    <span className={cn("text-xs font-black leading-none", wasteRate > 15 ? "text-destructive" : "text-primary")}>{wasteRate.toFixed(1)}%</span>
+                                                                    <span className={cn("text-[11px] font-black leading-none", wasteRate > 15 ? "text-destructive" : "text-blue-900")}>{wasteRate.toFixed(1)}%</span>
                                                                     <div className="w-12 h-1 bg-muted rounded-full overflow-hidden">
-                                                                        <div className={cn("h-full", wasteRate > 15 ? "bg-destructive" : "bg-primary")} style={{ width: `${Math.min(wasteRate * 2, 100)}%` }} />
+                                                                        <div className={cn("h-full", wasteRate > 15 ? "bg-destructive" : "bg-blue-800")} style={{ width: `${Math.min(wasteRate * 2, 100)}%` }} />
                                                                     </div>
                                                                 </div>
                                                             </TableCell>
@@ -476,7 +481,7 @@ export default function WasteAnalysisPage() {
                             <TabsContent value="cross" className="m-0 pb-2">
                                 <Card className="border-none shadow-sm overflow-hidden bg-background">
                                     <CardHeader className="p-2 bg-muted/40 pb-1">
-                                        <CardTitle className="text-[10px] font-black flex items-center justify-between tracking-wider">
+                                        <CardTitle className="text-[9px] font-black flex items-center justify-between tracking-wider">
                                             <div>曜日 × 天気 クロス分析 <span className="text-[8px] font-normal text-muted-foreground ml-2">(廃棄率 / 実績数)</span></div>
                                         </CardTitle>
                                     </CardHeader>
@@ -484,9 +489,9 @@ export default function WasteAnalysisPage() {
                                         <div className="overflow-x-auto">
                                             <Table className="border-collapse">
                                                 <TableHeader className="bg-muted/60">
-                                                    <TableRow className="h-8">
-                                                        <TableHead className="h-8 p-1 text-[9px] font-black border-r text-center bg-muted/80 w-10">曜\天</TableHead>
-                                                        {Object.entries(weatherLabels).map(([_, label]) => <TableHead key={label} className="h-8 text-[9px] text-center font-black p-1">{label}</TableHead>)}
+                                                    <TableRow className="h-7">
+                                                        <TableHead className="h-7 p-1 text-[8px] font-black border-r text-center bg-muted/80 w-10">曜\天</TableHead>
+                                                        {Object.entries(weatherLabels).map(([_, label]) => <TableHead key={label} className="h-7 text-[8px] text-center font-black p-1">{label}</TableHead>)}
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
@@ -509,7 +514,7 @@ export default function WasteAnalysisPage() {
                                                                     <TableCell key={weatherKey} className={cn("text-center p-1 border-r last:border-r-0 transition-colors", getBgColor(rate))}>
                                                                         {stats.production > 0 ? (
                                                                             <div className="flex flex-col items-center leading-tight">
-                                                                                <span className={cn("text-xs font-black tabular-nums", rate > 15 ? "text-destructive" : "text-primary")}>{rate.toFixed(1)}%</span>
+                                                                                <span className={cn("text-[11px] font-black tabular-nums", rate > 15 ? "text-destructive" : "text-blue-900")}>{rate.toFixed(1)}%</span>
                                                                                 <span className="text-[8px] text-muted-foreground tabular-nums font-bold opacity-70">{stats.waste} / {stats.production}</span>
                                                                             </div>
                                                                         ) : <span className="text-muted-foreground text-[8px]">-</span>}
@@ -526,6 +531,45 @@ export default function WasteAnalysisPage() {
                             </TabsContent>
                         </div>
                     </Tabs>
+
+                    {/* Day Details Modal */}
+                    <Dialog open={selectedDayIdx !== null} onOpenChange={(open) => !open && setSelectedDayIdx(null)}>
+                        <DialogContent className="max-w-[400px] p-4">
+                            <DialogHeader>
+                                <DialogTitle className="text-lg font-black flex items-center">
+                                    <CalendarDays className="mr-2 h-5 w-5 text-blue-900" />
+                                    {selectedDayIdx !== null && dayLabels[selectedDayIdx]}曜日の天気別詳細
+                                </DialogTitle>
+                                <DialogDescription className="text-[10px]">
+                                    選択した曜日の条件（天気）ごとの廃棄実績です。
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-2 mt-4">
+                                {Object.entries(weatherLabels).map(([weatherKey, label]) => {
+                                    const stats = (selectedDayIdx !== null && analysisData?.matrixStats[`${selectedDayIdx}-${weatherKey}`]) || { waste: 0, production: 0 };
+                                    const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
+                                    const isAlert = rate > 15;
+
+                                    return (
+                                        <div key={weatherKey} className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-muted">
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-black text-muted-foreground">{label}</span>
+                                                <span className="text-[9px] font-bold opacity-60">製造: {stats.production.toLocaleString()}個 / 廃棄: {stats.waste.toLocaleString()}個</span>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className={cn("text-lg font-black leading-none", isAlert ? "text-destructive" : "text-blue-900")}>
+                                                    {rate.toFixed(1)}<span className="text-[10px] font-normal ml-0.5">%</span>
+                                                </div>
+                                                <div className="w-16 h-1 bg-muted rounded-full overflow-hidden mt-1 ml-auto">
+                                                    <div className={cn("h-full", isAlert ? "bg-destructive" : "bg-blue-800")} style={{ width: `${Math.min(rate * 2.5, 100)}%` }} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </DialogContent>
+                    </Dialog>
                 </div>
             )}
         </div>
