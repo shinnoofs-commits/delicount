@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Loader2, CalendarIcon, Plus, RefreshCw, Factory, MapPin } from 'lucide-react';
+import { Loader2, CalendarIcon, Plus, RefreshCw, MapPin } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -49,7 +49,7 @@ export default function ProductionClient() {
     if (!userStore) return;
     setIsFetchingWeather(true);
     try {
-      const cityName = userStore.name?.replace(/(店|支店|営業所)$/, '') || '';
+      const cityName = userStore?.name?.replace(/(店|支店|営業所)$/, '') || '';
       if (!cityName) return;
       
       const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ja&format=json`);
@@ -64,7 +64,6 @@ export default function ProductionClient() {
         lon = pos.coords.longitude;
       }
       const dateStr = format(targetDate, 'yyyy-MM-dd');
-      // 10:00の天気を取得
       const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=weather_code&start_date=${dateStr}&end_date=${dateStr}&timezone=Asia%2FTokyo`);
       const weatherData = await weatherRes.json();
       if (weatherData.hourly && weatherData.hourly.weather_code) {

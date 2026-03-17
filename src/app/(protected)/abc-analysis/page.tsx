@@ -23,7 +23,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar as CalendarIcon, Loader2, TrendingDown, CalendarDays, Sun, Filter, PieChart, Activity, Package } from 'lucide-react';
+import { Calendar as CalendarIcon, Loader2, CalendarDays, Sun, Filter, PieChart, Package } from 'lucide-react';
 import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, getDay, addDays } from "date-fns"
 import { ja } from "date-fns/locale"
 import holiday_jp from '@holiday-jp/holiday_jp';
@@ -77,18 +77,15 @@ export default function WasteAnalysisPage() {
 
         const dateSet = new Set(validDates);
         
-        // データ集計用の構造
         const productStats = new Map<string, any>();
         const dayStats: Record<number, { waste: number; production: number }> = {};
         const weatherStats: Record<string, { waste: number; production: number }> = {};
         const matrixStats: Record<string, { waste: number; production: number }> = {};
         const categoryStats: Record<string, { waste: number; production: number }> = {};
 
-        // 初期化
         for (let i = 0; i < 8; i++) dayStats[i] = { waste: 0, production: 0 };
         Object.keys(weatherLabels).forEach(w => weatherStats[w] = { waste: 0, production: 0 });
 
-        // 製造実績の集計
         const filteredProduction = productionEntries.filter(entry => 
             dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd'))
         );
@@ -103,7 +100,6 @@ export default function WasteAnalysisPage() {
                 if (!product) return;
                 if (selectedCategory !== 'all' && product.category !== selectedCategory) return;
 
-                // 商品別
                 const stats = productStats.get(item.productId) || {
                     id: item.productId,
                     name: item.name,
@@ -116,16 +112,13 @@ export default function WasteAnalysisPage() {
                 stats.production += item.quantity;
                 productStats.set(item.productId, stats);
 
-                // 曜日別
                 dayStats[dow].production += item.quantity;
                 
-                // カテゴリー別
                 if (!categoryStats[product.category]) categoryStats[product.category] = { waste: 0, production: 0 };
                 categoryStats[product.category].production += item.quantity;
             });
         });
 
-        // 廃棄実績の集計
         const filteredWaste = wasteEntries.filter(entry => 
             dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd'))
         );
@@ -154,31 +147,24 @@ export default function WasteAnalysisPage() {
                 stats.dow[dow] += item.quantity;
                 productStats.set(item.productId, stats);
 
-                // 曜日別
                 dayStats[dow].waste += item.quantity;
 
-                // 天気別
-                if (weather !== 'unknown') {
+                if (weather !== 'unknown' && weatherStats[weather]) {
                     weatherStats[weather].waste += item.quantity;
-                    // マトリクス
                     const key = `${dow}-${weather}`;
                     if (!matrixStats[key]) matrixStats[key] = { waste: 0, production: 0 };
                     matrixStats[key].waste += item.quantity;
                 }
 
-                // カテゴリー別
                 if (!categoryStats[product.category]) categoryStats[product.category] = { waste: 0, production: 0 };
                 categoryStats[product.category].waste += item.quantity;
             });
         });
 
-        // 再計算：マトリクス用の製造数（曜日ごとの生産比率から概算、またはマッチング）
-        // ※正確なマトリクス製造数は、廃棄入力時にその日の天気が確定するため、
-        // 廃棄入力があった日の製造実績から天気を紐づけて集計します。
         filteredWaste.forEach(wasteEntry => {
             const dateStr = format(startOfDay(wasteEntry.date), 'yyyy-MM-dd');
             const weather = wasteEntry.weather;
-            if (weather === 'unknown') return;
+            if (!weather || weather === 'unknown') return;
 
             const prodOnSameDay = filteredProduction.filter(p => format(startOfDay(p.date), 'yyyy-MM-dd') === dateStr);
             const dow = holiday_jp.isHoliday(wasteEntry.date) ? 7 : getDay(wasteEntry.date);
@@ -191,8 +177,11 @@ export default function WasteAnalysisPage() {
                     const product = products.find(prod => prod.id === item.productId);
                     if (!product) return;
                     if (selectedCategory !== 'all' && product.category !== selectedCategory) return;
+                    
                     matrixStats[key].production += item.quantity;
-                    weatherStats[weather].production += item.quantity;
+                    if (weatherStats[weather]) {
+                        weatherStats[weather].production += item.quantity;
+                    }
                 });
             });
         });
@@ -275,7 +264,7 @@ export default function WasteAnalysisPage() {
                         </Card>
                         <Card className="bg-primary/5">
                             <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">期間内 平均廃棄率</CardTitle></CardHeader>
-                            <CardContent><div className="text-2xl font-bold text-primary-foreground">{overallWasteRate.toFixed(1)}%</div></CardContent>
+                            <CardContent><div className="text-2xl font-bold text-primary">{overallWasteRate.toFixed(1)}%</div></CardContent>
                         </Card>
                     </div>
 
@@ -295,7 +284,7 @@ export default function WasteAnalysisPage() {
                                             {dayLabels.map((label, i) => {
                                                 const stats = analysisData.dayStats[i];
                                                 const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
-                                                const height = Math.min(rate * 3, 100); // 視覚化のために倍率調整
+                                                const height = Math.min(rate * 3, 100); 
                                                 return (
                                                     <div key={label} className="flex-1 flex flex-col items-center gap-2">
                                                         <div className="text-[10px] font-bold">{rate > 0 ? `${rate.toFixed(1)}%` : ''}</div>
@@ -411,7 +400,7 @@ export default function WasteAnalysisPage() {
                                                                 <TableCell key={weatherKey} className={cn("text-center tabular-nums p-2", rate > 20 ? "bg-destructive/10" : rate > 10 ? "bg-primary/5" : "")}>
                                                                     {stats.production > 0 ? (
                                                                         <div className="flex flex-col items-center">
-                                                                            <span className={cn("text-sm font-bold", rate > 15 ? "text-destructive" : "text-primary-foreground")}>{rate.toFixed(1)}%</span>
+                                                                            <span className={cn("text-sm font-bold", rate > 15 ? "text-destructive" : "text-primary")}>{rate.toFixed(1)}%</span>
                                                                             <span className="text-[10px] text-muted-foreground">{stats.waste} / {stats.production}個</span>
                                                                         </div>
                                                                     ) : <span className="text-muted-foreground text-xs">-</span>}
