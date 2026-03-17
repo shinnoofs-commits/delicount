@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Loader2, CalendarIcon, Factory, Sun, CloudRain, RefreshCw } from 'lucide-react';
+import { Loader2, CalendarIcon, Plus, RefreshCw, Factory, MapPin } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -29,7 +29,7 @@ export default function ProductionClient() {
   const { isAdmin } = useAdmin();
   
   const [selectedCategory, setSelectedCategory] = useState('すべて');
-  const [quantities, setQuantities] = useState<Record<string, string>>({});
+  const [additionalQuantities, setAdditionalQuantities] = useState<Record<string, string>>({});
   const [date, setDate] = useState<Date>(new Date());
   const [weather, setWeather] = useState<WeatherType>('sunny');
   const [isFetchingWeather, setIsFetchingWeather] = useState(false);
@@ -45,11 +45,11 @@ export default function ProductionClient() {
     return 'sunny';
   };
 
-  const fetch2200Weather = useCallback(async (targetDate: Date) => {
+  const fetch1000Weather = useCallback(async (targetDate: Date) => {
     if (!userStore) return;
     setIsFetchingWeather(true);
     try {
-      const cityName = userStore?.name?.replace(/(店|支店|営業所)$/, '') || '';
+      const cityName = userStore.name?.replace(/(店|支店|営業所)$/, '') || '';
       if (!cityName) return;
       
       const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ja&format=json`);
@@ -64,11 +64,12 @@ export default function ProductionClient() {
         lon = pos.coords.longitude;
       }
       const dateStr = format(targetDate, 'yyyy-MM-dd');
+      // 10:00の天気を取得
       const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=weather_code&start_date=${dateStr}&end_date=${dateStr}&timezone=Asia%2FTokyo`);
       const weatherData = await weatherRes.json();
       if (weatherData.hourly && weatherData.hourly.weather_code) {
-        const codeAt22 = weatherData.hourly.weather_code[22];
-        setWeather(interpretWeatherCode(codeAt22));
+        const codeAt10 = weatherData.hourly.weather_code[10];
+        setWeather(interpretWeatherCode(codeAt10));
       }
     } catch (error) {
       console.warn('Weather fetch failed', error);
@@ -78,52 +79,19 @@ export default function ProductionClient() {
   }, [userStore]);
 
   useEffect(() => {
-    if (userStore) fetch2200Weather(date);
-  }, [fetch2200Weather, date, userStore]);
+    if (userStore) fetch1000Weather(date);
+  }, [fetch1000Weather, date, userStore]);
 
   const handleQuantityChange = (productId: string, value: string) => {
-    setQuantities(prev => ({ ...prev, [productId]: value }));
+    setAdditionalQuantities(prev => ({ ...prev, [productId]: value }));
   };
 
-  const handleApplySchedule = () => {
-    const isHoliday = holiday_jp.isHoliday(date);
-    const dayKey = dayMap[getDay(date)];
-    const newQuantities: Record<string, string> = {};
-    let appliedCount = 0;
-
-    const productsToApply = selectedCategory === 'すべて' ? allProducts : allProducts.filter(p => p.category === selectedCategory);
-    
-    const patternKey = (weather === 'rainy') ? 'dailyProductionRainy' : 'dailyProductionSunny';
-    const weatherLabel = (weather === 'rainy') ? '雨の日' : '晴れの日';
-
-    productsToApply.forEach(product => {
-      const dailyProduction = product[patternKey];
-      const holidayQuantity = dailyProduction?.holiday;
-      const dayQuantity = dailyProduction?.[dayKey];
-
-      const scheduledQuantity = (isHoliday && holidayQuantity !== undefined)
-        ? holidayQuantity
-        : (dayQuantity ?? 0);
-        
-      if (scheduledQuantity > 0) {
-        newQuantities[product.id] = String(scheduledQuantity);
-        appliedCount++;
-      }
-    });
-
-    setQuantities(prev => ({ ...prev, ...newQuantities }));
-    toast({
-        title: `${weatherLabel}の予定数を適用しました`,
-        description: `${appliedCount}件の商品に適用しました。`
-    })
-  };
-
-  const totalProductionCount = useMemo(() => {
-    return Object.values(quantities).reduce((sum, current) => sum + (Number(current) || 0), 0);
-  }, [quantities]);
+  const totalAdditionalCount = useMemo(() => {
+    return Object.values(additionalQuantities).reduce((sum, current) => sum + (Number(current) || 0), 0);
+  }, [additionalQuantities]);
 
   const handleRecordProduction = async () => {
-    const itemsToRecord = Object.entries(quantities)
+    const itemsToRecord = Object.entries(additionalQuantities)
       .map(([productId, quantityStr]) => {
         const product = allProducts.find(p => p.id === productId);
         const quantity = Number(quantityStr);
@@ -138,7 +106,7 @@ export default function ProductionClient() {
       .filter((item): item is NonNullable<typeof item> => item !== null);
 
     if (itemsToRecord.length === 0) {
-      toast({ variant: "destructive", title: "入力エラー", description: "製造数を入力してください。" });
+      toast({ variant: "destructive", title: "入力エラー", description: "追加製造数を入力してください。" });
       return;
     }
     
@@ -152,7 +120,7 @@ export default function ProductionClient() {
     };
 
     await addProductionEntry(newProductionEntry);
-    setQuantities({});
+    setAdditionalQuantities({});
   };
 
   const isLoading = productsLoading || storesLoading;
@@ -177,8 +145,8 @@ export default function ProductionClient() {
         <CardHeader>
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
-              <CardTitle>製造数入力</CardTitle>
-              <CardDescription>当日の製造数を記録します。</CardDescription>
+              <CardTitle>追加製造登録</CardTitle>
+              <CardDescription>当日の基本製造分（予定数）以外の追加分のみを記録します。</CardDescription>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Popover>
@@ -193,21 +161,16 @@ export default function ProductionClient() {
                 </PopoverContent>
               </Popover>
               <div className="flex items-center gap-2 border px-3 py-1.5 rounded-md bg-muted/50">
-                 {weather === 'rainy' ? <CloudRain className="h-4 w-4 text-blue-500" /> : <Sun className="h-4 w-4 text-yellow-500" />}
-                 <span className="text-sm font-medium">{weather === 'rainy' ? '雨予報' : '晴れ予報'} (22:00)</span>
-                 <Button variant="ghost" size="icon" className="h-6 w-6 ml-1" onClick={() => fetch2200Weather(date)} disabled={isFetchingWeather}>
+                 {weather === 'rainy' ? <RefreshCw className="h-4 w-4 text-blue-500" /> : <RefreshCw className="h-4 w-4 text-yellow-500" />}
+                 <span className="text-sm font-medium">{weather === 'rainy' ? '雨 (10:00基準)' : '晴 (10:00基準)'}</span>
+                 <Button variant="ghost" size="icon" className="h-6 w-6 ml-1" onClick={() => fetch1000Weather(date)} disabled={isFetchingWeather}>
                     <RefreshCw className={cn("h-3 w-3", isFetchingWeather && "animate-spin")} />
                  </Button>
               </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" onClick={handleApplySchedule} disabled={productionLoading}>
-                  予定数を適用
-                </Button>
-                <Button className="bg-primary text-primary-foreground" onClick={handleRecordProduction} disabled={totalProductionCount === 0 || productionLoading}>
-                  {productionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Factory className="mr-2 h-4 w-4"/>}
-                  製造数を記録
-                </Button>
-              </div>
+              <Button className="bg-primary text-primary-foreground" onClick={handleRecordProduction} disabled={totalAdditionalCount === 0 || productionLoading}>
+                {productionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Plus className="mr-2 h-4 w-4"/>}
+                追加分を記録
+              </Button>
             </div>
           </div>
         </CardHeader>
@@ -225,8 +188,8 @@ export default function ProductionClient() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>商品名</TableHead>
-                                        <TableHead className="w-32 text-right">予定数({weather === 'rainy' ? '雨' : '晴'})</TableHead>
-                                        <TableHead className="w-32 text-right">今回の製造数</TableHead>
+                                        <TableHead className="w-32 text-center bg-muted/30">予定数</TableHead>
+                                        <TableHead className="w-40 text-right">追加製造数</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -238,8 +201,22 @@ export default function ProductionClient() {
                                         return (
                                         <TableRow key={product.id}>
                                             <TableCell className="font-medium">{product.name}</TableCell>
-                                            <TableCell className="text-right text-muted-foreground">{scheduledQuantity.toLocaleString()} 個</TableCell>
-                                            <TableCell><Input type="number" className="text-right" value={quantities[product.id] || ''} onChange={(e) => handleQuantityChange(product.id, e.target.value)} min="0" /></TableCell>
+                                            <TableCell className="text-center text-muted-foreground bg-muted/30">
+                                                <span className="font-bold text-foreground">{scheduledQuantity.toLocaleString()}</span> 個
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-2 justify-end">
+                                                    <Input 
+                                                        type="number" 
+                                                        className="text-right w-24" 
+                                                        placeholder="0"
+                                                        value={additionalQuantities[product.id] || ''} 
+                                                        onChange={(e) => handleQuantityChange(product.id, e.target.value)} 
+                                                        min="0" 
+                                                    />
+                                                    <span className="text-sm font-medium">個</span>
+                                                </div>
+                                            </TableCell>
                                         </TableRow>
                                     )})}
                                 </TableBody>
@@ -251,8 +228,12 @@ export default function ProductionClient() {
         </CardContent>
         <CardFooter className="flex flex-col items-end gap-4 bg-muted/50 p-6">
           <div className="w-full max-w-sm flex justify-between font-bold text-lg">
-              <span>合計製造数</span>
-              <span>{totalProductionCount.toLocaleString()} 個</span>
+              <span>今回の追加製造合計</span>
+              <span className="text-primary">{totalAdditionalCount.toLocaleString()} 個</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+             <MapPin className="h-3 w-3" />
+             店舗地域: {userStore?.name || '-'}
           </div>
         </CardFooter>
       </Card>
