@@ -23,7 +23,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar as CalendarIcon, Loader2, CalendarDays, Sun, Filter, PieChart, Package } from 'lucide-react';
+import { Calendar as CalendarIcon, Loader2, CalendarDays, Sun, Filter, PieChart, Package, AlertCircle } from 'lucide-react';
 import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, getDay, addDays } from "date-fns"
 import { ja } from "date-fns/locale"
 import holiday_jp from '@holiday-jp/holiday_jp';
@@ -43,7 +43,7 @@ const weatherLabels: Record<string, string> = {
   snowy: '雪',
 };
 
-export default function WasteAnalysisPage() {
+export default function MultifacetedAnalysisPage() {
     const { wasteEntries, loading: wasteLoading } = useTransactions();
     const { productionEntries, loading: productionLoading } = useProduction();
     const { products, loading: productsLoading } = useProducts();
@@ -192,7 +192,12 @@ export default function WasteAnalysisPage() {
             weatherStats,
             matrixStats,
             categoryStats,
-            totalWaste: filteredWaste.reduce((sum, e) => sum + (selectedCategory === 'all' ? e.items.reduce((s, i) => s + i.quantity, 0) : e.items.filter(i => products.find(p => p.id === i.productId)?.category === selectedCategory).reduce((s, i) => s + i.quantity, 0)), 0),
+            totalWaste: filteredWaste.reduce((sum, e) => {
+                const itemsCount = selectedCategory === 'all' 
+                    ? e.items.reduce((s, i) => s + i.quantity, 0)
+                    : e.items.filter(i => products.find(p => p.id === i.productId)?.category === selectedCategory).reduce((s, i) => s + i.quantity, 0);
+                return sum + itemsCount;
+            }, 0),
             totalProduction: Array.from(productStats.values()).reduce((sum, p) => sum + p.production, 0)
         };
     }, [wasteEntries, productionEntries, products, validDates, wasteLoading, productionLoading, productsLoading, selectedCategory]);
@@ -206,217 +211,269 @@ export default function WasteAnalysisPage() {
         : 0;
 
     return (
-        <div className="flex flex-col gap-4">
-            <Card>
-                <CardHeader>
-                    <CardTitle>多角的廃棄分析（廃棄率分析）</CardTitle>
-                    <CardDescription>
-                        製造数に対する廃棄の割合（廃棄率）を軸に、ロスの真因を特定します。
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="flex flex-wrap gap-4 items-end">
-                        <div className="space-y-2">
-                            <Label>対象店舗</Label>
-                            {isAdmin ? <StoreSelector /> : <div className="text-sm font-medium border p-2 rounded-md bg-muted/50">自店舗</div>}
-                        </div>
-                        <div className="space-y-2">
-                            <Label>分析期間</Label>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button variant="outline" className="w-[240px] justify-start text-left font-normal">
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {date?.from ? (date.to ? `${format(date.from, "M/d")} - ${format(date.to, "M/d")}` : format(date.from, "M/d")) : "期間を選択"}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0"><Calendar mode="range" selected={date} onSelect={setDate} locale={ja} /></PopoverContent>
-                            </Popover>
-                        </div>
-                        <div className="space-y-2">
-                            <Label>カテゴリー</Label>
-                            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                                <SelectTrigger className="w-[180px]">
-                                    <SelectValue placeholder="全カテゴリー" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {categories.map(cat => (
-                                        <SelectItem key={cat} value={cat}>{cat === 'all' ? '全カテゴリー' : cat}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+        <div className="flex flex-col gap-3 h-full overflow-hidden">
+            {/* フィルタセクション：さらにコンパクトに */}
+            <Card className="shrink-0 border-none shadow-none bg-muted/40">
+                <CardContent className="p-3 flex flex-wrap items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <Label className="text-xs font-bold whitespace-nowrap">店舗:</Label>
+                        {isAdmin ? <StoreSelector /> : <Badge variant="outline" className="bg-background">自店舗</Badge>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Label className="text-xs font-bold whitespace-nowrap">期間:</Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" size="sm" className="h-8 text-xs font-normal bg-background">
+                                    <CalendarIcon className="mr-2 h-3 w-3" />
+                                    {date?.from ? (date.to ? `${format(date.from, "M/d")} - ${format(date.to, "M/d")}` : format(date.from, "M/d")) : "選択"}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0"><Calendar mode="range" selected={date} onSelect={setDate} locale={ja} /></PopoverContent>
+                        </Popover>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Label className="text-xs font-bold whitespace-nowrap">カテゴリ:</Label>
+                        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                            <SelectTrigger className="h-8 text-xs w-[140px] bg-background">
+                                <SelectValue placeholder="全カテゴリー" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {categories.map(cat => (
+                                    <SelectItem key={cat} value={cat} className="text-xs">{cat === 'all' ? '全カテゴリー' : cat}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                 </CardContent>
             </Card>
 
             {!analysisData || analysisData.products.length === 0 ? (
-                <Card className="p-20 text-center text-muted-foreground">対象期間にデータがありません</Card>
+                <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground bg-muted/20 rounded-lg border-2 border-dashed">
+                    <AlertCircle className="h-10 w-10 mb-2 opacity-20" />
+                    <p>対象期間にデータがありません</p>
+                </div>
             ) : (
-                <>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <Card>
-                            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">期間内 総製造数</CardTitle></CardHeader>
-                            <CardContent><div className="text-2xl font-bold">{analysisData.totalProduction.toLocaleString()} <span className="text-sm font-normal text-muted-foreground">個</span></div></CardContent>
+                <div className="flex-1 flex flex-col gap-3 min-h-0">
+                    {/* 主要KPIセクション */}
+                    <div className="grid grid-cols-3 gap-3 shrink-0">
+                        <Card className="bg-background border-l-4 border-l-blue-400">
+                            <CardContent className="p-3">
+                                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">期間内 総製造数</p>
+                                <div className="text-xl font-black mt-1">{analysisData.totalProduction.toLocaleString()} <span className="text-xs font-normal">個</span></div>
+                            </CardContent>
                         </Card>
-                        <Card>
-                            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">期間内 総廃棄数</CardTitle></CardHeader>
-                            <CardContent><div className="text-2xl font-bold text-destructive">{analysisData.totalWaste.toLocaleString()} <span className="text-sm font-normal text-muted-foreground">個</span></div></CardContent>
+                        <Card className="bg-background border-l-4 border-l-destructive">
+                            <CardContent className="p-3">
+                                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">期間内 総廃棄数</p>
+                                <div className="text-xl font-black mt-1 text-destructive">{analysisData.totalWaste.toLocaleString()} <span className="text-xs font-normal">個</span></div>
+                            </CardContent>
                         </Card>
-                        <Card className="bg-primary/5">
-                            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">期間内 平均廃棄率</CardTitle></CardHeader>
-                            <CardContent><div className="text-2xl font-bold text-primary">{overallWasteRate.toFixed(1)}%</div></CardContent>
+                        <Card className="bg-primary/5 border-l-4 border-l-primary">
+                            <CardContent className="p-3">
+                                <p className="text-[10px] text-primary font-bold uppercase tracking-wider">期間内 平均廃棄率</p>
+                                <div className="text-xl font-black mt-1 text-primary">{overallWasteRate.toFixed(1)}%</div>
+                            </CardContent>
                         </Card>
                     </div>
 
-                    <Tabs defaultValue="overview" className="space-y-4">
-                        <TabsList>
-                            <TabsTrigger value="overview"><PieChart className="h-4 w-4 mr-2" />概況分析</TabsTrigger>
-                            <TabsTrigger value="product"><Package className="h-4 w-4 mr-2" />商品別詳細</TabsTrigger>
-                            <TabsTrigger value="cross"><Filter className="h-4 w-4 mr-2" />クロス分析</TabsTrigger>
+                    {/* メイン分析タブ */}
+                    <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0">
+                        <TabsList className="grid grid-cols-3 h-9 p-1 bg-muted/60">
+                            <TabsTrigger value="overview" className="text-xs"><PieChart className="h-3 w-3 mr-1.5" />概況</TabsTrigger>
+                            <TabsTrigger value="product" className="text-xs"><Package className="h-3 w-3 mr-1.5" />商品別</TabsTrigger>
+                            <TabsTrigger value="cross" className="text-xs"><Filter className="h-3 w-3 mr-1.5" />クロス分析</TabsTrigger>
                         </TabsList>
 
-                        <TabsContent value="overview" className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="flex-1 overflow-auto mt-2 pr-1">
+                            {/* 概況分析タブ */}
+                            <TabsContent value="overview" className="m-0 space-y-3">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                                    <Card>
+                                        <CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-bold flex items-center"><CalendarDays className="h-3.5 w-3.5 mr-2 text-primary" />曜日別 廃棄率</CardTitle></CardHeader>
+                                        <CardContent className="p-3">
+                                            <div className="flex items-end justify-between h-32 gap-1.5">
+                                                {dayLabels.map((label, i) => {
+                                                    const stats = analysisData.dayStats[i];
+                                                    const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
+                                                    const height = Math.min(rate * 4, 100); 
+                                                    return (
+                                                        <div key={label} className="flex-1 flex flex-col items-center gap-1">
+                                                            <div className="text-[8px] font-bold">{rate > 0 ? `${rate.toFixed(1)}%` : ''}</div>
+                                                            <div className={cn("w-full rounded-t-[2px] transition-all", rate > 15 ? "bg-destructive" : "bg-primary")} style={{ height: `${height}%` }} />
+                                                            <div className={cn("text-[9px] font-bold p-0.5 rounded", i === 7 || i === 0 ? "text-destructive" : "")}>{label}</div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                    <Card>
+                                        <CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-bold flex items-center"><Sun className="h-3.5 w-3.5 mr-2 text-accent" />天気別 廃棄率</CardTitle></CardHeader>
+                                        <CardContent className="p-3">
+                                            <div className="flex items-end justify-around h-32 gap-3">
+                                                {Object.entries(weatherLabels).map(([key, label]) => {
+                                                    const stats = analysisData.weatherStats[key];
+                                                    const rate = stats && stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
+                                                    const height = Math.min(rate * 4, 100);
+                                                    return (
+                                                        <div key={key} className="flex-1 flex flex-col items-center gap-1 max-w-[50px]">
+                                                            <div className="text-[8px] font-bold">{rate > 0 ? `${rate.toFixed(1)}%` : ''}</div>
+                                                            <div className={cn("w-full rounded-t-[2px] transition-all", rate > 15 ? "bg-destructive" : "bg-accent")} style={{ height: `${height}%` }} />
+                                                            <div className="text-[9px] font-bold">{label}</div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                </div>
                                 <Card>
-                                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium flex items-center"><CalendarDays className="h-4 w-4 mr-2" />曜日別 廃棄率</CardTitle></CardHeader>
-                                    <CardContent>
-                                        <div className="flex items-end justify-between h-48 gap-1 pt-6">
-                                            {dayLabels.map((label, i) => {
-                                                const stats = analysisData.dayStats[i];
-                                                const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
-                                                const height = Math.min(rate * 3, 100); 
-                                                return (
-                                                    <div key={label} className="flex-1 flex flex-col items-center gap-2">
-                                                        <div className="text-[10px] font-bold">{rate > 0 ? `${rate.toFixed(1)}%` : ''}</div>
-                                                        <div className={cn("w-full rounded-t-sm transition-all", rate > 15 ? "bg-destructive" : "bg-primary")} style={{ height: `${height}%` }} />
-                                                        <div className={cn("text-xs font-medium p-1 rounded", i === 7 || i === 0 ? "text-destructive" : "")}>{label}</div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                                <Card>
-                                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium flex items-center"><Sun className="h-4 w-4 mr-2" />天気別 廃棄率</CardTitle></CardHeader>
-                                    <CardContent>
-                                        <div className="flex items-end justify-around h-48 gap-4 pt-6">
-                                            {Object.entries(weatherLabels).map(([key, label]) => {
-                                                const stats = analysisData.weatherStats[key];
-                                                const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
-                                                const height = Math.min(rate * 3, 100);
-                                                return (
-                                                    <div key={key} className="flex-1 flex flex-col items-center gap-2 max-w-[60px]">
-                                                        <div className="text-[10px] font-bold">{rate > 0 ? `${rate.toFixed(1)}%` : ''}</div>
-                                                        <div className={cn("w-full rounded-t-sm transition-all", rate > 15 ? "bg-destructive" : "bg-accent")} style={{ height: `${height}%` }} />
-                                                        <div className="text-xs font-medium">{label}</div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </div>
-                        </TabsContent>
-
-                        <TabsContent value="product">
-                            <Card>
-                                <CardContent className="pt-6">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>商品名</TableHead>
-                                                <TableHead>カテゴリー</TableHead>
-                                                <TableHead className="text-right">製造数</TableHead>
-                                                <TableHead className="text-right">廃棄数</TableHead>
-                                                <TableHead className="text-right">廃棄率</TableHead>
-                                                <TableHead className="w-[200px]">主な廃棄曜日(Top3)</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {analysisData.products.map((p) => {
-                                                const wasteRate = p.production > 0 ? (p.waste / p.production) * 100 : 0;
-                                                const topDows = Object.entries(p.dow)
-                                                    .map(([dow, count]) => ({ dow: Number(dow), count: count as number }))
-                                                    .filter(item => item.count > 0)
-                                                    .sort((a, b) => b.count - a.count)
-                                                    .slice(0, 3);
-
-                                                return (
-                                                    <TableRow key={p.id}>
-                                                        <TableCell className="font-medium">{p.name}</TableCell>
-                                                        <TableCell><Badge variant="outline">{p.category}</Badge></TableCell>
-                                                        <TableCell className="text-right">{p.production.toLocaleString()} <span className="text-muted-foreground text-[10px]">個</span></TableCell>
-                                                        <TableCell className="text-right font-bold text-destructive">{p.waste.toLocaleString()} <span className="text-muted-foreground text-[10px]">個</span></TableCell>
-                                                        <TableCell className="text-right">
-                                                            <div className="flex flex-col items-end">
-                                                                <span className={cn("font-bold", wasteRate > 15 ? "text-destructive" : "")}>{wasteRate.toFixed(1)}%</span>
-                                                                <div className="w-16 h-1 bg-muted rounded-full overflow-hidden mt-1">
-                                                                    <div className={cn("h-full", wasteRate > 15 ? "bg-destructive" : "bg-primary")} style={{ width: `${Math.min(wasteRate, 100)}%` }} />
-                                                                </div>
-                                                            </div>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <div className="flex flex-col gap-1">
-                                                                {topDows.map((item, idx) => (
-                                                                    <div key={item.dow} className="flex items-center gap-2 text-[10px]">
-                                                                        <Badge variant={idx === 0 ? "destructive" : "outline"} className="h-4 px-1 text-[9px]">{dayLabels[item.dow]}</Badge>
-                                                                        <span className="font-medium">{item.count}個</span>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                );
-                                            })}
-                                        </TableBody>
-                                    </Table>
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-
-                        <TabsContent value="cross">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-base">曜日 × 天気 クロス分析（廃棄率 / 製造数）</CardTitle>
-                                    <CardDescription>特定の条件下での生産過剰（廃棄率の高さ）を特定します。</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="overflow-x-auto border rounded-md">
+                                    <CardHeader className="p-3 pb-1"><CardTitle className="text-xs font-bold">カテゴリー別サマリー</CardTitle></CardHeader>
+                                    <CardContent className="p-0">
                                         <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead className="w-24 bg-muted/50 border-r">曜日 \ 天気</TableHead>
-                                                    {Object.entries(weatherLabels).map(([_, label]) => <TableHead key={label} className="text-center">{label}</TableHead>)}
+                                            <TableHeader className="bg-muted/30">
+                                                <TableRow className="h-8">
+                                                    <TableHead className="h-8 text-[10px]">カテゴリー</TableHead>
+                                                    <TableHead className="h-8 text-[10px] text-right">製造数</TableHead>
+                                                    <TableHead className="h-8 text-[10px] text-right">廃棄数</TableHead>
+                                                    <TableHead className="h-8 text-[10px] text-right">廃棄率</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {dayLabels.map((label, dowIndex) => (
-                                                    <TableRow key={label}>
-                                                        <TableHead className={cn("font-bold border-r", dowIndex === 7 || dowIndex === 0 ? "text-destructive" : "")}>{label}</TableHead>
-                                                        {Object.keys(weatherLabels).map(weatherKey => {
-                                                            const stats = analysisData.matrixStats[`${dowIndex}-${weatherKey}`] || { waste: 0, production: 0 };
-                                                            const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
-                                                            return (
-                                                                <TableCell key={weatherKey} className={cn("text-center tabular-nums p-2", rate > 20 ? "bg-destructive/10" : rate > 10 ? "bg-primary/5" : "")}>
-                                                                    {stats.production > 0 ? (
-                                                                        <div className="flex flex-col items-center">
-                                                                            <span className={cn("text-sm font-bold", rate > 15 ? "text-destructive" : "text-primary")}>{rate.toFixed(1)}%</span>
-                                                                            <span className="text-[10px] text-muted-foreground">{stats.waste} / {stats.production}個</span>
-                                                                        </div>
-                                                                    ) : <span className="text-muted-foreground text-xs">-</span>}
-                                                                </TableCell>
-                                                            );
-                                                        })}
-                                                    </TableRow>
-                                                ))}
+                                                {Object.entries(analysisData.categoryStats).map(([cat, stats]: [string, any]) => {
+                                                    const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
+                                                    return (
+                                                        <TableRow key={cat} className="h-8">
+                                                            <TableCell className="p-2 text-[11px] font-medium">{cat}</TableCell>
+                                                            <TableCell className="p-2 text-[11px] text-right">{stats.production.toLocaleString()}</TableCell>
+                                                            <TableCell className="p-2 text-[11px] text-right text-destructive font-bold">{stats.waste.toLocaleString()}</TableCell>
+                                                            <TableCell className="p-2 text-[11px] text-right font-black text-primary">{rate.toFixed(1)}%</TableCell>
+                                                        </TableRow>
+                                                    );
+                                                })}
                                             </TableBody>
                                         </Table>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+
+                            {/* 商品別詳細タブ */}
+                            <TabsContent value="product" className="m-0">
+                                <Card>
+                                    <CardContent className="p-0">
+                                        <Table>
+                                            <TableHeader className="bg-muted/30 sticky top-0 z-20">
+                                                <TableRow className="h-9">
+                                                    <TableHead className="h-9 text-[10px]">商品名</TableHead>
+                                                    <TableHead className="h-9 text-[10px] text-right">製造/廃棄</TableHead>
+                                                    <TableHead className="h-9 text-[10px] text-right">廃棄率</TableHead>
+                                                    <TableHead className="h-9 text-[10px] text-center">ワースト曜日Top3</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {analysisData.products.map((p) => {
+                                                    const wasteRate = p.production > 0 ? (p.waste / p.production) * 100 : 0;
+                                                    const topDows = Object.entries(p.dow)
+                                                        .map(([dow, count]) => ({ dow: Number(dow), count: count as number }))
+                                                        .filter(item => item.count > 0)
+                                                        .sort((a, b) => b.count - a.count)
+                                                        .slice(0, 3);
+
+                                                    return (
+                                                        <TableRow key={p.id} className="h-10">
+                                                            <TableCell className="p-2">
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-[11px] font-bold line-clamp-1">{p.name}</span>
+                                                                    <span className="text-[9px] text-muted-foreground uppercase">{p.category}</span>
+                                                                </div>
+                                                            </TableCell>
+                                                            <TableCell className="p-2 text-right">
+                                                                <div className="flex flex-col items-end">
+                                                                    <span className="text-[11px] font-medium">{p.production.toLocaleString()}</span>
+                                                                    <span className="text-[10px] font-bold text-destructive">{p.waste.toLocaleString()}</span>
+                                                                </div>
+                                                            </TableCell>
+                                                            <TableCell className="p-2 text-right">
+                                                                <div className="flex flex-col items-end gap-0.5">
+                                                                    <span className={cn("text-[11px] font-black", wasteRate > 15 ? "text-destructive" : "text-primary")}>{wasteRate.toFixed(1)}%</span>
+                                                                    <div className="w-12 h-1 bg-muted rounded-full overflow-hidden">
+                                                                        <div className={cn("h-full", wasteRate > 15 ? "bg-destructive" : "bg-primary")} style={{ width: `${Math.min(wasteRate, 100)}%` }} />
+                                                                    </div>
+                                                                </div>
+                                                            </TableCell>
+                                                            <TableCell className="p-2">
+                                                                <div className="flex justify-center gap-1">
+                                                                    {topDows.map((item, idx) => (
+                                                                        <div key={item.dow} className="flex flex-col items-center">
+                                                                            <Badge variant={idx === 0 ? "destructive" : "outline"} className="h-3.5 px-1 text-[8px] py-0">{dayLabels[item.dow]}</Badge>
+                                                                            <span className="text-[8px] mt-0.5">{item.count}</span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    );
+                                                })}
+                                            </TableBody>
+                                        </Table>
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+
+                            {/* クロス分析タブ */}
+                            <TabsContent value="cross" className="m-0">
+                                <Card>
+                                    <CardHeader className="p-3 pb-2">
+                                        <CardTitle className="text-xs font-bold">曜日 × 天気 クロス分析 (廃棄率 / 製造数)</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="p-0">
+                                        <div className="overflow-x-auto">
+                                            <Table className="border-t">
+                                                <TableHeader className="bg-muted/50">
+                                                    <TableRow className="h-8">
+                                                        <TableHead className="h-8 text-[9px] font-black border-r w-12 text-center bg-muted/80">曜\天</TableHead>
+                                                        {Object.entries(weatherLabels).map(([_, label]) => <TableHead key={label} className="h-8 text-[10px] text-center font-bold">{label}</TableHead>)}
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {dayLabels.map((label, dowIndex) => (
+                                                        <TableRow key={label} className="h-10">
+                                                            <TableHead className={cn("h-10 p-1 text-[10px] font-black border-r text-center bg-muted/20", dowIndex === 7 || dowIndex === 0 ? "text-destructive" : "")}>{label}</TableHead>
+                                                            {Object.keys(weatherLabels).map(weatherKey => {
+                                                                const stats = analysisData.matrixStats[`${dowIndex}-${weatherKey}`] || { waste: 0, production: 0 };
+                                                                const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
+                                                                
+                                                                // ヒートマップ風背景色計算
+                                                                const getBgColor = (r: number) => {
+                                                                    if (r === 0) return "";
+                                                                    if (r > 20) return "bg-destructive/20";
+                                                                    if (r > 12) return "bg-orange-400/10";
+                                                                    if (r > 5) return "bg-primary/5";
+                                                                    return "bg-green-500/5";
+                                                                };
+
+                                                                return (
+                                                                    <TableCell key={weatherKey} className={cn("text-center p-1 border-r last:border-r-0", getBgColor(rate))}>
+                                                                        {stats.production > 0 ? (
+                                                                            <div className="flex flex-col items-center">
+                                                                                <span className={cn("text-[11px] font-black", rate > 15 ? "text-destructive" : "text-primary")}>{rate.toFixed(1)}%</span>
+                                                                                <span className="text-[8px] text-muted-foreground tabular-nums">{stats.waste}/{stats.production}</span>
+                                                                            </div>
+                                                                        ) : <span className="text-muted-foreground text-[8px]">-</span>}
+                                                                    </TableCell>
+                                                                );
+                                                            })}
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+                        </div>
                     </Tabs>
-                </>
+                </div>
             )}
         </div>
     );
