@@ -41,10 +41,10 @@ import { ProductionProvider } from '@/contexts/production-context';
 
 const navItems = [
   { href: '/pos', icon: ShoppingCart, label: '廃棄入力', adminOnly: false },
-  { href: '/production', icon: Factory, label: '製造数入力', adminOnly: false },
+  { href: '/production', icon: Factory, label: '追加商品登録', adminOnly: false },
   { href: '/production-planning', icon: CalendarDays, label: '製造計画', adminOnly: false },
   { href: '/dashboard', icon: LineChart, label: 'ダッシュボード', adminOnly: false },
-  { href: '/abc-analysis', icon: Sigma, label: '多角的廃棄分析', adminOnly: false },
+  { href: '/abc-analysis', icon: Sigma, label: '廃棄クロス分析', adminOnly: false },
   { href: '/products', icon: Package, label: '商品', adminOnly: false },
   { href: '/stores', icon: Building, label: '店舗一覧', adminOnly: true },
   { href: '/manual', icon: BookText, label: '操作説明', adminOnly: false },
@@ -197,7 +197,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
                     </div>
                     <UserNav />
                   </header>
-                  <main className="flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6">
+                  <main className="flex-1 flex-col gap-4 p-2 md:p-3">
                     {children}
                   </main>
                 </div>
