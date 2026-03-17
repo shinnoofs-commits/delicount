@@ -358,14 +358,14 @@ export default function WasteAnalysisPage() {
                                                 return (
                                                     <div key={key} className={cn(
                                                         "flex flex-col gap-0.5 p-1.5 rounded-md border-l-[3px] transition-all",
-                                                        isAlert ? "bg-destructive/5 border-l-destructive" : "bg-muted/20 border-l-blue-800"
+                                                        isAlert ? "bg-destructive/5 border-l-destructive" : "bg-muted/20 border-l-orange-500"
                                                     )}>
                                                         <span className="text-[9px] font-black leading-none text-muted-foreground">{label}</span>
-                                                        <div className={cn("text-xl font-black tracking-tight", isAlert ? "text-destructive" : "text-blue-900")}>
+                                                        <div className={cn("text-xl font-black tracking-tight", isAlert ? "text-destructive" : "text-orange-600")}>
                                                             {rate.toFixed(1)}<span className="text-[9px] ml-0.5 font-normal">%</span>
                                                         </div>
                                                         <div className="w-full h-1 bg-muted rounded-full overflow-hidden mt-0.5">
-                                                            <div className={cn("h-full", isAlert ? "bg-destructive" : "bg-blue-800")} style={{ width: `${Math.min(rate * 2.5, 100)}%` }} />
+                                                            <div className={cn("h-full", isAlert ? "bg-destructive" : "bg-orange-500")} style={{ width: `${Math.min(rate * 2.5, 100)}%` }} />
                                                         </div>
                                                     </div>
                                                 );
