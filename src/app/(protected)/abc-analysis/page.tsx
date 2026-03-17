@@ -42,7 +42,7 @@ const weatherLabels: Record<string, string> = {
   snowy: '雪',
 };
 
-export default function WasteCrossAnalysisPage() {
+export default function WasteAnalysisPage() {
     const { wasteEntries, loading: wasteLoading } = useTransactions();
     const { productionEntries, loading: productionLoading } = useProduction();
     const { products, loading: productsLoading } = useProducts();
@@ -299,11 +299,10 @@ export default function WasteCrossAnalysisPage() {
                             {/* Overview Tab */}
                             <TabsContent value="overview" className="m-0 space-y-2">
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
-                                    <Card className="overflow-hidden border-none shadow-sm">
-                                        <CardHeader className="p-3 bg-muted/30 pb-2">
-                                            <CardTitle className="text-[11px] font-black flex items-center justify-between">
-                                                <div className="flex items-center"><CalendarDays className="h-3.5 w-3.5 mr-1.5 text-primary" />曜日別 廃棄率</div>
-                                                <span className="text-[10px] text-muted-foreground font-normal">製造数に対する比率</span>
+                                    <Card className="overflow-hidden border-none shadow-sm border-l-[3px] border-l-primary bg-background">
+                                        <CardHeader className="p-3 pb-0">
+                                            <CardTitle className="text-[10px] text-muted-foreground font-black uppercase flex items-center">
+                                                <CalendarDays className="h-3.5 w-3.5 mr-1.5 text-primary" />曜日別 廃棄率
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent className="p-3 pt-4">
@@ -318,7 +317,7 @@ export default function WasteCrossAnalysisPage() {
                                                                 {rate > 0 ? `${rate.toFixed(0)}%` : ''}
                                                             </div>
                                                             <div className="w-full relative bg-muted/30 rounded-t-sm flex items-end h-full">
-                                                                <div className={cn("w-full rounded-t-sm transition-all", rate > 15 ? "bg-destructive shadow-[0_0_8px_rgba(239,68,68,0.3)]" : "bg-primary")} style={{ height: `${height}%` }} />
+                                                                <div className={cn("w-full rounded-t-sm transition-all shadow-sm", rate > 15 ? "bg-destructive" : "bg-primary")} style={{ height: `${height}%` }} />
                                                             </div>
                                                             <div className={cn("text-[11px] font-black h-5 w-full flex items-center justify-center rounded mt-1", i === 7 || i === 0 ? "bg-destructive/10 text-destructive" : "bg-muted/50")}>{label}</div>
                                                         </div>
@@ -327,11 +326,10 @@ export default function WasteCrossAnalysisPage() {
                                             </div>
                                         </CardContent>
                                     </Card>
-                                    <Card className="overflow-hidden border-none shadow-sm">
-                                        <CardHeader className="p-3 bg-muted/30 pb-2">
-                                            <CardTitle className="text-[11px] font-black flex items-center justify-between">
-                                                <div className="flex items-center"><Sun className="h-3.5 w-3.5 mr-1.5 text-accent" />天気別 廃棄率</div>
-                                                <span className="text-[10px] text-muted-foreground font-normal">コンディション別分析</span>
+                                    <Card className="overflow-hidden border-none shadow-sm border-l-[3px] border-l-accent bg-background">
+                                        <CardHeader className="p-3 pb-0">
+                                            <CardTitle className="text-[10px] text-muted-foreground font-black uppercase flex items-center">
+                                                <Sun className="h-3.5 w-3.5 mr-1.5 text-accent" />天気別 廃棄率
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent className="p-3 pt-4">
@@ -346,7 +344,7 @@ export default function WasteCrossAnalysisPage() {
                                                                 {rate > 0 ? `${rate.toFixed(0)}%` : ''}
                                                             </div>
                                                             <div className="w-full relative bg-muted/30 rounded-t-sm flex items-end h-full">
-                                                                <div className={cn("w-full rounded-t-sm transition-all", rate > 15 ? "bg-destructive shadow-[0_0_8px_rgba(239,68,68,0.3)]" : "bg-accent")} style={{ height: `${height}%` }} />
+                                                                <div className={cn("w-full rounded-t-sm transition-all shadow-sm", rate > 15 ? "bg-destructive" : "bg-accent")} style={{ height: `${height}%` }} />
                                                             </div>
                                                             <div className="text-[11px] font-black h-5 w-full bg-muted/50 flex items-center justify-center rounded mt-1">{label}</div>
                                                         </div>
@@ -356,11 +354,11 @@ export default function WasteCrossAnalysisPage() {
                                         </CardContent>
                                     </Card>
                                 </div>
-                                <Card className="border-none shadow-sm overflow-hidden">
+                                <Card className="border-none shadow-sm overflow-hidden bg-background">
                                     <CardHeader className="p-3 bg-primary/5 pb-2">
                                         <CardTitle className="text-[11px] font-black flex items-center">
                                             <Filter className="h-3.5 w-3.5 mr-1.5 text-primary" />
-                                            カテゴリー別サマリー <span className="text-[9px] font-normal text-muted-foreground ml-2">(廃棄率の高い順)</span>
+                                            カテゴリー別サマリー <span className="text-[9px] font-normal text-muted-foreground ml-2">(廃棄率順)</span>
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="p-0">
@@ -397,7 +395,7 @@ export default function WasteCrossAnalysisPage() {
 
                             {/* Product Detail Tab */}
                             <TabsContent value="product" className="m-0">
-                                <Card className="border-none shadow-sm">
+                                <Card className="border-none shadow-sm bg-background">
                                     <CardContent className="p-0">
                                         <Table>
                                             <TableHeader className="bg-muted/40 sticky top-0 z-20">
@@ -460,7 +458,7 @@ export default function WasteCrossAnalysisPage() {
 
                             {/* Cross Analysis Tab */}
                             <TabsContent value="cross" className="m-0">
-                                <Card className="border-none shadow-sm overflow-hidden">
+                                <Card className="border-none shadow-sm overflow-hidden bg-background">
                                     <CardHeader className="p-3 bg-muted/40 pb-2">
                                         <CardTitle className="text-[11px] font-black flex items-center justify-between">
                                             <div>曜日 × 天気 クロス分析 <span className="text-[9px] font-normal text-muted-foreground ml-2">(廃棄率 / 実績数)</span></div>
