@@ -90,9 +90,11 @@ export default function WasteAnalysisPage() {
         const matrixStats: Record<string, { waste: number; production: number }> = {};
         const categoryStats: Record<string, { waste: number; production: number }> = {};
 
+        // 初期化
         for (let i = 0; i < 8; i++) dayStats[i] = { waste: 0, production: 0 };
         Object.keys(weatherLabels).forEach(w => weatherStats[w] = { waste: 0, production: 0 });
 
+        // 製造実績の集計
         const filteredProduction = productionEntries.filter(entry => 
             dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd'))
         );
@@ -126,37 +128,36 @@ export default function WasteAnalysisPage() {
             });
         });
 
+        // 廃棄実績の集計
         const filteredWaste = wasteEntries.filter(entry => 
             dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd'))
         );
+
+        const dateToWeather = new Map<string, string>();
 
         filteredWaste.forEach(entry => {
             const entryDate = new Date(entry.date);
             const isHoliday = holiday_jp.isHoliday(entryDate);
             const dow = isHoliday ? 7 : getDay(entryDate);
             const weather = entry.weather || 'unknown';
+            const dateStr = format(startOfDay(entryDate), 'yyyy-MM-dd');
+            
+            if (weather !== 'unknown') dateToWeather.set(dateStr, weather);
 
             entry.items.forEach(item => {
                 const product = products.find(p => p.id === item.productId);
                 if (!product) return;
                 if (selectedCategory !== 'all' && product.category !== selectedCategory) return;
 
-                const stats = productStats.get(item.productId) || {
-                    id: item.productId,
-                    name: item.name,
-                    category: product.category,
-                    waste: 0,
-                    production: 0,
-                    costPrice: product.costPrice,
-                    dow: { 0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 }
-                };
-                stats.waste += item.quantity;
-                stats.dow[dow] += item.quantity;
-                productStats.set(item.productId, stats);
+                const stats = productStats.get(item.productId);
+                if (stats) {
+                    stats.waste += item.quantity;
+                    stats.dow[dow] += item.quantity;
+                }
 
                 dayStats[dow].waste += item.quantity;
 
-                if (weather !== 'unknown' && weatherStats[weather]) {
+                if (weather !== 'unknown' && weatherLabels[weather]) {
                     weatherStats[weather].waste += item.quantity;
                     const key = `${dow}-${weather}`;
                     if (!matrixStats[key]) matrixStats[key] = { waste: 0, production: 0 };
@@ -168,29 +169,27 @@ export default function WasteAnalysisPage() {
             });
         });
 
-        // 天気ごとの製造数を紐付け
-        filteredWaste.forEach(wasteEntry => {
-            const dateStr = format(startOfDay(wasteEntry.date), 'yyyy-MM-dd');
-            const weather = wasteEntry.weather;
-            if (!weather || weather === 'unknown') return;
+        // 天気ごとの製造数を紐付け（マトリクス用）
+        filteredProduction.forEach(pEntry => {
+            const dateStr = format(startOfDay(pEntry.date), 'yyyy-MM-dd');
+            const weather = dateToWeather.get(dateStr);
+            if (!weather || !weatherLabels[weather]) return;
 
-            const prodOnSameDay = filteredProduction.filter(p => format(startOfDay(p.date), 'yyyy-MM-dd') === dateStr);
-            const dow = holiday_jp.isHoliday(wasteEntry.date) ? 7 : getDay(wasteEntry.date);
+            const isHoliday = holiday_jp.isHoliday(pEntry.date);
+            const dow = isHoliday ? 7 : getDay(pEntry.date);
             const key = `${dow}-${weather}`;
-            
-            if (!matrixStats[key]) matrixStats[key] = { waste: 0, production: 0 };
-            
-            prodOnSameDay.forEach(p => {
-                p.items.forEach(item => {
-                    const product = products.find(prod => prod.id === item.productId);
-                    if (!product) return;
-                    if (selectedCategory !== 'all' && product.category !== selectedCategory) return;
-                    
-                    matrixStats[key].production += item.quantity;
-                    if (weather && weatherStats[weather]) {
-                        weatherStats[weather].production += item.quantity;
-                    }
-                });
+
+            pEntry.items.forEach(item => {
+                const product = products.find(p => p.id === item.productId);
+                if (!product) return;
+                if (selectedCategory !== 'all' && product.category !== selectedCategory) return;
+
+                if (!matrixStats[key]) matrixStats[key] = { waste: 0, production: 0 };
+                matrixStats[key].production += item.quantity;
+                
+                if (weatherStats[weather]) {
+                    weatherStats[weather].production += item.quantity;
+                }
             });
         });
 
