@@ -29,7 +29,7 @@ import {
   DialogTitle, 
   DialogDescription 
 } from "@/components/ui/dialog";
-import { Calendar as CalendarIcon, Loader2, CalendarDays, Sun, Filter, PieChart, Package } from 'lucide-react';
+import { Calendar as CalendarIcon, Loader2, CalendarDays, Sun, Filter, PieChart, Package, Cloud, CloudRain, Snowflake } from 'lucide-react';
 import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, getDay, addDays } from "date-fns"
 import { ja } from "date-fns/locale"
 import holiday_jp from '@holiday-jp/holiday_jp';
@@ -47,6 +47,13 @@ const weatherLabels: Record<string, string> = {
   cloudy: '曇り',
   rainy: '雨',
   snowy: '雪',
+};
+
+const weatherIcons: Record<string, any> = {
+  sunny: Sun,
+  cloudy: Cloud,
+  rainy: CloudRain,
+  snowy: Snowflake,
 };
 
 export default function WasteAnalysisPage() {
@@ -329,13 +336,17 @@ export default function WasteAnalysisPage() {
                                             {Object.entries(weatherLabels).map(([key, label]) => {
                                                 const stats = analysisData.weatherStats[key] || { waste: 0, production: 0 };
                                                 const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
+                                                const Icon = weatherIcons[key];
                                                 const isAlert = rate > 15;
                                                 return (
                                                     <div key={key} className={cn(
                                                         "flex items-center justify-between p-2 rounded-md border-l-[3px] h-10",
                                                         isAlert ? "bg-destructive/5 border-l-destructive" : "bg-muted/20 border-l-orange-500"
                                                     )}>
-                                                        <span className="text-[14px] font-black text-muted-foreground">{label}</span>
+                                                        <div className="flex items-center gap-1">
+                                                            <Icon className={cn("h-4 w-4", isAlert ? "text-destructive" : "text-orange-500")} />
+                                                            <span className="text-[14px] font-black text-muted-foreground">{label}</span>
+                                                        </div>
                                                         <div className={cn("text-[18px] font-black tabular-nums", isAlert ? "text-destructive" : "text-orange-600")}>
                                                             {rate.toFixed(1)}<span className="text-[10px] font-normal">%</span>
                                                         </div>
@@ -504,12 +515,18 @@ export default function WasteAnalysisPage() {
                                 {Object.entries(weatherLabels).map(([weatherKey, label]) => {
                                     const stats = (selectedDayIdx !== null && analysisData?.matrixStats[`${selectedDayIdx}-${weatherKey}`]) || { waste: 0, production: 0 };
                                     const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
+                                    const Icon = weatherIcons[weatherKey];
                                     const isAlert = rate > 15;
                                     return (
                                         <div key={weatherKey} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-muted">
-                                            <div className="flex flex-col">
-                                                <span className="text-[11px] font-black text-muted-foreground">{label}</span>
-                                                <span className="text-[10px] font-bold opacity-60">製造: {stats.production} / 廃棄: {stats.waste}</span>
+                                            <div className="flex items-center gap-3">
+                                                <div className={cn("p-2 rounded-full", isAlert ? "bg-destructive/10" : "bg-orange-100")}>
+                                                    <Icon className={cn("h-5 w-5", isAlert ? "text-destructive" : "text-orange-500")} />
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-[11px] font-black text-muted-foreground">{label}</span>
+                                                    <span className="text-[10px] font-bold opacity-60">製造: {stats.production} / 廃棄: {stats.waste}</span>
+                                                </div>
                                             </div>
                                             <div className="text-right">
                                                 <div className={cn("text-2xl font-black leading-none", isAlert ? "text-destructive" : "text-blue-900")}>
