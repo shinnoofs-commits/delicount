@@ -29,7 +29,7 @@ import {
   DialogTitle, 
   DialogDescription 
 } from "@/components/ui/dialog";
-import { Calendar as CalendarIcon, Loader2, CalendarDays, Sun, Filter, PieChart, Package, AlertCircle } from 'lucide-react';
+import { Calendar as CalendarIcon, Loader2, CalendarDays, Sun, Filter, PieChart, Package } from 'lucide-react';
 import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, getDay, addDays } from "date-fns"
 import { ja } from "date-fns/locale"
 import holiday_jp from '@holiday-jp/holiday_jp';
@@ -168,6 +168,7 @@ export default function WasteAnalysisPage() {
             });
         });
 
+        // 天気ごとの製造数を紐付け（クロス分析用）
         filteredWaste.forEach(wasteEntry => {
             const dateStr = format(startOfDay(wasteEntry.date), 'yyyy-MM-dd');
             const weather = wasteEntry.weather;
@@ -230,7 +231,7 @@ export default function WasteAnalysisPage() {
 
     return (
         <div className="flex flex-col gap-1.5 h-full overflow-hidden">
-            {/* Filter Section */}
+            {/* フィルターセクション */}
             <Card className="shrink-0 border-none shadow-none bg-muted/40">
                 <CardContent className="p-1.5 flex flex-wrap items-center gap-2.5">
                     <div className="flex items-center gap-1.5">
@@ -272,7 +273,7 @@ export default function WasteAnalysisPage() {
                 </div>
             ) : (
                 <div className="flex-1 flex flex-col gap-1 min-h-0">
-                    {/* KPI Section */}
+                    {/* KPIセクション */}
                     <div className="grid grid-cols-3 gap-1.5 shrink-0 px-1">
                         <Card className="bg-background border-l-[3px] border-l-blue-400 shadow-sm">
                             <CardContent className="p-2">
@@ -294,7 +295,7 @@ export default function WasteAnalysisPage() {
                         </Card>
                     </div>
 
-                    {/* Main Analysis Tabs */}
+                    {/* メイン分析タブ */}
                     <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0">
                         <TabsList className="grid grid-cols-3 h-7 p-1 bg-muted/60 mx-1 rounded-md">
                             <TabsTrigger value="overview" className="text-[10px] font-bold"><PieChart className="h-3 w-3 mr-1" />概況分析</TabsTrigger>
@@ -303,9 +304,9 @@ export default function WasteAnalysisPage() {
                         </TabsList>
 
                         <div className="flex-1 overflow-auto mt-1 px-1">
-                            {/* Overview Tab */}
+                            {/* 概況分析タブ */}
                             <TabsContent value="overview" className="m-0 space-y-1.5 pb-2">
-                                {/* Day of Week Analysis */}
+                                {/* 曜日別分析カード */}
                                 <Card className="border-none shadow-sm bg-background">
                                     <CardHeader className="p-2 pb-0">
                                         <CardTitle className="text-[9px] text-muted-foreground font-black uppercase flex items-center tracking-wider">
@@ -318,7 +319,7 @@ export default function WasteAnalysisPage() {
                                                 const stats = analysisData.dayStats[i];
                                                 const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
                                                 const isAlert = rate > 15;
-                                                const isSpecial = i === 7 || i === 0;
+                                                const isSpecial = i === 7 || i === 0; // 日・祝
                                                 
                                                 return (
                                                     <div key={label} 
@@ -341,7 +342,7 @@ export default function WasteAnalysisPage() {
                                     </CardContent>
                                 </Card>
 
-                                {/* Weather Analysis */}
+                                {/* 天気別分析カード */}
                                 <Card className="border-none shadow-sm bg-background">
                                     <CardHeader className="p-2 pb-0">
                                         <CardTitle className="text-[9px] text-muted-foreground font-black uppercase flex items-center tracking-wider">
@@ -374,7 +375,7 @@ export default function WasteAnalysisPage() {
                                     </CardContent>
                                 </Card>
 
-                                {/* Category Summary Table */}
+                                {/* カテゴリー別サマリーテーブル */}
                                 <Card className="border-none shadow-sm overflow-hidden bg-background">
                                     <CardHeader className="p-2 bg-primary/5 pb-1">
                                         <CardTitle className="text-[9px] font-black flex items-center">
@@ -414,7 +415,7 @@ export default function WasteAnalysisPage() {
                                 </Card>
                             </TabsContent>
 
-                            {/* Product Detail Tab */}
+                            {/* 商品分析タブ */}
                             <TabsContent value="product" className="m-0 pb-2">
                                 <Card className="border-none shadow-sm bg-background">
                                     <CardContent className="p-0">
@@ -477,7 +478,7 @@ export default function WasteAnalysisPage() {
                                 </Card>
                             </TabsContent>
 
-                            {/* Cross Analysis Tab */}
+                            {/* クロス分析タブ */}
                             <TabsContent value="cross" className="m-0 pb-2">
                                 <Card className="border-none shadow-sm overflow-hidden bg-background">
                                     <CardHeader className="p-2 bg-muted/40 pb-1">
@@ -532,7 +533,7 @@ export default function WasteAnalysisPage() {
                         </div>
                     </Tabs>
 
-                    {/* Day Details Modal */}
+                    {/* 曜日詳細ポップアップ */}
                     <Dialog open={selectedDayIdx !== null} onOpenChange={(open) => !open && setSelectedDayIdx(null)}>
                         <DialogContent className="max-w-[400px] p-4">
                             <DialogHeader>
