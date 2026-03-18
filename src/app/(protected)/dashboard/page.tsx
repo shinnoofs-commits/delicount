@@ -18,7 +18,7 @@ import {
 import { useTransactions } from "@/contexts/transaction-context";
 import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid, getDay, addDays, isSameDay } from "date-fns"
 import { ja } from "date-fns/locale"
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell } from "recharts"
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts"
 import { Calendar as CalendarIcon, Trash2, TrendingDown, Edit, MoreHorizontal, Plus, Minus, Loader2, Sun, Cloud, CloudRain, Snowflake, Package } from 'lucide-react';
 import { useMemo, useState } from "react";
 import type { WasteEntry, WasteItem, WeatherType } from "@/lib/types";
@@ -53,6 +53,7 @@ import {
 } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
+import { useAdmin } from "@/hooks/use-admin";
 
 const DateRangePicker = ({ date, setDate }: { date: DateRange | undefined, setDate: (date: DateRange | undefined) => void }) => {
   return (

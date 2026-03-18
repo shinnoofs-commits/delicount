@@ -140,8 +140,9 @@ export default function WasteAnalysisPage() {
                 
                 if (weather !== 'unknown' && weatherStats[weather]) {
                     weatherStats[weather].production += item.quantity;
-                    if (!matrixStats[matrixKey]) matrixStats[matrixKey] = { waste: 0, production: 0 };
-                    matrixStats[matrixKey].production += item.quantity;
+                    const matrixKeySafe = matrixKey;
+                    if (!matrixStats[matrixKeySafe]) matrixStats[matrixKeySafe] = { waste: 0, production: 0 };
+                    matrixStats[matrixKeySafe].production += item.quantity;
                 }
                 
                 if (!categoryStats[product.category]) categoryStats[product.category] = { waste: 0, production: 0 };
@@ -172,8 +173,9 @@ export default function WasteAnalysisPage() {
 
                 if (weather !== 'unknown' && weatherStats[weather]) {
                     weatherStats[weather].waste += item.quantity;
-                    if (!matrixStats[matrixKey]) matrixStats[matrixKey] = { waste: 0, production: 0 };
-                    matrixStats[matrixKey].waste += item.quantity;
+                    const matrixKeySafe = matrixKey;
+                    if (!matrixStats[matrixKeySafe]) matrixStats[matrixKeySafe] = { waste: 0, production: 0 };
+                    matrixStats[matrixKeySafe].waste += item.quantity;
                 }
 
                 if (!categoryStats[product.category]) categoryStats[product.category] = { waste: 0, production: 0 };
@@ -257,19 +259,19 @@ export default function WasteAnalysisPage() {
                 <div className="flex-1 flex flex-col gap-1 min-h-0">
                     {/* KPIセクション */}
                     <div className="grid grid-cols-3 gap-1 shrink-0 px-1">
-                        <Card className="bg-background border-l-[3px] border-l-blue-400">
+                        <Card className="bg-background border-l-[3px] border-l-blue-400 h-16">
                             <CardContent className="p-2">
                                 <p className="text-[10px] text-muted-foreground font-black uppercase">総製造数</p>
                                 <div className="text-xl font-black">{analysisData.totalProduction.toLocaleString()} <span className="text-[10px] font-normal">個</span></div>
                             </CardContent>
                         </Card>
-                        <Card className="bg-background border-l-[3px] border-l-destructive">
+                        <Card className="bg-background border-l-[3px] border-l-destructive h-16">
                             <CardContent className="p-2">
                                 <p className="text-[10px] text-muted-foreground font-black uppercase">総廃棄数</p>
                                 <div className="text-xl font-black text-destructive">{analysisData.totalWaste.toLocaleString()} <span className="text-[10px] font-normal">個</span></div>
                             </CardContent>
                         </Card>
-                        <Card className="bg-primary/5 border-l-[3px] border-l-blue-900">
+                        <Card className="bg-primary/5 border-l-[3px] border-l-blue-900 h-16">
                             <CardContent className="p-2">
                                 <p className="text-[10px] text-blue-900 font-black uppercase">平均廃棄率</p>
                                 <div className="text-2xl font-black text-blue-900">{overallWasteRate.toFixed(1)}<span className="text-[12px]">%</span></div>
@@ -305,8 +307,8 @@ export default function WasteAnalysisPage() {
                                                         "flex items-center justify-between p-2 rounded-md border-l-[3px] transition-all cursor-pointer hover:opacity-80 h-10",
                                                         isAlert ? "bg-destructive/5 border-l-destructive" : "bg-muted/20 border-l-blue-800"
                                                     )}>
-                                                        <span className="text-[12px] font-black text-muted-foreground">{label}</span>
-                                                        <div className={cn("text-xl font-black tabular-nums", isAlert ? "text-destructive" : "text-blue-900")}>
+                                                        <span className="text-[14px] font-black text-muted-foreground">{label}</span>
+                                                        <div className={cn("text-[18px] font-black tabular-nums", isAlert ? "text-destructive" : "text-blue-900")}>
                                                             {rate.toFixed(1)}<span className="text-[10px] font-normal">%</span>
                                                         </div>
                                                     </div>
@@ -333,8 +335,8 @@ export default function WasteAnalysisPage() {
                                                         "flex items-center justify-between p-2 rounded-md border-l-[3px] h-10",
                                                         isAlert ? "bg-destructive/5 border-l-destructive" : "bg-muted/20 border-l-orange-500"
                                                     )}>
-                                                        <span className="text-[12px] font-black text-muted-foreground">{label}</span>
-                                                        <div className={cn("text-xl font-black tabular-nums", isAlert ? "text-destructive" : "text-orange-600")}>
+                                                        <span className="text-[14px] font-black text-muted-foreground">{label}</span>
+                                                        <div className={cn("text-[18px] font-black tabular-nums", isAlert ? "text-destructive" : "text-orange-600")}>
                                                             {rate.toFixed(1)}<span className="text-[10px] font-normal">%</span>
                                                         </div>
                                                     </div>
@@ -348,7 +350,7 @@ export default function WasteAnalysisPage() {
                                     <CardHeader className="p-2 bg-primary/5 pb-1">
                                         <CardTitle className="text-[12px] font-black flex items-center">
                                             <Filter className="h-3 w-3 mr-2 text-primary" />
-                                            カテゴリー別サマリー <span className="text-[10px] font-normal text-muted-foreground ml-2">(廃棄率順 / 200%拡大表示)</span>
+                                            カテゴリー別サマリー <span className="text-[10px] font-normal text-muted-foreground ml-2">(廃棄率順)</span>
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="p-0">
