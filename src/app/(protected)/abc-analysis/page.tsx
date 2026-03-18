@@ -43,7 +43,7 @@ import { cn } from "@/lib/utils";
 
 // 月曜開始のラベル
 const dayLabels = ['月', '火', '水', '木', '金', '土', '日', '祝'];
-// dayLabelsに対応するgetDay()の戻り値 (0=日, 1=月, ..., 6=土, 7=祝)
+// dayLabelsに対応するgetDay()の戻り値 (1=月, ..., 6=土, 0=日, 7=祝)
 const dayOrder = [1, 2, 3, 4, 5, 6, 0, 7];
 
 const weatherLabels: Record<string, string> = {
@@ -303,13 +303,22 @@ export default function ABCAnalysisPage() {
                                                 const isAlert = rate > 15;
                                                 
                                                 let labelColor = "text-muted-foreground";
-                                                if (actualDow === 6) labelColor = "text-blue-500"; 
-                                                if (actualDow === 0 || actualDow === 7) labelColor = "text-destructive";
+                                                let borderColor = "border-slate-200";
+
+                                                if (actualDow === 6) {
+                                                    labelColor = "text-blue-500"; 
+                                                    borderColor = "border-blue-400/60";
+                                                }
+                                                if (actualDow === 0 || actualDow === 7) {
+                                                    labelColor = "text-destructive";
+                                                    borderColor = "border-destructive/60";
+                                                }
 
                                                 return (
                                                     <div key={label} onClick={() => setSelectedDayIdx(actualDow)} className={cn(
-                                                        "flex items-center justify-center gap-3 px-4 h-10 rounded-full transition-all cursor-pointer hover:opacity-80 bg-muted/50 border border-transparent shadow-sm",
-                                                        isAlert && "bg-destructive/10 border-destructive/20"
+                                                        "flex items-center justify-center gap-3 px-4 h-10 rounded-full transition-all cursor-pointer hover:opacity-80 bg-muted/50 border shadow-sm",
+                                                        borderColor,
+                                                        isAlert && "bg-destructive/10 border-destructive"
                                                     )}>
                                                         <span className={cn("text-[14px] font-black shrink-0", labelColor)}>{label}</span>
                                                         <div className={cn("text-[18px] font-black tabular-nums leading-none flex items-baseline gap-0.5", isAlert ? "text-destructive" : "text-blue-900")}>
@@ -337,8 +346,8 @@ export default function ABCAnalysisPage() {
                                                 const isAlert = rate > 15;
                                                 return (
                                                     <div key={key} className={cn(
-                                                        "flex items-center justify-center gap-2 px-3 h-10 rounded-full bg-muted/50 border border-transparent shadow-sm",
-                                                        isAlert && "bg-destructive/10 border-destructive/20"
+                                                        "flex items-center justify-center gap-2 px-3 h-10 rounded-full bg-muted/50 border border-orange-400/50 shadow-sm",
+                                                        isAlert && "bg-destructive/10 border-destructive"
                                                     )}>
                                                         <div className="flex items-center gap-1.5 shrink-0">
                                                             <Icon className={cn("h-4 w-4", isAlert ? "text-destructive" : "text-orange-500")} />
