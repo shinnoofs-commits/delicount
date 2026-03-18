@@ -16,10 +16,10 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useTransactions } from "@/contexts/transaction-context";
-import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid, getDay, addDays } from "date-fns"
+import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid, getDay, addDays, isSameDay } from "date-fns"
 import { ja } from "date-fns/locale"
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts"
-import { Calendar as CalendarIcon, Trash2, TrendingDown, Edit, MoreHorizontal, Plus, Minus, Loader2, Sun, Cloud, CloudRain, Snowflake } from 'lucide-react';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell } from "recharts"
+import { Calendar as CalendarIcon, Trash2, TrendingDown, Edit, MoreHorizontal, Plus, Minus, Loader2, Sun, Cloud, CloudRain, Snowflake, Package } from 'lucide-react';
 import { useMemo, useState } from "react";
 import type { WasteEntry, WasteItem, WeatherType } from "@/lib/types";
 import { useProducts } from "@/contexts/product-context";
@@ -36,7 +36,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import holiday_jp from '@holiday-jp/holiday_jp';
 import { StoreSelector } from "@/components/ui/store-selector";
-import { useAdmin } from "@/hooks/use-admin";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -157,6 +156,7 @@ export default function DashboardPage() {
   const [editItems, setEditItems] = useState<WasteItem[]>([]);
   const [editWeather, setEditWeather] = useState<WeatherType | undefined>(undefined);
   const [isSaving, setIsSaving] = useState(false);
+  const [selectedDayWaste, setSelectedDayWaste] = useState<{ date: Date, entries: WasteEntry[] } | null>(null);
 
   const [date, setDate] = useState<DateRange | undefined>({
     from: subDays(new Date(), 6),
@@ -239,11 +239,11 @@ export default function DashboardPage() {
   const dailyWasteData = useMemo(() => {
     if (!date?.from || !date?.to) return [];
 
-    const dailyTotals = new Map<string, { cost: number, price: number, weather?: WeatherType }>();
+    const dailyTotals = new Map<string, { cost: number, price: number, weather?: WeatherType, originalDate: Date }>();
 
     filteredWasteEntries.forEach(entry => {
       const entryDate = format(new Date(entry.date), 'yyyy-MM-dd');
-      const current = dailyTotals.get(entryDate) || { cost: 0, price: 0 };
+      const current = dailyTotals.get(entryDate) || { cost: 0, price: 0, originalDate: new Date(entry.date) };
       
       const entryTotalPrice = entry.items.reduce((sum, item) => {
           const product = products.find(p => p.id === item.productId);
@@ -253,28 +253,37 @@ export default function DashboardPage() {
       dailyTotals.set(entryDate, {
           cost: current.cost + entry.totalWasteCost,
           price: current.price + entryTotalPrice,
-          weather: current.weather || entry.weather
+          weather: current.weather || entry.weather,
+          originalDate: current.originalDate
       });
     });
 
-    const allDaysData: { date: string, totalWaste: number, totalOpportunityLoss: number, weatherLabel?: string }[] = [];
+    const allDaysData: { date: string, totalWaste: number, totalOpportunityLoss: number, weatherLabel?: string, fullDate: Date }[] = [];
     let currentDate = startOfDay(date.from);
     const toDate = endOfDay(date.to);
 
     while (currentDate <= toDate) {
       const formattedDate = format(currentDate, 'yyyy-MM-dd');
-      const dayData = dailyTotals.get(formattedDate) || { cost: 0, price: 0 };
+      const dayData = dailyTotals.get(formattedDate) || { cost: 0, price: 0, originalDate: new Date(currentDate) };
       allDaysData.push({
         date: format(currentDate, 'M/d'),
         totalWaste: dayData.cost,
         totalOpportunityLoss: dayData.price,
-        weatherLabel: dayData.weather ? weatherLabels[dayData.weather] : undefined
+        weatherLabel: dayData.weather ? weatherLabels[dayData.weather] : undefined,
+        fullDate: new Date(currentDate)
       });
       currentDate = addDays(currentDate, 1);
     }
     
     return allDaysData;
   }, [filteredWasteEntries, date, products]);
+
+  const handleChartClick = (data: any) => {
+    if (!data || !data.activePayload) return;
+    const clickedData = data.activePayload[0].payload;
+    const entries = filteredWasteEntries.filter(e => isSameDay(new Date(e.date), clickedData.fullDate));
+    setSelectedDayWaste({ date: clickedData.fullDate, entries });
+  };
 
   const setDatePreset = (preset: 'today' | 'this_month' | 'last_7_days') => {
     const today = new Date();
@@ -424,11 +433,11 @@ export default function DashboardPage() {
       <Card>
           <CardHeader>
             <CardTitle>日別廃棄ロス推移</CardTitle>
-            <CardDescription>指定した期間内の日ごとの廃棄ロス額（原価）と機会損失額（売価）の推移です。</CardDescription>
+            <CardDescription>指定した期間内の日ごとの廃棄ロス額（原価）と機会損失額（売価）の推移です。棒グラフをタップして詳細を確認できます。</CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
             <ResponsiveContainer width="100%" height={350}>
-              <BarChart data={dailyWasteData}>
+              <BarChart data={dailyWasteData} onClick={handleChartClick}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis 
                   dataKey="date"
@@ -446,6 +455,7 @@ export default function DashboardPage() {
                   tickFormatter={(value) => `¥${(value as number).toLocaleString()}`}
                 />
                 <Tooltip
+                  cursor={{fill: 'rgba(0,0,0,0.05)'}}
                   contentStyle={{
                       backgroundColor: 'hsl(var(--background))',
                       borderColor: 'hsl(var(--border))',
@@ -461,8 +471,8 @@ export default function DashboardPage() {
                   }}
                 />
                 <Legend />
-                <Bar dataKey="totalWaste" fill="hsl(var(--primary))" name="廃棄ロス額" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="totalOpportunityLoss" fill="hsl(var(--accent))" name="機会損失額" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="totalWaste" fill="hsl(var(--primary))" name="廃棄ロス額" radius={[4, 4, 0, 0]} className="cursor-pointer" />
+                <Bar dataKey="totalOpportunityLoss" fill="hsl(var(--accent))" name="機会損失額" radius={[4, 4, 0, 0]} className="cursor-pointer" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -495,75 +505,86 @@ export default function DashboardPage() {
                           <TableHead>天気</TableHead>
                           <TableHead>商品内容</TableHead>
                           <TableHead className="text-right">廃棄額（原価）</TableHead>
+                          <TableHead className="text-right">機会損失（売価）</TableHead>
                           <TableHead className="w-12"></TableHead>
                       </TableRow>
                   </TableHeader>
                   <TableBody>
                       {wasteLoading ? (
                           <TableRow>
-                              <TableCell colSpan={6} className="h-24 text-center">
+                              <TableCell colSpan={7} className="h-24 text-center">
                                   <Loader2 className="h-6 w-6 animate-spin inline-block" />
                               </TableCell>
                           </TableRow>
                       ) : filteredWasteEntries.length === 0 ? (
                           <TableRow>
-                              <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                              <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                                   廃棄データがありません。
                               </TableCell>
                           </TableRow>
                       ) : (
-                          filteredWasteEntries.sort((a, b) => b.date.getTime() - a.date.getTime()).map(entry => (
-                              <TableRow key={entry.id}>
-                                  <TableCell>
-                                      <Checkbox 
-                                        checked={selectedEntries.includes(entry.id)}
-                                        onCheckedChange={(checked) => handleSelectEntry(entry.id, checked as boolean)}
-                                      />
-                                  </TableCell>
-                                  <TableCell className="whitespace-nowrap">
-                                      {format(entry.date, "yyyy/MM/dd HH:mm", { locale: ja })}
-                                  </TableCell>
-                                  <TableCell>
-                                      <WeatherIcon type={entry.weather} />
-                                      <span className="text-xs text-muted-foreground">{entry.weather ? weatherLabels[entry.weather] : '-'}</span>
-                                  </TableCell>
-                                  <TableCell>
-                                      <div className="flex flex-wrap gap-1">
-                                          {entry.items.map((item, i) => (
-                                              <span key={i} className="text-xs bg-muted px-2 py-0.5 rounded-full">
-                                                  {item.name} x{item.quantity}
-                                              </span>
-                                          ))}
-                                      </div>
-                                  </TableCell>
-                                  <TableCell className="text-right font-medium">
-                                      ¥{entry.totalWasteCost.toLocaleString()}
-                                  </TableCell>
-                                  <TableCell>
-                                      <DropdownMenu>
-                                          <DropdownMenuTrigger asChild>
-                                              <Button variant="ghost" size="icon">
-                                                  <MoreHorizontal className="h-4 w-4" />
-                                              </Button>
-                                          </DropdownMenuTrigger>
-                                          <DropdownMenuContent align="end">
-                                              <DropdownMenuLabel>操作</DropdownMenuLabel>
-                                              <DropdownMenuItem onClick={() => handleEditOpen(entry)}>
-                                                  <Edit className="h-4 w-4 mr-2" />
-                                                  編集
-                                              </DropdownMenuItem>
-                                              <DropdownMenuItem 
-                                                className="text-destructive"
-                                                onClick={() => handleDelete(entry)}
-                                              >
-                                                  <Trash2 className="h-4 w-4 mr-2" />
-                                                  削除
-                                              </DropdownMenuItem>
-                                          </DropdownMenuContent>
-                                      </DropdownMenu>
-                                  </TableCell>
-                              </TableRow>
-                          ))
+                          filteredWasteEntries.sort((a, b) => b.date.getTime() - a.date.getTime()).map(entry => {
+                              const entryTotalSellPrice = entry.items.reduce((sum, item) => {
+                                  const product = products.find(p => p.id === item.productId);
+                                  return sum + (product?.price || 0) * item.quantity;
+                              }, 0);
+
+                              return (
+                                <TableRow key={entry.id}>
+                                    <TableCell>
+                                        <Checkbox 
+                                            checked={selectedEntries.includes(entry.id)}
+                                            onCheckedChange={(checked) => handleSelectEntry(entry.id, checked as boolean)}
+                                        />
+                                    </TableCell>
+                                    <TableCell className="whitespace-nowrap">
+                                        {format(entry.date, "yyyy/MM/dd HH:mm", { locale: ja })}
+                                    </TableCell>
+                                    <TableCell>
+                                        <WeatherIcon type={entry.weather} />
+                                        <span className="text-xs text-muted-foreground">{entry.weather ? weatherLabels[entry.weather] : '-'}</span>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex flex-wrap gap-1">
+                                            {entry.items.map((item, i) => (
+                                                <span key={i} className="text-xs bg-muted px-2 py-0.5 rounded-full">
+                                                    {item.name} x{item.quantity}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-right font-medium">
+                                        ¥{entry.totalWasteCost.toLocaleString()}
+                                    </TableCell>
+                                    <TableCell className="text-right text-destructive font-medium">
+                                        ¥{entryTotalSellPrice.toLocaleString()}
+                                    </TableCell>
+                                    <TableCell>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon">
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuLabel>操作</DropdownMenuLabel>
+                                                <DropdownMenuItem onClick={() => handleEditOpen(entry)}>
+                                                    <Edit className="h-4 w-4 mr-2" />
+                                                    編集
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem 
+                                                    className="text-destructive"
+                                                    onClick={() => handleDelete(entry)}
+                                                >
+                                                    <Trash2 className="h-4 w-4 mr-2" />
+                                                    削除
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                              )
+                          })
                       )}
                   </TableBody>
               </Table>
@@ -627,6 +648,50 @@ export default function DashboardPage() {
           </DialogContent>
       </Dialog>
 
+      <Dialog open={!!selectedDayWaste} onOpenChange={(open) => !open && setSelectedDayWaste(null)}>
+          <DialogContent className="max-w-md max-h-[80vh] flex flex-col">
+              <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                      <Package className="h-5 w-5 text-primary" />
+                      {selectedDayWaste && format(selectedDayWaste.date, 'M月d日', { locale: ja })}の廃棄詳細
+                  </DialogTitle>
+                  <DialogDescription>
+                      この日に登録された全廃棄商品の一覧です。
+                  </DialogDescription>
+              </DialogHeader>
+              <div className="flex-1 overflow-auto py-4">
+                  {selectedDayWaste?.entries.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-8">廃棄データはありません。</p>
+                  ) : (
+                      <div className="space-y-4">
+                          {selectedDayWaste?.entries.map((entry, idx) => (
+                              <div key={idx} className="border-b pb-2 last:border-0">
+                                  <div className="flex items-center justify-between mb-1">
+                                      <span className="text-xs font-bold text-muted-foreground flex items-center gap-1">
+                                          <WeatherIcon type={entry.weather} />
+                                          {format(entry.date, 'HH:mm')}
+                                      </span>
+                                      <span className="text-xs font-black text-destructive">¥{entry.totalWasteCost.toLocaleString()}</span>
+                                  </div>
+                                  <div className="grid gap-1">
+                                      {entry.items.map((item, i) => (
+                                          <div key={i} className="flex justify-between items-center text-sm">
+                                              <span>{item.name}</span>
+                                              <span className="font-bold">x{item.quantity}</span>
+                                          </div>
+                                      ))}
+                                  </div>
+                              </div>
+                          ))}
+                      </div>
+                  )}
+              </div>
+              <DialogFooter>
+                  <Button variant="outline" onClick={() => setSelectedDayWaste(null)}>閉じる</Button>
+              </DialogFooter>
+          </DialogContent>
+      </Dialog>
+
       <div className="grid grid-cols-1 gap-4">
         <Card>
             <CardHeader>
@@ -653,7 +718,7 @@ export default function DashboardPage() {
                                 <TableCell className="text-right">¥{data.costPrice.toLocaleString()}</TableCell>
                                 <TableCell className="text-right">{data.wasteCount}</TableCell>
                                 <TableCell className="text-right font-medium">¥{data.totalWasteCost.toLocaleString()}</TableCell>
-                                <TableCell className="text-right text-destructive">¥{data.opportunityLoss.toLocaleString()}</TableCell>
+                                <TableCell className="text-right text-destructive font-bold">¥{data.opportunityLoss.toLocaleString()}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>

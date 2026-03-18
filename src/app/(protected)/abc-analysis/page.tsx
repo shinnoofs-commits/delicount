@@ -99,10 +99,25 @@ export default function WasteAnalysisPage() {
             dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd'))
         );
 
+        const dateToWeather = new Map<string, string>();
+
+        // 廃棄実績を先に舐めて、天気情報を収集
+        const filteredWaste = wasteEntries.filter(entry => 
+            dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd'))
+        );
+        filteredWaste.forEach(entry => {
+            if (entry.weather) {
+                dateToWeather.set(format(startOfDay(entry.date), 'yyyy-MM-dd'), entry.weather);
+            }
+        });
+
         filteredProduction.forEach(entry => {
             const entryDate = new Date(entry.date);
             const isHoliday = holiday_jp.isHoliday(entryDate);
             const dow = isHoliday ? 7 : getDay(entryDate);
+            const dateStr = format(startOfDay(entryDate), 'yyyy-MM-dd');
+            const weather = dateToWeather.get(dateStr) || 'unknown';
+            const matrixKey = `${dow}-${weather}`;
             
             entry.items.forEach(item => {
                 const product = products.find(p => p.id === item.productId);
@@ -123,27 +138,25 @@ export default function WasteAnalysisPage() {
 
                 dayStats[dow].production += item.quantity;
                 
+                if (weather !== 'unknown' && weatherStats[weather]) {
+                    weatherStats[weather].production += item.quantity;
+                    if (!matrixStats[matrixKey]) matrixStats[matrixKey] = { waste: 0, production: 0 };
+                    matrixStats[matrixKey].production += item.quantity;
+                }
+                
                 if (!categoryStats[product.category]) categoryStats[product.category] = { waste: 0, production: 0 };
                 categoryStats[product.category].production += item.quantity;
             });
         });
 
         // 廃棄実績の集計
-        const filteredWaste = wasteEntries.filter(entry => 
-            dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd'))
-        );
-
-        const dateToWeather = new Map<string, string>();
-
         filteredWaste.forEach(entry => {
             const entryDate = new Date(entry.date);
             const isHoliday = holiday_jp.isHoliday(entryDate);
             const dow = isHoliday ? 7 : getDay(entryDate);
             const weather = entry.weather || 'unknown';
-            const dateStr = format(startOfDay(entryDate), 'yyyy-MM-dd');
+            const matrixKey = `${dow}-${weather}`;
             
-            if (weather !== 'unknown') dateToWeather.set(dateStr, weather);
-
             entry.items.forEach(item => {
                 const product = products.find(p => p.id === item.productId);
                 if (!product) return;
@@ -157,39 +170,14 @@ export default function WasteAnalysisPage() {
 
                 dayStats[dow].waste += item.quantity;
 
-                if (weather !== 'unknown' && weatherLabels[weather]) {
+                if (weather !== 'unknown' && weatherStats[weather]) {
                     weatherStats[weather].waste += item.quantity;
-                    const key = `${dow}-${weather}`;
-                    if (!matrixStats[key]) matrixStats[key] = { waste: 0, production: 0 };
-                    matrixStats[key].waste += item.quantity;
+                    if (!matrixStats[matrixKey]) matrixStats[matrixKey] = { waste: 0, production: 0 };
+                    matrixStats[matrixKey].waste += item.quantity;
                 }
 
                 if (!categoryStats[product.category]) categoryStats[product.category] = { waste: 0, production: 0 };
                 categoryStats[product.category].waste += item.quantity;
-            });
-        });
-
-        // 天気ごとの製造数を紐付け（マトリクス用）
-        filteredProduction.forEach(pEntry => {
-            const dateStr = format(startOfDay(pEntry.date), 'yyyy-MM-dd');
-            const weather = dateToWeather.get(dateStr);
-            if (!weather || !weatherLabels[weather]) return;
-
-            const isHoliday = holiday_jp.isHoliday(pEntry.date);
-            const dow = isHoliday ? 7 : getDay(pEntry.date);
-            const key = `${dow}-${weather}`;
-
-            pEntry.items.forEach(item => {
-                const product = products.find(p => p.id === item.productId);
-                if (!product) return;
-                if (selectedCategory !== 'all' && product.category !== selectedCategory) return;
-
-                if (!matrixStats[key]) matrixStats[key] = { waste: 0, production: 0 };
-                matrixStats[key].production += item.quantity;
-                
-                if (weatherStats[weather]) {
-                    weatherStats[weather].production += item.quantity;
-                }
             });
         });
 
@@ -199,12 +187,7 @@ export default function WasteAnalysisPage() {
             weatherStats,
             matrixStats,
             categoryStats,
-            totalWaste: filteredWaste.reduce((sum, e) => {
-                const itemsCount = selectedCategory === 'all' 
-                    ? e.items.reduce((s, i) => s + i.quantity, 0)
-                    : e.items.filter(i => products.find(p => p.id === i.productId)?.category === selectedCategory).reduce((s, i) => s + i.quantity, 0);
-                return sum + itemsCount;
-            }, 0),
+            totalWaste: Array.from(productStats.values()).reduce((sum, p) => sum + p.waste, 0),
             totalProduction: Array.from(productStats.values()).reduce((sum, p) => sum + p.production, 0)
         };
     }, [wasteEntries, productionEntries, products, validDates, wasteLoading, productionLoading, productsLoading, selectedCategory]);
@@ -265,7 +248,7 @@ export default function WasteAnalysisPage() {
                 </CardContent>
             </Card>
 
-            {!analysisData || analysisData.products.length === 0 ? (
+            {!analysisData || (analysisData.totalProduction === 0 && analysisData.totalWaste === 0) ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground bg-muted/20 rounded-lg border-2 border-dashed m-4">
                     <PieChart className="h-10 w-10 mb-2 opacity-20" />
                     <p className="font-bold">対象期間にデータがありません</p>
@@ -286,10 +269,10 @@ export default function WasteAnalysisPage() {
                                 <div className="text-xl font-black text-destructive">{analysisData.totalWaste.toLocaleString()} <span className="text-[10px] font-normal">個</span></div>
                             </CardContent>
                         </Card>
-                        <Card className="bg-primary/5 border-l-[3px] border-l-blue-800">
+                        <Card className="bg-primary/5 border-l-[3px] border-l-blue-900">
                             <CardContent className="p-2">
                                 <p className="text-[10px] text-blue-900 font-black uppercase">平均廃棄率</p>
-                                <div className="text-xl font-black text-blue-900">{overallWasteRate.toFixed(1)}<span className="text-[10px]">%</span></div>
+                                <div className="text-2xl font-black text-blue-900">{overallWasteRate.toFixed(1)}<span className="text-[12px]">%</span></div>
                             </CardContent>
                         </Card>
                     </div>
@@ -312,22 +295,19 @@ export default function WasteAnalysisPage() {
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="p-2">
-                                        <div className="grid grid-cols-4 sm:grid-cols-8 gap-1">
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-1">
                                             {dayLabels.map((label, i) => {
                                                 const stats = analysisData.dayStats[i];
                                                 const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
                                                 const isAlert = rate > 15;
                                                 return (
                                                     <div key={label} onClick={() => setSelectedDayIdx(i)} className={cn(
-                                                        "flex flex-col p-1.5 rounded-md border-l-[3px] transition-all cursor-pointer hover:opacity-80",
+                                                        "flex items-center justify-between p-2 rounded-md border-l-[3px] transition-all cursor-pointer hover:opacity-80 h-10",
                                                         isAlert ? "bg-destructive/5 border-l-destructive" : "bg-muted/20 border-l-blue-800"
                                                     )}>
-                                                        <span className="text-[9px] font-black text-muted-foreground">{label}</span>
-                                                        <div className={cn("text-xl font-black", isAlert ? "text-destructive" : "text-blue-900")}>
-                                                            {rate.toFixed(1)}<span className="text-[9px] font-normal">%</span>
-                                                        </div>
-                                                        <div className="w-full h-1 bg-muted rounded-full mt-1 overflow-hidden">
-                                                            <div className={cn("h-full", isAlert ? "bg-destructive" : "bg-blue-800")} style={{ width: `${Math.min(rate * 2, 100)}%` }} />
+                                                        <span className="text-[12px] font-black text-muted-foreground">{label}</span>
+                                                        <div className={cn("text-xl font-black tabular-nums", isAlert ? "text-destructive" : "text-blue-900")}>
+                                                            {rate.toFixed(1)}<span className="text-[10px] font-normal">%</span>
                                                         </div>
                                                     </div>
                                                 );
@@ -350,15 +330,12 @@ export default function WasteAnalysisPage() {
                                                 const isAlert = rate > 15;
                                                 return (
                                                     <div key={key} className={cn(
-                                                        "flex flex-col p-1.5 rounded-md border-l-[3px]",
+                                                        "flex items-center justify-between p-2 rounded-md border-l-[3px] h-10",
                                                         isAlert ? "bg-destructive/5 border-l-destructive" : "bg-muted/20 border-l-orange-500"
                                                     )}>
-                                                        <span className="text-[9px] font-black text-muted-foreground">{label}</span>
-                                                        <div className={cn("text-xl font-black", isAlert ? "text-destructive" : "text-orange-600")}>
-                                                            {rate.toFixed(1)}<span className="text-[9px] font-normal">%</span>
-                                                        </div>
-                                                        <div className="w-full h-1 bg-muted rounded-full mt-1 overflow-hidden">
-                                                            <div className={cn("h-full", isAlert ? "bg-destructive" : "bg-orange-500")} style={{ width: `${Math.min(rate * 2, 100)}%` }} />
+                                                        <span className="text-[12px] font-black text-muted-foreground">{label}</span>
+                                                        <div className={cn("text-xl font-black tabular-nums", isAlert ? "text-destructive" : "text-orange-600")}>
+                                                            {rate.toFixed(1)}<span className="text-[10px] font-normal">%</span>
                                                         </div>
                                                     </div>
                                                 );
@@ -369,29 +346,29 @@ export default function WasteAnalysisPage() {
 
                                 <Card className="border-none shadow-none overflow-hidden bg-background">
                                     <CardHeader className="p-2 bg-primary/5 pb-1">
-                                        <CardTitle className="text-[10px] font-black flex items-center">
+                                        <CardTitle className="text-[12px] font-black flex items-center">
                                             <Filter className="h-3 w-3 mr-2 text-primary" />
-                                            カテゴリー別サマリー <span className="text-[8px] font-normal text-muted-foreground ml-2">(廃棄率順)</span>
+                                            カテゴリー別サマリー <span className="text-[10px] font-normal text-muted-foreground ml-2">(廃棄率順 / 200%拡大表示)</span>
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="p-0">
                                         <Table>
                                             <TableHeader className="bg-muted/30">
-                                                <TableRow className="h-8">
-                                                    <TableHead className="h-8 text-[9px] font-black px-3">カテゴリー</TableHead>
-                                                    <TableHead className="h-8 text-[9px] font-black px-3 text-right">製造 (個)</TableHead>
-                                                    <TableHead className="h-8 text-[9px] font-black px-3 text-right">廃棄 (個)</TableHead>
-                                                    <TableHead className="h-8 text-[9px] font-black px-3 text-right">廃棄率 (%)</TableHead>
+                                                <TableRow className="h-10">
+                                                    <TableHead className="h-10 text-[18px] font-black px-4">カテゴリー</TableHead>
+                                                    <TableHead className="h-10 text-[18px] font-black px-4 text-right">製造 (個)</TableHead>
+                                                    <TableHead className="h-10 text-[18px] font-black px-4 text-right">廃棄 (個)</TableHead>
+                                                    <TableHead className="h-10 text-[18px] font-black px-4 text-right">廃棄率 (%)</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
                                                 {sortedCategoryStats.map((item) => (
-                                                    <TableRow key={item.cat} className="h-8 hover:bg-primary/5 transition-colors">
-                                                        <TableCell className="px-3 py-1 text-[11px] font-black">{item.cat}</TableCell>
-                                                        <TableCell className="px-3 py-1 text-[10px] text-right">{item.production.toLocaleString()}</TableCell>
-                                                        <TableCell className="px-3 py-1 text-[10px] text-right text-destructive font-black">{item.waste.toLocaleString()}</TableCell>
-                                                        <TableCell className="px-3 py-1 text-right">
-                                                            <span className={cn("text-[12px] font-black", item.rate > 15 ? "text-destructive" : "text-blue-900")}>{item.rate.toFixed(1)}%</span>
+                                                    <TableRow key={item.cat} className="h-14 hover:bg-primary/5 transition-colors">
+                                                        <TableCell className="px-4 py-2 text-[22px] font-black">{item.cat}</TableCell>
+                                                        <TableCell className="px-4 py-2 text-[20px] text-right">{item.production.toLocaleString()}</TableCell>
+                                                        <TableCell className="px-4 py-2 text-[20px] text-right text-destructive font-black">{item.waste.toLocaleString()}</TableCell>
+                                                        <TableCell className="px-4 py-2 text-right">
+                                                            <span className={cn("text-[24px] font-black", item.rate > 15 ? "text-destructive" : "text-blue-900")}>{item.rate.toFixed(1)}%</span>
                                                         </TableCell>
                                                     </TableRow>
                                                 ))}
@@ -407,11 +384,11 @@ export default function WasteAnalysisPage() {
                                     <CardContent className="p-0">
                                         <Table>
                                             <TableHeader className="bg-muted/30 sticky top-0 z-20">
-                                                <TableRow className="h-8">
-                                                    <TableHead className="h-8 text-[9px] font-black px-3">商品詳細</TableHead>
-                                                    <TableHead className="h-8 text-[9px] font-black px-3 text-right">廃棄/製造</TableHead>
-                                                    <TableHead className="h-8 text-[9px] font-black px-3 text-right">廃棄率</TableHead>
-                                                    <TableHead className="h-8 text-[9px] font-black px-3 text-center">ロス要因 (曜日)</TableHead>
+                                                <TableRow className="h-10">
+                                                    <TableHead className="h-10 text-[18px] font-black px-4">商品詳細</TableHead>
+                                                    <TableHead className="h-10 text-[18px] font-black px-4 text-right">廃棄/製造</TableHead>
+                                                    <TableHead className="h-10 text-[18px] font-black px-4 text-right">廃棄率</TableHead>
+                                                    <TableHead className="h-10 text-[18px] font-black px-4 text-center">ロス傾向 (曜日)</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
@@ -424,25 +401,25 @@ export default function WasteAnalysisPage() {
                                                         .slice(0, 3);
 
                                                     return (
-                                                        <TableRow key={p.id} className="h-10 hover:bg-muted/10">
-                                                            <TableCell className="px-3 py-1">
+                                                        <TableRow key={p.id} className="h-16 hover:bg-muted/10">
+                                                            <TableCell className="px-4 py-2">
                                                                 <div className="flex flex-col">
-                                                                    <span className="text-[11px] font-black truncate max-w-[150px]">{p.name}</span>
-                                                                    <span className="text-[8px] text-muted-foreground uppercase">{p.category}</span>
+                                                                    <span className="text-[20px] font-black truncate max-w-[250px]">{p.name}</span>
+                                                                    <span className="text-[12px] text-muted-foreground uppercase font-bold">{p.category}</span>
                                                                 </div>
                                                             </TableCell>
-                                                            <TableCell className="px-3 py-1 text-right">
-                                                                <div className="text-[10px] font-black text-destructive">{p.waste} <span className="text-[8px] font-normal opacity-50">/ {p.production}</span></div>
+                                                            <TableCell className="px-4 py-2 text-right">
+                                                                <div className="text-[18px] font-black text-destructive">{p.waste} <span className="text-[14px] font-normal opacity-50 text-foreground">/ {p.production}</span></div>
                                                             </TableCell>
-                                                            <TableCell className="px-3 py-1 text-right">
-                                                                <span className={cn("text-[12px] font-black", wasteRate > 15 ? "text-destructive" : "text-blue-900")}>{wasteRate.toFixed(1)}%</span>
+                                                            <TableCell className="px-4 py-2 text-right">
+                                                                <span className={cn("text-[22px] font-black", wasteRate > 15 ? "text-destructive" : "text-blue-900")}>{wasteRate.toFixed(1)}%</span>
                                                             </TableCell>
-                                                            <TableCell className="px-3 py-1">
-                                                                <div className="flex justify-center gap-1">
+                                                            <TableCell className="px-4 py-2">
+                                                                <div className="flex justify-center gap-2">
                                                                     {topDows.map((item, idx) => (
                                                                         <div key={item.dow} className="flex flex-col items-center">
-                                                                            <Badge variant={idx === 0 ? "destructive" : "outline"} className="h-4 px-1 text-[8px] font-black">{dayLabels[item.dow]}</Badge>
-                                                                            <span className="text-[8px] font-black opacity-60">{item.count}</span>
+                                                                            <Badge variant={idx === 0 ? "destructive" : "outline"} className="h-6 px-2 text-[12px] font-black">{dayLabels[item.dow]}</Badge>
+                                                                            <span className="text-[12px] font-black opacity-60">{item.count}</span>
                                                                         </div>
                                                                     ))}
                                                                 </div>
@@ -460,23 +437,23 @@ export default function WasteAnalysisPage() {
                             <TabsContent value="cross" className="m-0 pb-4">
                                 <Card className="border-none shadow-none overflow-hidden bg-background">
                                     <CardHeader className="p-2 bg-muted/40 pb-1">
-                                        <CardTitle className="text-[10px] font-black flex items-center justify-between">
-                                            <div>曜日 × 天気 クロス分析 <span className="text-[8px] font-normal text-muted-foreground ml-2">(廃棄率 / 実績)</span></div>
+                                        <CardTitle className="text-[14px] font-black">
+                                            曜日 × 天気 クロス分析 <span className="text-[12px] font-normal text-muted-foreground ml-2">(廃棄率 / 実績)</span>
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="p-0">
                                         <div className="overflow-x-auto">
                                             <Table>
                                                 <TableHeader className="bg-muted/60">
-                                                    <TableRow className="h-8">
-                                                        <TableHead className="h-8 p-1 text-[9px] font-black border-r text-center w-12">曜\天</TableHead>
-                                                        {Object.entries(weatherLabels).map(([_, label]) => <TableHead key={label} className="h-8 text-[9px] text-center font-black p-1">{label}</TableHead>)}
+                                                    <TableRow className="h-12">
+                                                        <TableHead className="h-12 p-2 text-[18px] font-black border-r text-center w-20">曜\天</TableHead>
+                                                        {Object.entries(weatherLabels).map(([_, label]) => <TableHead key={label} className="h-12 text-[18px] text-center font-black p-2">{label}</TableHead>)}
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
                                                     {dayLabels.map((label, dowIndex) => (
-                                                        <TableRow key={label} className="h-10">
-                                                            <TableHead className={cn("h-10 p-1 text-[11px] font-black border-r text-center", (dowIndex === 7 || dowIndex === 0) ? "text-destructive" : "")}>{label}</TableHead>
+                                                        <TableRow key={label} className="h-16">
+                                                            <TableHead className={cn("h-16 p-2 text-[20px] font-black border-r text-center", (dowIndex === 7 || dowIndex === 0) ? "text-destructive" : "")}>{label}</TableHead>
                                                             {Object.keys(weatherLabels).map(weatherKey => {
                                                                 const stats = analysisData.matrixStats[`${dowIndex}-${weatherKey}`] || { waste: 0, production: 0 };
                                                                 const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
@@ -488,13 +465,13 @@ export default function WasteAnalysisPage() {
                                                                     return "bg-green-500/5";
                                                                 };
                                                                 return (
-                                                                    <TableCell key={weatherKey} className={cn("text-center p-1 border-r last:border-r-0", getBgColor(rate))}>
+                                                                    <TableCell key={weatherKey} className={cn("text-center p-2 border-r last:border-r-0", getBgColor(rate))}>
                                                                         {stats.production > 0 ? (
                                                                             <div className="flex flex-col items-center leading-tight">
-                                                                                <span className={cn("text-[12px] font-black", rate > 15 ? "text-destructive" : "text-blue-900")}>{rate.toFixed(1)}%</span>
-                                                                                <span className="text-[8px] text-muted-foreground font-bold opacity-70">{stats.waste} / {stats.production}</span>
+                                                                                <span className={cn("text-[20px] font-black", rate > 15 ? "text-destructive" : "text-blue-900")}>{rate.toFixed(1)}%</span>
+                                                                                <span className="text-[12px] text-muted-foreground font-bold opacity-70">{stats.waste} / {stats.production}</span>
                                                                             </div>
-                                                                        ) : <span className="text-muted-foreground text-[10px]">-</span>}
+                                                                        ) : <span className="text-muted-foreground text-[14px]">-</span>}
                                                                     </TableCell>
                                                                 );
                                                             })}
@@ -535,9 +512,6 @@ export default function WasteAnalysisPage() {
                                             <div className="text-right">
                                                 <div className={cn("text-2xl font-black leading-none", isAlert ? "text-destructive" : "text-blue-900")}>
                                                     {rate.toFixed(1)}<span className="text-[11px] font-normal">%</span>
-                                                </div>
-                                                <div className="w-16 h-1 bg-muted rounded-full overflow-hidden mt-1 ml-auto">
-                                                    <div className={cn("h-full", isAlert ? "bg-destructive" : "bg-blue-800")} style={{ width: `${Math.min(rate * 2, 100)}%` }} />
                                                 </div>
                                             </div>
                                         </div>
