@@ -312,9 +312,9 @@ export default function ABCAnalysisPage() {
                                                         "flex flex-col items-center justify-center p-1 rounded-md border-l-[2px] transition-all cursor-pointer hover:opacity-80 h-12 bg-muted/10",
                                                         isAlert ? "border-l-destructive" : "border-l-blue-800"
                                                     )}>
-                                                        <span className={cn("text-[10px] font-black", labelColor)}>{label}</span>
-                                                        <div className={cn("text-[14px] font-black tabular-nums leading-none mt-1", isAlert ? "text-destructive" : "text-blue-900")}>
-                                                            {rate.toFixed(1)}<span className="text-[8px] font-normal">%</span>
+                                                        <span className={cn("text-[12px] font-black", labelColor)}>{label}</span>
+                                                        <div className={cn("text-[18px] font-black tabular-nums leading-none mt-1", isAlert ? "text-destructive" : "text-blue-900")}>
+                                                            {rate.toFixed(1)}<span className="text-[10px] font-normal">%</span>
                                                         </div>
                                                     </div>
                                                 );
@@ -343,10 +343,10 @@ export default function ABCAnalysisPage() {
                                                     )}>
                                                         <div className="flex items-center gap-1">
                                                             <Icon className={cn("h-3 w-3", isAlert ? "text-destructive" : "text-orange-500")} />
-                                                            <span className="text-[10px] font-black text-muted-foreground">{label}</span>
+                                                            <span className="text-[12px] font-black text-muted-foreground">{label}</span>
                                                         </div>
-                                                        <div className={cn("text-[14px] font-black tabular-nums leading-none mt-1", isAlert ? "text-destructive" : "text-orange-600")}>
-                                                            {rate.toFixed(1)}<span className="text-[8px] font-normal">%</span>
+                                                        <div className={cn("text-[18px] font-black tabular-nums leading-none mt-1", isAlert ? "text-destructive" : "text-orange-600")}>
+                                                            {rate.toFixed(1)}<span className="text-[10px] font-normal">%</span>
                                                         </div>
                                                     </div>
                                                 );
@@ -379,7 +379,7 @@ export default function ABCAnalysisPage() {
                                                         <TableCell className="px-4 py-2 text-[20px] text-right">{item.production.toLocaleString()}</TableCell>
                                                         <TableCell className="px-4 py-2 text-[20px] text-right text-destructive font-black">{item.waste.toLocaleString()}</TableCell>
                                                         <TableCell className="px-4 py-2 text-right">
-                                                            <span className={cn("text-[24px] font-black", item.rate > 15 ? "text-destructive" : "text-blue-900")}>{item.rate.toFixed(1)}%</span>
+                                                            <span className={cn("text-[26px] font-black", item.rate > 15 ? "text-destructive" : "text-blue-900")}>{item.rate.toFixed(1)}%</span>
                                                         </TableCell>
                                                     </TableRow>
                                                 ))}
@@ -415,15 +415,15 @@ export default function ABCAnalysisPage() {
                                                         <TableRow key={p.id} className="h-16 hover:bg-muted/10">
                                                             <TableCell className="px-4 py-2">
                                                                 <div className="flex flex-col">
-                                                                    <span className="text-[20px] font-black truncate max-w-[250px]">{p.name}</span>
+                                                                    <span className="text-[22px] font-black truncate max-w-[250px]">{p.name}</span>
                                                                     <span className="text-[12px] text-muted-foreground uppercase font-bold">{p.category}</span>
                                                                 </div>
                                                             </TableCell>
                                                             <TableCell className="px-4 py-2 text-right">
-                                                                <div className="text-[18px] font-black text-destructive">{p.waste} <span className="text-[14px] font-normal opacity-50 text-foreground">/ {p.production}</span></div>
+                                                                <div className="text-[20px] font-black text-destructive">{p.waste} <span className="text-[16px] font-normal opacity-50 text-foreground">/ {p.production}</span></div>
                                                             </TableCell>
                                                             <TableCell className="px-4 py-2 text-right">
-                                                                <span className={cn("text-[22px] font-black", wasteRate > 15 ? "text-destructive" : "text-blue-900")}>{wasteRate.toFixed(1)}%</span>
+                                                                <span className={cn("text-[24px] font-black", wasteRate > 15 ? "text-destructive" : "text-blue-900")}>{wasteRate.toFixed(1)}%</span>
                                                             </TableCell>
                                                             <TableCell className="px-4 py-2">
                                                                 <div className="flex justify-center gap-2">
@@ -432,7 +432,7 @@ export default function ABCAnalysisPage() {
                                                                             <Badge variant={idx === 0 ? "destructive" : "outline"} className="h-6 px-2 text-[12px] font-black">
                                                                                 {actualDowLabel(item.dow)}
                                                                             </Badge>
-                                                                            <span className="text-[12px] font-black opacity-60">{item.count}</span>
+                                                                            <span className="text-[14px] font-black opacity-60">{item.count}</span>
                                                                         </div>
                                                                     ))}
                                                                 </div>
@@ -485,10 +485,10 @@ export default function ABCAnalysisPage() {
                                                                     <TableCell key={weatherKey} className={cn("text-center p-2 border-r last:border-r-0", getBgColor(rate))}>
                                                                         {stats.production > 0 ? (
                                                                             <div className="flex flex-col items-center leading-tight">
-                                                                                <span className={cn("text-[20px] font-black", rate > 15 ? "text-destructive" : "text-blue-900")}>{rate.toFixed(1)}%</span>
-                                                                                <span className="text-[12px] text-muted-foreground font-bold opacity-70">{stats.waste} / {stats.production}</span>
+                                                                                <span className={cn("text-[24px] font-black", rate > 15 ? "text-destructive" : "text-blue-900")}>{rate.toFixed(1)}%</span>
+                                                                                <span className="text-[14px] text-muted-foreground font-bold opacity-70">{stats.waste} / {stats.production}</span>
                                                                             </div>
-                                                                        ) : <span className="text-muted-foreground text-[14px]">-</span>}
+                                                                        ) : <span className="text-muted-foreground text-[16px]">-</span>}
                                                                     </TableCell>
                                                                 );
                                                             })}
