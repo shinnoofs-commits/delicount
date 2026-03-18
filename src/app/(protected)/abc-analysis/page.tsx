@@ -257,19 +257,19 @@ export default function ABCAnalysisPage() {
                 <div className="flex-1 flex flex-col gap-1 min-h-0">
                     {/* KPIセクション */}
                     <div className="grid grid-cols-3 gap-1 shrink-0 px-1">
-                        <Card className="bg-background border-l-[3px] border-l-blue-400 h-16">
+                        <Card className="bg-background border-l-[3px] border-l-blue-400 h-14">
                             <CardContent className="p-2">
                                 <p className="text-[10px] text-muted-foreground font-black uppercase">総製造数</p>
                                 <div className="text-xl font-black">{analysisData.totalProduction.toLocaleString()} <span className="text-[10px] font-normal">個</span></div>
                             </CardContent>
                         </Card>
-                        <Card className="bg-background border-l-[3px] border-l-destructive h-16">
+                        <Card className="bg-background border-l-[3px] border-l-destructive h-14">
                             <CardContent className="p-2">
                                 <p className="text-[10px] text-muted-foreground font-black uppercase">総廃棄数</p>
                                 <div className="text-xl font-black text-destructive">{analysisData.totalWaste.toLocaleString()} <span className="text-[10px] font-normal">個</span></div>
                             </CardContent>
                         </Card>
-                        <Card className="bg-primary/5 border-l-[3px] border-l-blue-900 h-16">
+                        <Card className="bg-primary/5 border-l-[3px] border-l-blue-900 h-14">
                             <CardContent className="p-2">
                                 <p className="text-[10px] text-blue-900 font-black uppercase">平均廃棄率</p>
                                 <div className="text-2xl font-black text-blue-900">{overallWasteRate.toFixed(1)}<span className="text-[12px]">%</span></div>
@@ -295,25 +295,24 @@ export default function ABCAnalysisPage() {
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="p-1">
-                                        <div className="grid grid-cols-8 gap-0.5">
+                                        <div className="grid grid-cols-4 gap-2">
                                             {dayLabels.map((label, i) => {
                                                 const actualDow = dayOrder[i];
                                                 const stats = analysisData.dayStats[actualDow];
                                                 const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
                                                 const isAlert = rate > 15;
                                                 
-                                                // 色分け
                                                 let labelColor = "text-muted-foreground";
-                                                if (actualDow === 6) labelColor = "text-blue-500"; // 土曜
-                                                if (actualDow === 0 || actualDow === 7) labelColor = "text-destructive"; // 日曜・祝日
+                                                if (actualDow === 6) labelColor = "text-blue-500"; 
+                                                if (actualDow === 0 || actualDow === 7) labelColor = "text-destructive";
 
                                                 return (
                                                     <div key={label} onClick={() => setSelectedDayIdx(actualDow)} className={cn(
-                                                        "flex flex-col items-center justify-center p-1 rounded-md border-l-[2px] transition-all cursor-pointer hover:opacity-80 h-12 bg-muted/10",
-                                                        isAlert ? "border-l-destructive" : "border-l-blue-800"
+                                                        "flex items-center justify-center gap-3 px-4 h-10 rounded-full transition-all cursor-pointer hover:opacity-80 bg-muted/50 border border-transparent shadow-sm",
+                                                        isAlert && "bg-destructive/10 border-destructive/20"
                                                     )}>
-                                                        <span className={cn("text-[12px] font-black", labelColor)}>{label}</span>
-                                                        <div className={cn("text-[18px] font-black tabular-nums leading-none mt-1", isAlert ? "text-destructive" : "text-blue-900")}>
+                                                        <span className={cn("text-[14px] font-black shrink-0", labelColor)}>{label}</span>
+                                                        <div className={cn("text-[18px] font-black tabular-nums leading-none flex items-baseline gap-0.5", isAlert ? "text-destructive" : "text-blue-900")}>
                                                             {rate.toFixed(1)}<span className="text-[10px] font-normal">%</span>
                                                         </div>
                                                     </div>
@@ -330,7 +329,7 @@ export default function ABCAnalysisPage() {
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="p-1">
-                                        <div className="grid grid-cols-4 gap-0.5">
+                                        <div className="grid grid-cols-4 gap-2">
                                             {Object.entries(weatherLabels).map(([key, label]) => {
                                                 const stats = analysisData.weatherStats[key] || { waste: 0, production: 0 };
                                                 const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
@@ -338,14 +337,14 @@ export default function ABCAnalysisPage() {
                                                 const isAlert = rate > 15;
                                                 return (
                                                     <div key={key} className={cn(
-                                                        "flex flex-col items-center justify-center p-1 rounded-md border-l-[2px] h-12 bg-muted/10",
-                                                        isAlert ? "border-l-destructive" : "border-l-orange-500"
+                                                        "flex items-center justify-center gap-2 px-3 h-10 rounded-full bg-muted/50 border border-transparent shadow-sm",
+                                                        isAlert && "bg-destructive/10 border-destructive/20"
                                                     )}>
-                                                        <div className="flex items-center gap-1">
-                                                            <Icon className={cn("h-3 w-3", isAlert ? "text-destructive" : "text-orange-500")} />
-                                                            <span className="text-[12px] font-black text-muted-foreground">{label}</span>
+                                                        <div className="flex items-center gap-1.5 shrink-0">
+                                                            <Icon className={cn("h-4 w-4", isAlert ? "text-destructive" : "text-orange-500")} />
+                                                            <span className="text-[14px] font-black text-muted-foreground">{label}</span>
                                                         </div>
-                                                        <div className={cn("text-[18px] font-black tabular-nums leading-none mt-1", isAlert ? "text-destructive" : "text-orange-600")}>
+                                                        <div className={cn("text-[18px] font-black tabular-nums leading-none flex items-baseline gap-0.5", isAlert ? "text-destructive" : "text-orange-600")}>
                                                             {rate.toFixed(1)}<span className="text-[10px] font-normal">%</span>
                                                         </div>
                                                     </div>
@@ -522,19 +521,19 @@ export default function ABCAnalysisPage() {
                                     const Icon = weatherIcons[weatherKey];
                                     const isAlert = rate > 15;
                                     return (
-                                        <div key={weatherKey} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-muted">
+                                        <div key={weatherKey} className="flex items-center justify-between p-3 rounded-full bg-muted/30 border border-muted shadow-sm">
                                             <div className="flex items-center gap-3">
-                                                <div className={cn("p-2 rounded-full", isAlert ? "bg-destructive/10" : "bg-orange-100")}>
-                                                    <Icon className={cn("h-5 w-5", isAlert ? "text-destructive" : "text-orange-500")} />
+                                                <div className={cn("p-1.5 rounded-full", isAlert ? "bg-destructive/10" : "bg-orange-100")}>
+                                                    <Icon className={cn("h-4 w-4", isAlert ? "text-destructive" : "text-orange-500")} />
                                                 </div>
                                                 <div className="flex flex-col">
                                                     <span className="text-[11px] font-black text-muted-foreground">{label}</span>
-                                                    <span className="text-[10px] font-bold opacity-60">製造: {stats.production} / 廃棄: {stats.waste}</span>
+                                                    <span className="text-[9px] font-bold opacity-60">製造: {stats.production} / 廃棄: {stats.waste}</span>
                                                 </div>
                                             </div>
-                                            <div className="text-right">
-                                                <div className={cn("text-2xl font-black leading-none", isAlert ? "text-destructive" : "text-blue-900")}>
-                                                    {rate.toFixed(1)}<span className="text-[11px] font-normal">%</span>
+                                            <div className="text-right pr-4">
+                                                <div className={cn("text-xl font-black leading-none", isAlert ? "text-destructive" : "text-blue-900")}>
+                                                    {rate.toFixed(1)}<span className="text-[10px] font-normal">%</span>
                                                 </div>
                                             </div>
                                         </div>
