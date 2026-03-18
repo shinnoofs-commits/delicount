@@ -679,8 +679,8 @@ export default function DashboardPage() {
                                             {format(entry.date, 'HH:mm')}
                                         </span>
                                         <div className="text-right">
-                                            <div className="text-[10px] text-muted-foreground">原価: ¥{entry.totalWasteCost.toLocaleString()}</div>
-                                            <div className="text-xs font-black text-destructive">売価: ¥{entryTotalSellPrice.toLocaleString()}</div>
+                                            <div className="text-[10px] text-muted-foreground">原価計: ¥{entry.totalWasteCost.toLocaleString()}</div>
+                                            <div className="text-xs font-black text-destructive">機会損失 (売価計): ¥{entryTotalSellPrice.toLocaleString()}</div>
                                         </div>
                                     </div>
                                     <div className="grid gap-1">

@@ -72,6 +72,7 @@ export default function ABCAnalysisPage() {
     });
     const [selectedCategory, setSelectedCategory] = useState<string>('all');
     const [selectedDayIdx, setSelectedDayIdx] = useState<number | null>(null);
+    const [selectedCategoryForDetail, setSelectedCategoryForDetail] = useState<string | null>(null);
 
     const categories = useMemo(() => {
         return ['all', ...Array.from(new Set(products.map(p => p.category)))];
@@ -133,6 +134,7 @@ export default function ABCAnalysisPage() {
                     id: item.productId,
                     name: item.name,
                     category: product.category,
+                    price: product.price,
                     waste: 0,
                     production: 0,
                     dow: { 0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 }
@@ -233,7 +235,7 @@ export default function ABCAnalysisPage() {
                         </Popover>
                     </div>
                     <div className="flex items-center gap-1">
-                        <Label className="text-[10px] font-black uppercase opacity-70">カテゴリ</Label>
+                        <Label className="text-[10px] font-black uppercase opacity-70">カテゴリー</Label>
                         <Select value={selectedCategory} onValueChange={setSelectedCategory}>
                             <SelectTrigger className="h-6 text-[10px] w-[120px] bg-background">
                                 <SelectValue placeholder="全カテゴリー" />
@@ -277,97 +279,100 @@ export default function ABCAnalysisPage() {
                         </Card>
                     </div>
 
-                    {/* メイン分析タブ */}
+                    {/* メイン分析パネル (曜日・天気) */}
+                    <div className="grid grid-cols-12 gap-1 px-1 shrink-0">
+                        <Card className="col-span-8 border-none shadow-none bg-background">
+                            <CardHeader className="p-1 pb-0">
+                                <CardTitle className="text-[9px] text-muted-foreground font-black uppercase flex items-center">
+                                    <CalendarDays className="h-2.5 w-2.5 mr-1 text-primary" />曜日別 廃棄率 <span className="text-[7px] lowercase ml-1 opacity-60">(タップで詳細)</span>
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-1">
+                                <div className="grid grid-cols-8 gap-0.5">
+                                    {dayLabels.map((label, i) => {
+                                        const actualDow = dayOrder[i];
+                                        const stats = analysisData.dayStats[actualDow];
+                                        const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
+                                        const isAlert = rate > 15;
+                                        
+                                        let labelColor = "text-muted-foreground";
+                                        let borderColor = "border-slate-200";
+
+                                        if (actualDow === 6) {
+                                            labelColor = "text-blue-500"; 
+                                            borderColor = "border-blue-400/60";
+                                        }
+                                        if (actualDow === 0 || actualDow === 7) {
+                                            labelColor = "text-destructive";
+                                            borderColor = "border-destructive/60";
+                                        }
+
+                                        return (
+                                            <div key={label} onClick={() => setSelectedDayIdx(actualDow)} className={cn(
+                                                "flex items-center justify-between px-1.5 h-8 rounded-full transition-all cursor-pointer hover:opacity-80 bg-muted/50 border shadow-sm",
+                                                borderColor,
+                                                isAlert && "bg-destructive/10 border-destructive"
+                                            )}>
+                                                <span className={cn("text-[11px] font-black shrink-0", labelColor)}>{label}</span>
+                                                <div className={cn("text-[13px] font-black tabular-nums leading-none flex items-baseline gap-0.5", isAlert ? "text-destructive" : "text-blue-900")}>
+                                                    {rate.toFixed(1)}<span className="text-[8px] font-normal">%</span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="col-span-4 border-none shadow-none bg-background">
+                            <CardHeader className="p-1 pb-0">
+                                <CardTitle className="text-[9px] text-muted-foreground font-black uppercase flex items-center">
+                                    <Sun className="h-2.5 w-2.5 mr-1 text-orange-500" />天気別 廃棄率
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-1">
+                                <div className="grid grid-cols-4 gap-0.5">
+                                    {Object.entries(weatherLabels).map(([key, label]) => {
+                                        const stats = analysisData.weatherStats[key] || { waste: 0, production: 0 };
+                                        const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
+                                        const Icon = weatherIcons[key];
+                                        const isAlert = rate > 15;
+                                        return (
+                                            <div key={key} className={cn(
+                                                "flex items-center justify-between px-1.5 h-8 rounded-full bg-muted/50 border border-orange-400/50 shadow-sm",
+                                                isAlert && "bg-destructive/10 border-destructive"
+                                            )}>
+                                                <div className="flex items-center gap-0.5 shrink-0">
+                                                    <Icon className={cn("h-3 w-3", isAlert ? "text-destructive" : "text-orange-500")} />
+                                                    <span className="text-[11px] font-black text-muted-foreground">{label.charAt(0)}</span>
+                                                </div>
+                                                <div className={cn("text-[13px] font-black tabular-nums leading-none flex items-baseline gap-0.5", isAlert ? "text-destructive" : "text-orange-600")}>
+                                                    {rate.toFixed(1)}<span className="text-[8px] font-normal">%</span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* タブ分析セクション (200%拡大) */}
                     <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0">
                         <TabsList className="grid grid-cols-3 h-8 p-1 bg-muted/60 mx-1">
-                            <TabsTrigger value="overview" className="text-[10px] font-bold"><PieChart className="h-3 w-3 mr-1" />概況分析</TabsTrigger>
-                            <TabsTrigger value="product" className="text-[10px] font-bold"><Package className="h-3 w-3 mr-1" />商品分析</TabsTrigger>
+                            <TabsTrigger value="overview" className="text-[10px] font-bold"><PieChart className="h-3 w-3 mr-1" />カテゴリー別</TabsTrigger>
+                            <TabsTrigger value="product" className="text-[10px] font-bold"><Package className="h-3 w-3 mr-1" />商品別</TabsTrigger>
                             <TabsTrigger value="cross" className="text-[10px] font-bold"><Filter className="h-3 w-3 mr-1" />クロス分析</TabsTrigger>
                         </TabsList>
 
                         <div className="flex-1 overflow-auto mt-1 px-1">
-                            {/* 概況分析タブ */}
+                            {/* カテゴリー別サマリー (200%拡大) */}
                             <TabsContent value="overview" className="m-0 space-y-1 pb-4">
-                                <Card className="border-none shadow-none bg-background">
-                                    <CardHeader className="p-2 pb-0">
-                                        <CardTitle className="text-[10px] text-muted-foreground font-black uppercase flex items-center">
-                                            <CalendarDays className="h-3 w-3 mr-2 text-primary" />曜日別 廃棄率 <span className="text-[8px] lowercase ml-2 opacity-60">(タップで詳細)</span>
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="p-1">
-                                        <div className="grid grid-cols-4 gap-2">
-                                            {dayLabels.map((label, i) => {
-                                                const actualDow = dayOrder[i];
-                                                const stats = analysisData.dayStats[actualDow];
-                                                const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
-                                                const isAlert = rate > 15;
-                                                
-                                                let labelColor = "text-muted-foreground";
-                                                let borderColor = "border-slate-200";
-
-                                                if (actualDow === 6) {
-                                                    labelColor = "text-blue-500"; 
-                                                    borderColor = "border-blue-400/60";
-                                                }
-                                                if (actualDow === 0 || actualDow === 7) {
-                                                    labelColor = "text-destructive";
-                                                    borderColor = "border-destructive/60";
-                                                }
-
-                                                return (
-                                                    <div key={label} onClick={() => setSelectedDayIdx(actualDow)} className={cn(
-                                                        "flex items-center justify-center gap-3 px-4 h-10 rounded-full transition-all cursor-pointer hover:opacity-80 bg-muted/50 border shadow-sm",
-                                                        borderColor,
-                                                        isAlert && "bg-destructive/10 border-destructive"
-                                                    )}>
-                                                        <span className={cn("text-[14px] font-black shrink-0", labelColor)}>{label}</span>
-                                                        <div className={cn("text-[18px] font-black tabular-nums leading-none flex items-baseline gap-0.5", isAlert ? "text-destructive" : "text-blue-900")}>
-                                                            {rate.toFixed(1)}<span className="text-[10px] font-normal">%</span>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
-                                <Card className="border-none shadow-none bg-background">
-                                    <CardHeader className="p-2 pb-0">
-                                        <CardTitle className="text-[10px] text-muted-foreground font-black uppercase flex items-center">
-                                            <Sun className="h-3 w-3 mr-2 text-orange-500" />天気別 廃棄率
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="p-1">
-                                        <div className="grid grid-cols-4 gap-2">
-                                            {Object.entries(weatherLabels).map(([key, label]) => {
-                                                const stats = analysisData.weatherStats[key] || { waste: 0, production: 0 };
-                                                const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
-                                                const Icon = weatherIcons[key];
-                                                const isAlert = rate > 15;
-                                                return (
-                                                    <div key={key} className={cn(
-                                                        "flex items-center justify-center gap-2 px-3 h-10 rounded-full bg-muted/50 border border-orange-400/50 shadow-sm",
-                                                        isAlert && "bg-destructive/10 border-destructive"
-                                                    )}>
-                                                        <div className="flex items-center gap-1.5 shrink-0">
-                                                            <Icon className={cn("h-4 w-4", isAlert ? "text-destructive" : "text-orange-500")} />
-                                                            <span className="text-[14px] font-black text-muted-foreground">{label}</span>
-                                                        </div>
-                                                        <div className={cn("text-[18px] font-black tabular-nums leading-none flex items-baseline gap-0.5", isAlert ? "text-destructive" : "text-orange-600")}>
-                                                            {rate.toFixed(1)}<span className="text-[10px] font-normal">%</span>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </CardContent>
-                                </Card>
-
                                 <Card className="border-none shadow-none overflow-hidden bg-background">
                                     <CardHeader className="p-2 bg-primary/5 pb-1">
                                         <CardTitle className="text-[12px] font-black flex items-center">
                                             <Filter className="h-3 w-3 mr-2 text-primary" />
-                                            カテゴリー別サマリー <span className="text-[10px] font-normal text-muted-foreground ml-2">(廃棄率順)</span>
+                                            カテゴリー別サマリー <span className="text-[10px] font-normal text-muted-foreground ml-2">(タップで商品詳細を表示)</span>
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="p-0">
@@ -382,7 +387,11 @@ export default function ABCAnalysisPage() {
                                             </TableHeader>
                                             <TableBody>
                                                 {sortedCategoryStats.map((item) => (
-                                                    <TableRow key={item.cat} className="h-14 hover:bg-primary/5 transition-colors">
+                                                    <TableRow 
+                                                        key={item.cat} 
+                                                        className="h-14 hover:bg-primary/5 transition-colors cursor-pointer"
+                                                        onClick={() => setSelectedCategoryForDetail(item.cat)}
+                                                    >
                                                         <TableCell className="px-4 py-2 text-[22px] font-black">{item.cat}</TableCell>
                                                         <TableCell className="px-4 py-2 text-[20px] text-right">{item.production.toLocaleString()}</TableCell>
                                                         <TableCell className="px-4 py-2 text-[20px] text-right text-destructive font-black">{item.waste.toLocaleString()}</TableCell>
@@ -397,14 +406,14 @@ export default function ABCAnalysisPage() {
                                 </Card>
                             </TabsContent>
 
-                            {/* 商品分析タブ */}
+                            {/* 商品分析タブ (200%拡大) */}
                             <TabsContent value="product" className="m-0 pb-4">
                                 <Card className="border-none shadow-none bg-background">
                                     <CardContent className="p-0">
                                         <Table>
                                             <TableHeader className="bg-muted/30 sticky top-0 z-20">
                                                 <TableRow className="h-10">
-                                                    <TableHead className="h-10 text-[18px] font-black px-4">商品詳細</TableHead>
+                                                    <TableHead className="h-10 text-[18px] font-black px-4">商品名</TableHead>
                                                     <TableHead className="h-10 text-[18px] font-black px-4 text-right">廃棄/製造</TableHead>
                                                     <TableHead className="h-10 text-[18px] font-black px-4 text-right">廃棄率</TableHead>
                                                     <TableHead className="h-10 text-[18px] font-black px-4 text-center">ロス傾向 (曜日)</TableHead>
@@ -454,7 +463,7 @@ export default function ABCAnalysisPage() {
                                 </Card>
                             </TabsContent>
 
-                            {/* クロス分析タブ */}
+                            {/* クロス分析タブ (200%拡大) */}
                             <TabsContent value="cross" className="m-0 pb-4">
                                 <Card className="border-none shadow-none overflow-hidden bg-background">
                                     <CardHeader className="p-2 bg-muted/40 pb-1">
@@ -548,6 +557,46 @@ export default function ABCAnalysisPage() {
                                         </div>
                                     );
                                 })}
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+
+                    {/* カテゴリー詳細ポップアップ */}
+                    <Dialog open={!!selectedCategoryForDetail} onOpenChange={(open) => !open && setSelectedCategoryForDetail(null)}>
+                        <DialogContent className="max-w-[500px] max-h-[80vh] flex flex-col p-4">
+                            <DialogHeader>
+                                <DialogTitle className="text-xl font-black flex items-center gap-2">
+                                    <Package className="h-5 w-5 text-primary" />
+                                    {selectedCategoryForDetail} の詳細分析
+                                </DialogTitle>
+                                <DialogDescription className="text-sm">
+                                    このカテゴリーに含まれる商品の廃棄実績と機会損失額です。
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="flex-1 overflow-auto mt-4">
+                                <Table>
+                                    <TableHeader className="bg-muted/50">
+                                        <TableRow>
+                                            <TableHead className="font-bold">商品名</TableHead>
+                                            <TableHead className="text-right font-bold">廃棄数</TableHead>
+                                            <TableHead className="text-right font-bold">機会損失 (売価計)</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {analysisData.products
+                                            .filter(p => p.category === selectedCategoryForDetail)
+                                            .map(p => (
+                                                <TableRow key={p.id} className="h-12">
+                                                    <TableCell className="font-bold py-2">{p.name}</TableCell>
+                                                    <TableCell className="text-right text-destructive font-black py-2">{p.waste.toLocaleString()}個</TableCell>
+                                                    <TableCell className="text-right font-black text-blue-900 py-2">
+                                                        ¥{(p.waste * (p.price || 0)).toLocaleString()}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        }
+                                    </TableBody>
+                                </Table>
                             </div>
                         </DialogContent>
                     </Dialog>
