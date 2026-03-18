@@ -665,25 +665,35 @@ export default function DashboardPage() {
                       <p className="text-center text-muted-foreground py-8">廃棄データはありません。</p>
                   ) : (
                       <div className="space-y-4">
-                          {selectedDayWaste?.entries.map((entry, idx) => (
-                              <div key={idx} className="border-b pb-2 last:border-0">
-                                  <div className="flex items-center justify-between mb-1">
-                                      <span className="text-xs font-bold text-muted-foreground flex items-center gap-1">
-                                          <WeatherIcon type={entry.weather} />
-                                          {format(entry.date, 'HH:mm')}
-                                      </span>
-                                      <span className="text-xs font-black text-destructive">¥{entry.totalWasteCost.toLocaleString()}</span>
-                                  </div>
-                                  <div className="grid gap-1">
-                                      {entry.items.map((item, i) => (
-                                          <div key={i} className="flex justify-between items-center text-sm">
-                                              <span>{item.name}</span>
-                                              <span className="font-bold">x{item.quantity}</span>
-                                          </div>
-                                      ))}
-                                  </div>
-                              </div>
-                          ))}
+                          {selectedDayWaste?.entries.map((entry, idx) => {
+                              const entryTotalSellPrice = entry.items.reduce((sum, item) => {
+                                  const product = products.find(p => p.id === item.productId);
+                                  return sum + (product?.price || 0) * item.quantity;
+                              }, 0);
+
+                              return (
+                                <div key={idx} className="border-b pb-4 last:border-0">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-xs font-bold text-muted-foreground flex items-center gap-1">
+                                            <WeatherIcon type={entry.weather} />
+                                            {format(entry.date, 'HH:mm')}
+                                        </span>
+                                        <div className="text-right">
+                                            <div className="text-[10px] text-muted-foreground">原価: ¥{entry.totalWasteCost.toLocaleString()}</div>
+                                            <div className="text-xs font-black text-destructive">売価: ¥{entryTotalSellPrice.toLocaleString()}</div>
+                                        </div>
+                                    </div>
+                                    <div className="grid gap-1">
+                                        {entry.items.map((item, i) => (
+                                            <div key={i} className="flex justify-between items-center text-sm">
+                                                <span>{item.name}</span>
+                                                <span className="font-bold">x{item.quantity}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                              );
+                          })}
                       </div>
                   )}
               </div>
