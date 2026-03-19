@@ -18,77 +18,87 @@ import { Badge } from "@/components/ui/badge";
 
 const manualSlides = [
     {
-        title: "廃棄入力",
-        description: "この画面では、日々の廃棄商品を登録します。正確な廃棄数を記録することが、食品ロス削減の第一歩です。",
+        title: "廃棄入力（現場スタッフ向け）",
+        description: "日々の廃棄商品を素早く正確に登録するための画面です。天気の自動取得機能も備えています。",
         points: [
-            "カテゴリを選択するか、「すべて」のまま商品を表示します。",
-            "廃棄する商品をクリックすると、右側の「廃棄商品リスト」に追加されます。",
-            "リスト内の商品の「+」「-」ボタンで数量を調整できます。",
-            "すべての商品を追加したら、「廃棄を記録」ボタンを押して登録を完了します。"
+            "画面左側からカテゴリーを選び、商品カードをタップしてリストに追加します。",
+            "「天気選択」は10:00および22:00の予測値を参考に自動セットされますが、手動調整も可能です。",
+            "右側の「廃棄リスト」で数量を調整し、「廃棄を記録」ボタンで完了します。",
+            "リアルタイムで「廃棄合計額（売価）」が表示されるため、ロスの重みをその場で実感できます。"
         ],
-        important: "リスト下部に表示される「廃棄合計額（売価）」を確認する習慣をつけましょう。"
+        important: "廃棄の「タイミング」と「天気」を正確に記録することが、後のAI分析の精度に直結します。"
     },
     {
-        title: "ダッシュボード（管理者のみ）",
-        description: "指定した期間の売上や廃棄に関するデータを可視化し、店舗の状況を直感的に把握できます。",
+        title: "ダッシュボード（日々の推移確認）",
+        description: "廃棄ロス（原価）と機会損失（売価）の推移をグラフで可視化します。",
         points: [
-            "左上のカレンダーで分析したい期間を自由に設定できます。「今日」「過去7日間」「今月」のプリセットも便利です。",
-            "「廃棄ロス」と「機会損失」のカードで、廃棄による金銭的影響を素早く確認できます。",
-            "「廃棄分析」テーブルで、どの商品の廃棄が多いかを詳細に確認できます。",
-            "カテゴリごとの売上トップ5が円グラフで表示され、売れ筋商品を把握できます。"
+            "「廃棄ロス」は実際の損害額（原価）を、「機会損失」は廃棄がなければ得られた売上を示します。",
+            "日別グラフの「棒」をタップすると、その日の廃棄エントリーが詳細に表示されます。",
+            "詳細画面では、各商品の廃棄数だけでなく、その商品による売価損失額も確認可能です。",
+            "期間フィルター（過去7日間、今月など）を活用し、異常値の早期発見に努めましょう。"
         ],
-        important: "「機会損失」は、廃棄がなければ得られたはずの売上です。この金額を意識することが改善に繋がります。"
+        important: "「機会損失」の多さは、発注・製造過多だけでなく、売場への出し方の改善が必要なサインです。"
     },
     {
-        title: "ABC分析（管理者のみ）",
-        description: "廃棄額の大きさに応じて商品をランク付けし、管理すべき優先順位を明確にするための分析手法です。",
+        title: "廃棄クロス分析（超視認性デザイン）",
+        description: "曜日と天気、カテゴリーを掛け合わせた高度な分析画面です。視認性を200%向上させています。",
         points: [
-            "【ランクA】: 廃棄額が特に大きい最重要管理品目。発注数や陳列方法の見直しが急務です。",
-            "【ランクB】: Aランクに次いで廃棄額が大きい品目。改善の余地があります。",
-            "【ランクC】: 廃棄額が小さい品目。現状の管理を維持します。",
+            "【カテゴリー別サマリー】: タップすると、そのカテゴリー内の商品別廃棄数と売価損失額がポップアップで表示されます。",
+            "【ピル型UI】: 曜日は月曜開始で配置。土曜（青）、日祝（赤）、天気（オレンジ）の枠線で視覚的に判別しやすくしています。",
+            "【クロス分析】: 「月曜日の雨」など特定の条件下で廃棄率が高くないかを確認できます。",
+            "【巨大文字】: 主要な数値は特大サイズで表示され、タブレット等の画面越しでも一目で状況がわかります。"
         ],
-        important: "まずは「ランクA」の商品に集中して対策を講じることが、最も効率的に廃棄ロスを削減する鍵です。"
+        important: "特定の曜日×天気に偏って廃棄が出ている場合、その曜日の製造計画（晴れ・雨パターン）を見直してください。"
     },
     {
-        title: "商品管理（管理者のみ）",
-        description: "システムで扱うすべての商品の情報を一元管理します。",
+        title: "製造計画と追加登録",
+        description: "需要予測に基づいた「基本の製造数」を設定・記録する機能です。",
         points: [
-            "「商品を追加」ボタンから、新しい商品を一つずつ登録できます。",
-            "「CSVで商品をインポート」ボタンから、CSVファイルを使って一度に多くの商品を登録・更新できます。",
-            "各商品の右側にあるメニュー（︙）から、情報の編集や商品の削除が可能です。",
-            "表のチェックボックスで複数商品を選択し、「選択した〇件を削除」ボタンで一括削除もできます。",
+            "【製造計画】: 商品ごとに「晴れの日パターン」と「雨の日パターン」の曜日別予定数を設定します。",
+            "【追加製造登録】: 当日の朝決めた予定数以外に、追加で製造した分のみを記録します。",
+            "計画画面では「一括」列を使うと、全曜日の数値をワンタップで揃えることができます。",
+            "これにより、店舗独自の「基本の型」を作り上げることが可能になります。"
         ],
-        important: "商品の「原価」と「価格」を正確に入力することが、各種分析の精度を高める上で非常に重要です。"
+        important: "クロス分析で得られた知見を、この「製造計画」の数値に反映させることでロス削減が実現します。"
     }
 ]
 
 
 export default function ManualPage() {
   return (
-    <div className="flex flex-col gap-4 items-center justify-center">
-        <div className="text-center">
-            <h1 className="text-3xl font-bold">商品構成・廃棄管理パートナー 操作説明</h1>
-            <p className="text-muted-foreground">左右の矢印をクリックしてスライドを切り替えてください。</p>
+    <div className="flex flex-col gap-4 items-center justify-center h-full">
+        <div className="text-center max-w-2xl px-4">
+            <h1 className="text-3xl font-black mb-2">商品構成・廃棄管理パートナー 操作説明</h1>
+            <p className="text-muted-foreground text-sm">
+                現場の「見やすさ」と「使いやすさ」を追求した次世代型管理システムです。<br/>
+                左右の矢印で、各機能のポイントを確認してください。
+            </p>
         </div>
-      <Carousel className="w-full max-w-4xl">
+      <Carousel className="w-full max-w-4xl px-8">
         <CarouselContent>
           {manualSlides.map((slide, index) => (
             <CarouselItem key={index}>
               <div className="p-1">
-                <Card className="min-h-[450px]">
-                  <CardHeader>
-                    <CardTitle className="text-2xl">{index + 1}. {slide.title}</CardTitle>
-                    <CardDescription>{slide.description}</CardDescription>
+                <Card className="min-h-[500px] border-2 shadow-lg">
+                  <CardHeader className="bg-primary/10 border-b">
+                    <div className="flex items-center gap-3">
+                        <Badge className="h-8 w-8 rounded-full flex items-center justify-center text-lg font-black">{index + 1}</Badge>
+                        <CardTitle className="text-2xl font-black">{slide.title}</CardTitle>
+                    </div>
+                    <CardDescription className="text-foreground/80 font-medium mt-2">{slide.description}</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-6">
-                    <ul className="space-y-3 pl-5 list-disc text-sm">
+                  <CardContent className="space-y-6 pt-6">
+                    <ul className="space-y-4">
                         {slide.points.map((point, pIndex) => (
-                            <li key={pIndex}>{point}</li>
+                            <li key={pIndex} className="flex gap-3 text-sm font-bold leading-relaxed">
+                                <span className="text-primary mt-1 shrink-0">●</span>
+                                <span>{point}</span>
+                            </li>
                         ))}
                     </ul>
-                    <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
-                        <Badge variant="default" className="mb-2 bg-accent text-accent-foreground">重要ポイント</Badge>
-                        <p className="font-semibold text-primary-foreground/90">{slide.important}</p>
+                    <div className="p-4 rounded-2xl bg-accent/5 border-2 border-accent/20">
+                        <Badge variant="default" className="mb-2 bg-accent text-accent-foreground font-black">重要成功ポイント</Badge>
+                        <p className="font-black text-blue-900 leading-relaxed">{slide.important}</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -96,9 +106,12 @@ export default function ManualPage() {
             </CarouselItem>
           ))}
         </CarouselContent>
-        <CarouselPrevious className="ml-12" />
-        <CarouselNext className="mr-12" />
+        <CarouselPrevious className="hidden md:flex" />
+        <CarouselNext className="hidden md:flex" />
       </Carousel>
+      <div className="text-center text-[10px] text-muted-foreground mt-4 opacity-60">
+        ※本システムはタブレット端末での閲覧を推奨しています
+      </div>
     </div>
   );
 }
