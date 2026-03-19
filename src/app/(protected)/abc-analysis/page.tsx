@@ -58,6 +58,11 @@ const weatherIcons: Record<string, any> = {
   snowy: Snowflake,
 };
 
+function actualDowLabel(dow: number) {
+    const labels = ['日', '月', '火', '水', '木', '金', '土', '祝'];
+    return labels[dow];
+}
+
 export default function ABCAnalysisPage() {
     const { wasteEntries, loading: wasteLoading } = useTransactions();
     const { productionEntries, loading: productionLoading } = useProduction();
@@ -102,10 +107,6 @@ export default function ABCAnalysisPage() {
         for (let i = 0; i < 8; i++) dayStats[i] = { waste: 0, production: 0 };
         Object.keys(weatherLabels).forEach(w => weatherStats[w] = { waste: 0, production: 0 });
 
-        const filteredProduction = productionEntries.filter(entry => 
-            dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd'))
-        );
-
         const dateToWeather = new Map<string, string>();
         const filteredWaste = wasteEntries.filter(entry => 
             dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd'))
@@ -116,7 +117,7 @@ export default function ABCAnalysisPage() {
             }
         });
 
-        filteredProduction.forEach(entry => {
+        productionEntries.filter(entry => dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd'))).forEach(entry => {
             const entryDate = new Date(entry.date);
             const isHoliday = holiday_jp.isHoliday(entryDate);
             const dow = isHoliday ? 7 : getDay(entryDate);
@@ -204,6 +205,11 @@ export default function ABCAnalysisPage() {
             .sort((a, b) => b.rate - a.rate);
     }, [analysisData]);
 
+    const overallWasteRate = useMemo(() => {
+        if (!analysisData || analysisData.totalProduction === 0) return 0;
+        return (analysisData.totalWaste / analysisData.totalProduction) * 100;
+    }, [analysisData]);
+
     if (wasteLoading || productsLoading || productionLoading) {
         return (
             <div className="flex h-screen items-center justify-center">
@@ -211,8 +217,6 @@ export default function ABCAnalysisPage() {
             </div>
         );
     }
-
-    const overallWasteRate = (analysisData && analysisData.totalProduction > 0) ? (analysisData.totalWaste / analysisData.totalProduction) * 100 : 0;
 
     return (
         <div className="flex flex-col gap-1 h-full overflow-hidden">
@@ -286,7 +290,7 @@ export default function ABCAnalysisPage() {
                                 </CardTitle>
                             </Header>
                             <CardContent className="p-1">
-                                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-1">
+                                <div className="grid grid-cols-4 lg:grid-cols-8 gap-1">
                                     {dayLabels.map((label, i) => {
                                         const actualDow = dayOrder[i];
                                         const stats = analysisData.dayStats[actualDow];
@@ -584,9 +588,4 @@ export default function ABCAnalysisPage() {
             )}
         </div>
     );
-}
-
-function actualDowLabel(dow: number) {
-    const labels = ['日', '月', '火', '水', '木', '金', '土', '祝'];
-    return labels[dow];
 }

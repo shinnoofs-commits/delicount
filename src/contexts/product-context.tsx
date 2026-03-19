@@ -36,7 +36,6 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchProducts = useCallback(() => {
-    // Ensure we have a user and auth/store state is ready before fetching to avoid permission errors
     if (!firestore || !user || isUserLoading || isAdminLoading || storesLoading) return;
 
     setLoading(true);
@@ -64,7 +63,10 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
         });
         setLoading(false);
       }, (error) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `stores/${storeId}/products`, operation: 'list' }));
+        // Only log error if user is actually authenticated
+        if (user) {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `stores/${storeId}/products`, operation: 'list' }));
+        }
         setLoading(false);
       });
       unsubscribers.push(unsub);
@@ -75,9 +77,11 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
   }, [firestore, user, isUserLoading, isAdmin, isAdminLoading, userStore, selectedStoreIds, storesLoading]);
 
   useEffect(() => {
-    const unsub = fetchProducts();
-    return () => unsub?.();
-  }, [fetchProducts]);
+    if (user && !isUserLoading) {
+      const unsub = fetchProducts();
+      return () => unsub?.();
+    }
+  }, [fetchProducts, user, isUserLoading]);
 
   const saveAdminProduct = useCallback(async (productData: Omit<Product, 'id' | 'storeId'>) => {
     if (!firestore || !stores || stores.length === 0) return;
@@ -181,7 +185,6 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
   }, [firestore, toast]);
 
   const importProductsFromCSV = useCallback(async (newProducts: Omit<Product, 'id' | 'storeId'>[]) => {
-    // Basic CSV import logic could go here
     if (!firestore || !userStore) return;
     const batch = writeBatch(firestore);
     newProducts.forEach(product => {

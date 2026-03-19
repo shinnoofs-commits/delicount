@@ -32,7 +32,10 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!firestore || !user || isUserLoading || isAdminLoading || storesLoading) return;
+    if (!firestore || !user || isUserLoading || isAdminLoading || storesLoading) {
+        if (!isUserLoading && !user) setLoading(false);
+        return;
+    }
     
     setLoading(true);
     const storeIdsToFetch = isAdmin ? selectedStoreIds : (userStore ? [userStore.id] : []);
@@ -64,7 +67,9 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         });
         setLoading(false);
       }, (error) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `stores/${storeId}/waste`, operation: 'list' }));
+        if (user) {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `stores/${storeId}/waste`, operation: 'list' }));
+        }
         setLoading(false);
       });
       unsubscribers.push(unsub);

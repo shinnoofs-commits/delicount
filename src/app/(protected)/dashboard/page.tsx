@@ -677,7 +677,7 @@ export default function DashboardPage() {
                                             return (
                                                 <div key={i} className="flex justify-between items-center text-sm">
                                                     <div className="flex flex-col">
-                                                        <span>{item.name}</span>
+                                                        <span className="font-medium">{item.name}</span>
                                                         <span className="text-[10px] text-muted-foreground">機会損失: ¥{itemLoss.toLocaleString()}</span>
                                                     </div>
                                                     <span className="font-bold">x{item.quantity}</span>
