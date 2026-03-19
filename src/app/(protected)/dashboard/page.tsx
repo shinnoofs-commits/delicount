@@ -170,13 +170,13 @@ export default function DashboardPage() {
     );
   };
   
-  const { filteredWasteEntries } = useMemo(() => {
-    if (!date || !date.from) return { filteredWasteEntries: [] };
+  const filteredWasteEntries = useMemo(() => {
+    if (!date || !date.from) return [];
     
     const fromDate = startOfDay(date.from);
     const toDate = date.to ? endOfDay(date.to) : endOfDay(date.from);
 
-    const filterByDateAndDay = (entry: WasteEntry) => {
+    return wasteEntries.filter((entry) => {
         const entryDate = new Date(entry.date);
         if (!isValid(entryDate) || entryDate < fromDate || entryDate > toDate) {
           return false;
@@ -184,20 +184,11 @@ export default function DashboardPage() {
 
         const dayOfWeek = getDay(entryDate);
         const isHoliday = holiday_jp.isHoliday(entryDate);
-
         const isDaySelected = selectedFilters.includes(dayOfWeek);
         const isHolidaySelected = selectedFilters.includes(7);
 
-        if (isHoliday) {
-            return isHolidaySelected;
-        }
-        
-        return isDaySelected;
-    };
-
-    return {
-        filteredWasteEntries: wasteEntries.filter(filterByDateAndDay)
-    };
+        return isHoliday ? isHolidaySelected : isDaySelected;
+    });
   }, [date, wasteEntries, selectedFilters]);
 
   const wasteAnalysisData: WasteData[] = useMemo(() => {
@@ -371,6 +362,8 @@ export default function DashboardPage() {
     }
   };
 
+  if (wasteLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+
   return (
     <div className="flex flex-col gap-4">
        <div className="flex flex-col gap-4 p-4 border rounded-lg bg-card">
@@ -483,7 +476,7 @@ export default function DashboardPage() {
           <CardHeader className="flex flex-row items-center justify-between">
               <div>
                   <CardTitle>廃棄履歴</CardTitle>
-                  <CardDescription>入力された廃棄データの一覧です。修正や削除が可能です。</CardDescription>
+                  <CardDescription>入力された廃棄データの一覧です。</CardDescription>
               </div>
               {selectedEntries.length > 0 && (
                   <Button variant="destructive" size="sm" onClick={handleDeleteSelected}>
@@ -511,13 +504,7 @@ export default function DashboardPage() {
                       </TableRow>
                   </TableHeader>
                   <TableBody>
-                      {wasteLoading ? (
-                          <TableRow>
-                              <TableCell colSpan={7} className="h-24 text-center">
-                                  <Loader2 className="h-6 w-6 animate-spin inline-block" />
-                              </TableCell>
-                          </TableRow>
-                      ) : filteredWasteEntries.length === 0 ? (
+                      {filteredWasteEntries.length === 0 ? (
                           <TableRow>
                               <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                                   廃棄データがありません。
@@ -597,7 +584,7 @@ export default function DashboardPage() {
               <DialogHeader className="p-6 pb-2">
                   <DialogTitle>廃棄データの編集</DialogTitle>
                   <DialogDescription>
-                      数量や天気を調整してください。数量を0にするとその項目は削除されます。
+                      数量や天気を調整してください。
                   </DialogDescription>
               </DialogHeader>
               <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
@@ -709,41 +696,6 @@ export default function DashboardPage() {
               </DialogFooter>
           </DialogContent>
       </Dialog>
-
-      <div className="grid grid-cols-1 gap-4">
-        <Card>
-            <CardHeader>
-                <CardTitle>商品別廃棄分析</CardTitle>
-                <CardDescription>各商品の廃棄状況と、それに伴う損失額の一覧です。</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>商品名</TableHead>
-                            <TableHead className="text-right">売価</TableHead>
-                            <TableHead className="text-right">原価</TableHead>
-                            <TableHead className="text-right">廃棄数</TableHead>
-                            <TableHead className="text-right">廃棄額</TableHead>
-                            <TableHead className="text-right">機会損失</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {wasteAnalysisData.sort((a,b) => b.totalWasteCost - a.totalWasteCost).map(data => (
-                            <TableRow key={data.productId}>
-                                <TableCell className="font-medium">{data.productName}</TableCell>
-                                <TableCell className="text-right">¥{data.price.toLocaleString()}</TableCell>
-                                <TableCell className="text-right">¥{data.costPrice.toLocaleString()}</TableCell>
-                                <TableCell className="text-right">{data.wasteCount}</TableCell>
-                                <TableCell className="text-right font-medium">¥{data.totalWasteCost.toLocaleString()}</TableCell>
-                                <TableCell className="text-right text-destructive font-bold">¥{data.opportunityLoss.toLocaleString()}</TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
-      </div>
     </div>
   )
 }

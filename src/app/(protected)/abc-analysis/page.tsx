@@ -41,9 +41,7 @@ import { useAdmin } from "@/hooks/use-admin";
 import { StoreSelector } from "@/components/ui/store-selector";
 import { cn } from "@/lib/utils";
 
-// 月曜開始の表示用ラベル
 const dayLabels = ['月', '火', '水', '木', '金', '土', '日', '祝'];
-// dayLabelsに対応するgetDay()の戻り値 (1=月, ..., 6=土, 0=日, 7=祝)
 const dayOrder = [1, 2, 3, 4, 5, 6, 0, 7];
 
 const weatherLabels: Record<string, string> = {
@@ -218,7 +216,6 @@ export default function ABCAnalysisPage() {
 
     return (
         <div className="flex flex-col gap-1 h-full overflow-hidden">
-            {/* フィルターセクション */}
             <Card className="shrink-0 border-none shadow-none bg-muted/40">
                 <CardContent className="p-1 flex flex-wrap items-center gap-2">
                     <div className="flex items-center gap-1">
@@ -260,7 +257,6 @@ export default function ABCAnalysisPage() {
                 </div>
             ) : (
                 <div className="flex-1 flex flex-col gap-1 min-h-0">
-                    {/* サマリーカード */}
                     <div className="grid grid-cols-3 gap-1 shrink-0 px-1">
                         <Card className="bg-background border-l-[3px] border-l-blue-400 h-14">
                             <CardContent className="p-2">
@@ -282,12 +278,11 @@ export default function ABCAnalysisPage() {
                         </Card>
                     </div>
 
-                    {/* ピル型分析セクション */}
                     <div className="flex flex-col lg:grid lg:grid-cols-12 gap-1 px-1 shrink-0">
                         <Card className="lg:col-span-8 border-none shadow-none bg-background">
                             <CardHeader className="p-1 pb-0">
                                 <CardTitle className="text-[9px] text-muted-foreground font-black uppercase flex items-center">
-                                    <CalendarDays className="h-2.5 w-2.5 mr-1 text-primary" />曜日別 廃棄率 <span className="text-[7px] lowercase ml-1 opacity-60">(タップで詳細)</span>
+                                    <CalendarDays className="h-2.5 w-2.5 mr-1 text-primary" />曜日別 廃棄率
                                 </CardTitle>
                             </Header>
                             <CardContent className="p-1">
@@ -351,7 +346,6 @@ export default function ABCAnalysisPage() {
                         </Card>
                     </div>
 
-                    {/* 詳細タブセクション */}
                     <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0">
                         <TabsList className="grid grid-cols-3 h-8 p-1 bg-muted/60 mx-1">
                             <TabsTrigger value="overview" className="text-[10px] font-bold"><PieChart className="h-3 w-3 mr-1" />カテゴリー別</TabsTrigger>
@@ -365,7 +359,7 @@ export default function ABCAnalysisPage() {
                                     <CardHeader className="p-2 bg-primary/5 pb-1">
                                         <CardTitle className="text-[12px] font-black flex items-center">
                                             <Filter className="h-3 w-3 mr-2 text-primary" />
-                                            カテゴリー別サマリー <span className="text-[10px] font-normal text-muted-foreground ml-2">(タップで詳細)</span>
+                                            カテゴリー別サマリー
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="p-0">
@@ -458,7 +452,7 @@ export default function ABCAnalysisPage() {
                                 <Card className="border-none shadow-none overflow-hidden bg-background">
                                     <CardHeader className="p-2 bg-muted/40 pb-1">
                                         <CardTitle className="text-[14px] font-black">
-                                            曜日 × 天気 クロス分析 <span className="text-[12px] font-normal text-muted-foreground ml-2">(廃棄率 / 実績)</span>
+                                            曜日 × 天気 クロス分析
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="p-0">
@@ -511,7 +505,6 @@ export default function ABCAnalysisPage() {
                         </div>
                     </Tabs>
 
-                    {/* 曜日詳細ダイアログ */}
                     <Dialog open={selectedDayIdx !== null} onOpenChange={(open) => !open && setSelectedDayIdx(null)}>
                         <DialogContent className="max-w-[400px] p-4">
                             <DialogHeader>
@@ -520,7 +513,7 @@ export default function ABCAnalysisPage() {
                                     {selectedDayIdx !== null && actualDowLabel(selectedDayIdx)}曜日の詳細
                                 </DialogTitle>
                                 <DialogDescription className="text-xs">
-                                    選択した曜日の、条件（天気）ごとの廃棄実績です。
+                                    条件ごとの廃棄実績です。
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="space-y-2 mt-4">
@@ -552,17 +545,13 @@ export default function ABCAnalysisPage() {
                         </DialogContent>
                     </Dialog>
 
-                    {/* カテゴリー詳細ダイアログ */}
                     <Dialog open={!!selectedCategoryForDetail} onOpenChange={(open) => !open && setSelectedCategoryForDetail(null)}>
                         <DialogContent className="max-w-[500px] max-h-[80vh] flex flex-col p-4">
                             <DialogHeader>
                                 <DialogTitle className="text-xl font-black flex items-center gap-2">
                                     <Package className="h-5 w-5 text-primary" />
-                                    {selectedCategoryForDetail} の詳細分析
+                                    {selectedCategoryForDetail} の詳細
                                 </DialogTitle>
-                                <DialogDescription className="text-sm">
-                                    このカテゴリーに含まれる商品の廃棄実績と機会損失額です。
-                                </DialogDescription>
                             </DialogHeader>
                             <div className="flex-1 overflow-auto mt-4">
                                 <Table>
@@ -578,9 +567,9 @@ export default function ABCAnalysisPage() {
                                             .filter(p => p.category === selectedCategoryForDetail)
                                             .map(p => (
                                                 <TableRow key={p.id} className="h-12">
-                                                    <TableCell className="font-bold py-2">{p.name}</TableCell>
-                                                    <TableCell className="text-right text-destructive font-black py-2">{p.waste.toLocaleString()}個</TableCell>
-                                                    <TableCell className="text-right font-black text-blue-900 py-2">
+                                                    <TableCell className="font-bold py-2 text-[18px]">{p.name}</TableCell>
+                                                    <TableCell className="text-right text-destructive font-black py-2 text-[20px]">{p.waste.toLocaleString()}個</TableCell>
+                                                    <TableCell className="text-right font-black text-blue-900 py-2 text-[20px]">
                                                         ¥{(p.waste * (p.price || 0)).toLocaleString()}
                                                     </TableCell>
                                                 </TableRow>
