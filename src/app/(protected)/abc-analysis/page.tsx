@@ -41,7 +41,7 @@ import { useAdmin } from "@/hooks/use-admin";
 import { StoreSelector } from "@/components/ui/store-selector";
 import { cn } from "@/lib/utils";
 
-// 月曜開始のラベル
+// 月曜開始の表示用ラベル
 const dayLabels = ['月', '火', '水', '木', '金', '土', '日', '祝'];
 // dayLabelsに対応するgetDay()の戻り値 (1=月, ..., 6=土, 0=日, 7=祝)
 const dayOrder = [1, 2, 3, 4, 5, 6, 0, 7];
@@ -142,6 +142,7 @@ export default function ABCAnalysisPage() {
                 stats.production += item.quantity;
                 productStats.set(item.productId, stats);
                 dayStats[dow].production += item.quantity;
+
                 if (weather !== 'unknown') {
                     if (!weatherStats[weather]) weatherStats[weather] = { waste: 0, production: 0 };
                     weatherStats[weather].production += item.quantity;
@@ -197,24 +198,27 @@ export default function ABCAnalysisPage() {
     const sortedCategoryStats = useMemo(() => {
         if (!analysisData) return [];
         return Object.entries(analysisData.categoryStats)
-            .map(([cat, stats]: [string, any]) => ({
-                cat,
-                ...stats,
-                rate: stats.production > 0 ? (stats.waste / stats.production) * 100 : 0
-            }))
+            .map(([cat, stats]) => {
+                const s = stats as { waste: number; production: number };
+                const rate = s.production > 0 ? (s.waste / s.production) * 100 : 0;
+                return { cat, ...s, rate };
+            })
             .sort((a, b) => b.rate - a.rate);
     }, [analysisData]);
 
     if (wasteLoading || productsLoading || productionLoading) {
-        return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+        return (
+            <div className="flex h-screen items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+        );
     }
 
-    const overallWasteRate = (analysisData && analysisData.totalProduction > 0) 
-        ? (analysisData.totalWaste / analysisData.totalProduction) * 100 
-        : 0;
+    const overallWasteRate = (analysisData && analysisData.totalProduction > 0) ? (analysisData.totalWaste / analysisData.totalProduction) * 100 : 0;
 
     return (
         <div className="flex flex-col gap-1 h-full overflow-hidden">
+            {/* フィルターセクション */}
             <Card className="shrink-0 border-none shadow-none bg-muted/40">
                 <CardContent className="p-1 flex flex-wrap items-center gap-2">
                     <div className="flex items-center gap-1">
@@ -256,6 +260,7 @@ export default function ABCAnalysisPage() {
                 </div>
             ) : (
                 <div className="flex-1 flex flex-col gap-1 min-h-0">
+                    {/* サマリーカード */}
                     <div className="grid grid-cols-3 gap-1 shrink-0 px-1">
                         <Card className="bg-background border-l-[3px] border-l-blue-400 h-14">
                             <CardContent className="p-2">
@@ -277,6 +282,7 @@ export default function ABCAnalysisPage() {
                         </Card>
                     </div>
 
+                    {/* ピル型分析セクション */}
                     <div className="flex flex-col lg:grid lg:grid-cols-12 gap-1 px-1 shrink-0">
                         <Card className="lg:col-span-8 border-none shadow-none bg-background">
                             <CardHeader className="p-1 pb-0">
@@ -345,6 +351,7 @@ export default function ABCAnalysisPage() {
                         </Card>
                     </div>
 
+                    {/* 詳細タブセクション */}
                     <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0">
                         <TabsList className="grid grid-cols-3 h-8 p-1 bg-muted/60 mx-1">
                             <TabsTrigger value="overview" className="text-[10px] font-bold"><PieChart className="h-3 w-3 mr-1" />カテゴリー別</TabsTrigger>
@@ -358,7 +365,7 @@ export default function ABCAnalysisPage() {
                                     <CardHeader className="p-2 bg-primary/5 pb-1">
                                         <CardTitle className="text-[12px] font-black flex items-center">
                                             <Filter className="h-3 w-3 mr-2 text-primary" />
-                                            カテゴリー別サマリー <span className="text-[10px] font-normal text-muted-foreground ml-2">(タップで商品詳細を表示)</span>
+                                            カテゴリー別サマリー <span className="text-[10px] font-normal text-muted-foreground ml-2">(タップで詳細)</span>
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="p-0">
@@ -407,8 +414,8 @@ export default function ABCAnalysisPage() {
                                             <TableBody>
                                                 {analysisData.products.map((p) => {
                                                     const wasteRate = p.production > 0 ? (p.waste / p.production) * 100 : 0;
-                                                    const topDows = Object.entries(p.dow)
-                                                        .map(([dow, count]) => ({ dow: Number(dow), count: count as number }))
+                                                    const topDows = Object.entries(p.dow as Record<number, number>)
+                                                        .map(([dow, count]) => ({ dow: Number(dow), count: count }))
                                                         .filter(item => item.count > 0)
                                                         .sort((a, b) => b.count - a.count)
                                                         .slice(0, 3);
@@ -467,33 +474,34 @@ export default function ABCAnalysisPage() {
                                                     {dayLabels.map((label, i) => {
                                                         const actualDow = dayOrder[i];
                                                         return (
-                                                        <TableRow key={label} className="h-16">
-                                                            <TableHead className={cn("h-16 p-2 text-[20px] font-black border-r text-center", (actualDow === 0 || actualDow === 7) ? "text-destructive" : (actualDow === 6 ? "text-blue-500" : ""))}>
-                                                                {label}
-                                                            </TableHead>
-                                                            {Object.keys(weatherLabels).map(weatherKey => {
-                                                                const stats = analysisData.matrixStats[`${actualDow}-${weatherKey}`] || { waste: 0, production: 0 };
-                                                                const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
-                                                                const getBgColor = (r: number) => {
-                                                                    if (r === 0) return "";
-                                                                    if (r > 20) return "bg-destructive/10";
-                                                                    if (r > 12) return "bg-orange-400/5";
-                                                                    if (r > 5) return "bg-primary/5";
-                                                                    return "bg-green-500/5";
-                                                                };
-                                                                return (
-                                                                    <TableCell key={weatherKey} className={cn("text-center p-2 border-r last:border-r-0", getBgColor(rate))}>
-                                                                        {stats.production > 0 ? (
-                                                                            <div className="flex flex-col items-center leading-tight">
-                                                                                <span className={cn("text-[24px] font-black", rate > 15 ? "text-destructive" : "text-blue-900")}>{rate.toFixed(1)}%</span>
-                                                                                <span className="text-[14px] text-muted-foreground font-bold opacity-70">{stats.waste} / {stats.production}</span>
-                                                                            </div>
-                                                                        ) : <span className="text-muted-foreground text-[16px]">-</span>}
-                                                                    </TableCell>
-                                                                );
-                                                            })}
-                                                        </TableRow>
-                                                    )})}
+                                                            <TableRow key={label} className="h-16">
+                                                                <TableHead className={cn("h-16 p-2 text-[20px] font-black border-r text-center", (actualDow === 0 || actualDow === 7) ? "text-destructive" : (actualDow === 6 ? "text-blue-500" : ""))}>
+                                                                    {label}
+                                                                </TableHead>
+                                                                {Object.keys(weatherLabels).map(weatherKey => {
+                                                                    const stats = analysisData.matrixStats[`${actualDow}-${weatherKey}`] || { waste: 0, production: 0 };
+                                                                    const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
+                                                                    const getBgColor = (r: number) => {
+                                                                        if (r === 0) return "";
+                                                                        if (r > 20) return "bg-destructive/10";
+                                                                        if (r > 12) return "bg-orange-400/5";
+                                                                        if (r > 5) return "bg-primary/5";
+                                                                        return "bg-green-500/5";
+                                                                    };
+                                                                    return (
+                                                                        <TableCell key={weatherKey} className={cn("text-center p-2 border-r last:border-r-0", getBgColor(rate))}>
+                                                                            {stats.production > 0 ? (
+                                                                                <div className="flex flex-col items-center leading-tight">
+                                                                                    <span className={cn("text-[24px] font-black", rate > 15 ? "text-destructive" : "text-blue-900")}>{rate.toFixed(1)}%</span>
+                                                                                    <span className="text-[14px] text-muted-foreground font-bold opacity-70">{stats.waste} / {stats.production}</span>
+                                                                                </div>
+                                                                            ) : <span className="text-muted-foreground text-[16px]">-</span>}
+                                                                        </TableCell>
+                                                                    );
+                                                                })}
+                                                            </TableRow>
+                                                        );
+                                                    })}
                                                 </TableBody>
                                             </Table>
                                         </div>
@@ -503,6 +511,7 @@ export default function ABCAnalysisPage() {
                         </div>
                     </Tabs>
 
+                    {/* 曜日詳細ダイアログ */}
                     <Dialog open={selectedDayIdx !== null} onOpenChange={(open) => !open && setSelectedDayIdx(null)}>
                         <DialogContent className="max-w-[400px] p-4">
                             <DialogHeader>
@@ -543,6 +552,7 @@ export default function ABCAnalysisPage() {
                         </DialogContent>
                     </Dialog>
 
+                    {/* カテゴリー詳細ダイアログ */}
                     <Dialog open={!!selectedCategoryForDetail} onOpenChange={(open) => !open && setSelectedCategoryForDetail(null)}>
                         <DialogContent className="max-w-[500px] max-h-[80vh] flex flex-col p-4">
                             <DialogHeader>
