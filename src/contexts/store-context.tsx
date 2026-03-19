@@ -3,12 +3,12 @@
 
 import type { Store } from '@/lib/types';
 import React, { createContext, useContext, useCallback, useMemo, useState, useEffect } from 'react';
-import { useFirestore, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useFirestore, useUser, errorEmitter, FirestorePermissionError, useAuth } from '@/firebase';
 import { collection, doc, addDoc, setDoc, deleteDoc, serverTimestamp, query, where, writeBatch, getDoc, onSnapshot } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useAdmin } from '@/hooks/use-admin';
 import { initializeApp, deleteApp } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { firebaseConfig } from '@/firebase/config';
 
 interface StoreContextType {
@@ -20,12 +20,14 @@ interface StoreContextType {
   deleteStore: (storeId: string) => void;
   getStoreById: (storeId: string) => Store | undefined;
   toggleAdminRole: (store: Store) => void;
+  resetPassword: (email: string) => Promise<void>;
 }
 
 export const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const firestore = useFirestore();
+  const auth = useAuth();
   const { toast } = useToast();
   const { user } = useUser();
   const { isAdmin, isAdminLoading } = useAdmin();
@@ -194,6 +196,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   }, [firestore, isAdmin, user, toast]);
 
+  const resetPassword = useCallback(async (email: string) => {
+    if (!auth) return;
+    try {
+      await sendPasswordResetEmail(auth, email);
+      toast({ 
+        title: "再設定メールを送信しました", 
+        description: `${email} 宛にパスワード再設定用のメールを送信しました。受信トレイをご確認ください。` 
+      });
+    } catch (error: any) {
+      toast({ 
+        variant: 'destructive', 
+        title: "送信エラー", 
+        description: "パスワード再設定メールの送信に失敗しました。" 
+      });
+    }
+  }, [auth, toast]);
+
 
   const value = useMemo(() => ({
     stores,
@@ -204,7 +223,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     deleteStore,
     getStoreById,
     toggleAdminRole,
-  }), [stores, userStore, loading, addStore, updateStore, deleteStore, getStoreById, toggleAdminRole]);
+    resetPassword,
+  }), [stores, userStore, loading, addStore, updateStore, deleteStore, getStoreById, toggleAdminRole, resetPassword]);
 
   return (
     <StoreContext.Provider value={value}>

@@ -1,8 +1,8 @@
 
 'use client'
 
-import { useState, useMemo } from "react"
-import { MoreHorizontal, PlusCircle, Building, Trash2 } from "lucide-react"
+import { useState } from "react"
+import { MoreHorizontal, PlusCircle, Trash2, Key, Mail } from "lucide-react"
 
 import type { Store } from "@/lib/types"
 import { Button } from "@/components/ui/button"
@@ -54,13 +54,15 @@ import { useAdmin } from "@/hooks/use-admin"
 import { useUser } from "@/firebase"
 
 export default function StoresClient() {
-  const { stores, addStore, updateStore, deleteStore, toggleAdminRole } = useStores()
+  const { stores, addStore, updateStore, deleteStore, toggleAdminRole, resetPassword } = useStores()
   const { isAdmin, isAdminLoading } = useAdmin()
   const { user } = useUser()
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false)
   const [storeToEdit, setStoreToEdit] = useState<Store | null>(null)
   const [storeToDelete, setStoreToDelete] = useState<Store | null>(null)
+  const [storeToReset, setStoreToReset] = useState<Store | null>(null)
 
   const { toast } = useToast()
 
@@ -83,12 +85,25 @@ export default function StoresClient() {
     setIsDeleteConfirmOpen(true)
   }
 
+  const handleResetPassword = (store: Store) => {
+    setStoreToReset(store)
+    setIsResetConfirmOpen(true)
+  }
+
   const confirmDelete = () => {
     if (storeToDelete) {
       deleteStore(storeToDelete.id)
     }
     setIsDeleteConfirmOpen(false)
     setStoreToDelete(null)
+  }
+
+  const confirmResetPassword = async () => {
+    if (storeToReset) {
+      await resetPassword(storeToReset.email);
+    }
+    setIsResetConfirmOpen(false)
+    setStoreToReset(null)
   }
 
   const handleFormSubmit = (storeData: Partial<Store> & { password?: string }) => {
@@ -163,10 +178,16 @@ export default function StoresClient() {
                             {store.isAdmin ? '店舗アカウントに変更' : '管理者に変更'}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => handleResetPassword(store)}>
+                            <Mail className="h-4 w-4 mr-2" />
+                            パスワード再設定メールを送信
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem
                             onClick={() => handleDelete(store)}
                             className="text-destructive"
                           >
+                            <Trash2 className="h-4 w-4 mr-2" />
                             削除
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -219,6 +240,28 @@ export default function StoresClient() {
               className="bg-destructive hover:bg-destructive/90"
             >
               削除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={isResetConfirmOpen}
+        onOpenChange={setIsResetConfirmOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>パスワード再設定メールを送信しますか？</AlertDialogTitle>
+            <AlertDialogDescription>
+              「{storeToReset?.name} ({storeToReset?.email})」宛に、パスワードを再設定するためのリンクが含まれたメールを送信します。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmResetPassword}
+            >
+              送信する
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
