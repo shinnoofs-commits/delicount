@@ -41,6 +41,7 @@ import { useAdmin } from "@/hooks/use-admin";
 import { StoreSelector } from "@/components/ui/store-selector";
 import { cn } from "@/lib/utils";
 
+// 曜日ラベル（月曜開始）
 const dayLabels = ['月', '火', '水', '木', '金', '土', '日', '祝'];
 const dayOrder = [1, 2, 3, 4, 5, 6, 0, 7];
 
@@ -108,11 +109,8 @@ export default function ABCAnalysisPage() {
         Object.keys(weatherLabels).forEach(w => weatherStats[w] = { waste: 0, production: 0 });
 
         const dateToWeather = new Map<string, string>();
-        const filteredWaste = wasteEntries.filter(entry => 
-            dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd'))
-        );
-        filteredWaste.forEach(entry => {
-            if (entry.weather) {
+        wasteEntries.forEach(entry => {
+            if (entry.weather && dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd'))) {
                 dateToWeather.set(format(startOfDay(entry.date), 'yyyy-MM-dd'), entry.weather);
             }
         });
@@ -154,7 +152,7 @@ export default function ABCAnalysisPage() {
             });
         });
 
-        filteredWaste.forEach(entry => {
+        wasteEntries.filter(entry => dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd'))).forEach(entry => {
             const entryDate = new Date(entry.date);
             const isHoliday = holiday_jp.isHoliday(entryDate);
             const dow = isHoliday ? 7 : getDay(entryDate);
@@ -406,7 +404,7 @@ export default function ABCAnalysisPage() {
                                                     <TableHead className="h-10 text-[18px] font-black px-4">商品名</TableHead>
                                                     <TableHead className="h-10 text-[18px] font-black px-4 text-right">廃棄/製造</TableHead>
                                                     <TableHead className="h-10 text-[18px] font-black px-4 text-right">廃棄率</TableHead>
-                                                    <TableHead className="h-10 text-[18px] font-black px-4 text-center">ロス傾向 (曜日)</TableHead>
+                                                    <TableHead className="h-10 text-[18px] font-black px-4 text-center">ロス傾向</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
