@@ -98,13 +98,13 @@ const DateRangePicker = ({ date, setDate }: { date: DateRange | undefined, setDa
 }
 
 const filterOptions = [
-  { id: 0, label: '日' },
   { id: 1, label: '月' },
   { id: 2, label: '火' },
   { id: 3, label: '水' },
   { id: 4, label: '木' },
   { id: 5, label: '金' },
   { id: 6, label: '土' },
+  { id: 0, label: '日' },
   { id: 7, label: '祝' }
 ];
 
@@ -252,7 +252,7 @@ export default function DashboardPage() {
 
     const allDaysData: { date: string, totalWaste: number, totalOpportunityLoss: number, weatherLabel?: string, fullDate: Date }[] = [];
     let currentDate = startOfDay(date.from);
-    const toDate = endOfDay(date.to);
+    const toDate = date.to ? endOfDay(date.to) : endOfDay(date.from);
 
     while (currentDate <= toDate) {
       const formattedDate = format(currentDate, 'yyyy-MM-dd');
@@ -351,7 +351,7 @@ export default function DashboardPage() {
             await updateWasteEntry(editEntry.storeId, editEntry.id, validItems, newTotalCost, editWeather);
         }
         setEditEntry(null);
-    } catch (e) {
+    } catch (e: any) {
         toast({
             variant: "destructive",
             title: "保存エラー",
@@ -404,7 +404,7 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2">
          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">廃棄ロス（原価）</CardTitle>
+                <CardTitle className="text-sm font-medium">廃棄ロス（原価計）</CardTitle>
                 <Trash2 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -414,7 +414,7 @@ export default function DashboardPage() {
         </Card>
         <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">機会損失（売価）</CardTitle>
+                <CardTitle className="text-sm font-medium">機会損失（売価計）</CardTitle>
                 <TrendingDown className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -636,23 +636,24 @@ export default function DashboardPage() {
           </DialogContent>
       </Dialog>
 
+      {/* グラフタップ時の詳細ダイアログ (機会損失表示) */}
       <Dialog open={!!selectedDayWaste} onOpenChange={(open) => !open && setSelectedDayWaste(null)}>
           <DialogContent className="max-w-md max-h-[80vh] flex flex-col">
               <DialogHeader>
                   <DialogTitle className="flex items-center gap-2">
                       <Package className="h-5 w-5 text-primary" />
-                      {selectedDayWaste && format(selectedDayWaste.date, 'M月d日', { locale: ja })}の廃棄詳細
+                      {selectedDayWaste && format(selectedDayWaste.date, 'M月d日', { locale: ja })}の廃棄詳細分析
                   </DialogTitle>
                   <DialogDescription>
-                      この日に登録された全廃棄商品の一覧です。
+                      この日の廃棄実績と、それに伴う機会損失額の一覧です。
                   </DialogDescription>
               </DialogHeader>
               <div className="flex-1 overflow-auto py-4">
-                  {selectedDayWaste?.entries.length === 0 ? (
+                  {!selectedDayWaste || selectedDayWaste.entries.length === 0 ? (
                       <p className="text-center text-muted-foreground py-8">廃棄データはありません。</p>
                   ) : (
                       <div className="space-y-4">
-                          {selectedDayWaste?.entries.map((entry, idx) => {
+                          {selectedDayWaste.entries.map((entry, idx) => {
                               const entryTotalSellPrice = entry.items.reduce((sum, item) => {
                                   const product = products.find(p => p.id === item.productId);
                                   return sum + (product?.price || 0) * item.quantity;
@@ -663,24 +664,24 @@ export default function DashboardPage() {
                                     <div className="flex items-center justify-between mb-2">
                                         <span className="text-xs font-bold text-muted-foreground flex items-center gap-1">
                                             <WeatherIcon type={entry.weather} />
-                                            {format(entry.date, 'HH:mm')}
+                                            {format(entry.date, 'HH:mm')} 登録分
                                         </span>
                                         <div className="text-right">
-                                            <div className="text-[10px] text-muted-foreground">原価計: ¥{entry.totalWasteCost.toLocaleString()}</div>
+                                            <div className="text-[10px] text-muted-foreground">原価合計: ¥{entry.totalWasteCost.toLocaleString()}</div>
                                             <div className="text-xs font-black text-destructive">機会損失 (売価計): ¥{entryTotalSellPrice.toLocaleString()}</div>
                                         </div>
                                     </div>
-                                    <div className="grid gap-1">
+                                    <div className="grid gap-1 bg-muted/30 p-2 rounded-md">
                                         {entry.items.map((item, i) => {
                                             const prod = products.find(p => p.id === item.productId);
                                             const itemLoss = (prod?.price || 0) * item.quantity;
                                             return (
-                                                <div key={i} className="flex justify-between items-center text-sm">
+                                                <div key={i} className="flex justify-between items-center text-sm border-b border-white last:border-0 py-1">
                                                     <div className="flex flex-col">
-                                                        <span className="font-medium">{item.name}</span>
-                                                        <span className="text-[10px] text-muted-foreground">機会損失: ¥{itemLoss.toLocaleString()}</span>
+                                                        <span className="font-bold">{item.name}</span>
+                                                        <span className="text-[10px] text-destructive font-bold">損失額: ¥{itemLoss.toLocaleString()}</span>
                                                     </div>
-                                                    <span className="font-bold">x{item.quantity}</span>
+                                                    <span className="font-black text-lg">x{item.quantity}</span>
                                                 </div>
                                             );
                                         })}
@@ -692,7 +693,7 @@ export default function DashboardPage() {
                   )}
               </div>
               <DialogFooter>
-                  <Button variant="outline" onClick={() => setSelectedDayWaste(null)}>閉じる</Button>
+                  <Button variant="outline" className="w-full" onClick={() => setSelectedDayWaste(null)}>閉じる</Button>
               </DialogFooter>
           </DialogContent>
       </Dialog>
