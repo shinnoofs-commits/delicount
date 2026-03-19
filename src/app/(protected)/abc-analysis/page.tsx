@@ -279,16 +279,16 @@ export default function ABCAnalysisPage() {
                         </Card>
                     </div>
 
-                    {/* メイン分析パネル (曜日・天気) */}
-                    <div className="grid grid-cols-12 gap-1 px-1 shrink-0">
-                        <Card className="col-span-8 border-none shadow-none bg-background">
+                    {/* メイン分析パネル (曜日・天気) - レスポンシブ対応 */}
+                    <div className="flex flex-col lg:grid lg:grid-cols-12 gap-1 px-1 shrink-0">
+                        <Card className="lg:col-span-8 border-none shadow-none bg-background">
                             <CardHeader className="p-1 pb-0">
                                 <CardTitle className="text-[9px] text-muted-foreground font-black uppercase flex items-center">
                                     <CalendarDays className="h-2.5 w-2.5 mr-1 text-primary" />曜日別 廃棄率 <span className="text-[7px] lowercase ml-1 opacity-60">(タップで詳細)</span>
                                 </CardTitle>
-                            </CardHeader>
+                            </Header>
                             <CardContent className="p-1">
-                                <div className="grid grid-cols-8 gap-0.5">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-1">
                                     {dayLabels.map((label, i) => {
                                         const actualDow = dayOrder[i];
                                         const stats = analysisData.dayStats[actualDow];
@@ -309,7 +309,7 @@ export default function ABCAnalysisPage() {
 
                                         return (
                                             <div key={label} onClick={() => setSelectedDayIdx(actualDow)} className={cn(
-                                                "flex items-center justify-between px-1.5 h-8 rounded-full transition-all cursor-pointer hover:opacity-80 bg-muted/50 border shadow-sm",
+                                                "flex items-center justify-between px-2 h-9 lg:h-8 rounded-full transition-all cursor-pointer hover:opacity-80 bg-muted/50 border shadow-sm",
                                                 borderColor,
                                                 isAlert && "bg-destructive/10 border-destructive"
                                             )}>
@@ -324,14 +324,14 @@ export default function ABCAnalysisPage() {
                             </CardContent>
                         </Card>
 
-                        <Card className="col-span-4 border-none shadow-none bg-background">
+                        <Card className="lg:col-span-4 border-none shadow-none bg-background">
                             <CardHeader className="p-1 pb-0">
                                 <CardTitle className="text-[9px] text-muted-foreground font-black uppercase flex items-center">
                                     <Sun className="h-2.5 w-2.5 mr-1 text-orange-500" />天気別 廃棄率
                                 </CardTitle>
-                            </CardHeader>
+                            </Header>
                             <CardContent className="p-1">
-                                <div className="grid grid-cols-4 gap-0.5">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1">
                                     {Object.entries(weatherLabels).map(([key, label]) => {
                                         const stats = analysisData.weatherStats[key] || { waste: 0, production: 0 };
                                         const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
@@ -339,7 +339,7 @@ export default function ABCAnalysisPage() {
                                         const isAlert = rate > 15;
                                         return (
                                             <div key={key} className={cn(
-                                                "flex items-center justify-between px-1.5 h-8 rounded-full bg-muted/50 border border-orange-400/50 shadow-sm",
+                                                "flex items-center justify-between px-2 h-9 lg:h-8 rounded-full bg-muted/50 border border-orange-400/50 shadow-sm",
                                                 isAlert && "bg-destructive/10 border-destructive"
                                             )}>
                                                 <div className="flex items-center gap-0.5 shrink-0">
