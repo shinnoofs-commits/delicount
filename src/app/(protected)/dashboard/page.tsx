@@ -15,14 +15,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { useTransactions } from "@/contexts/transaction-context";
+import { useTransactions } from "@/contexts/transaction-context"
 import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid, getDay, addDays, isSameDay } from "date-fns"
 import { ja } from "date-fns/locale"
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts"
-import { Calendar as CalendarIcon, Trash2, TrendingDown, Edit, MoreHorizontal, Plus, Minus, Loader2, Sun, Cloud, CloudRain, Snowflake, Package } from 'lucide-react';
-import { useMemo, useState } from "react";
-import type { WasteEntry, WasteItem, WeatherType } from "@/lib/types";
-import { useProducts } from "@/contexts/product-context";
+import { Calendar as CalendarIcon, Trash2, TrendingDown, Edit, MoreHorizontal, Plus, Minus, Loader2, Sun, Cloud, CloudRain, Snowflake, Package } from 'lucide-react'
+import { useMemo, useState } from "react"
+import type { WasteEntry, WasteItem, WeatherType } from "@/lib/types"
+import { useProducts } from "@/contexts/product-context"
 import { DateRange } from "react-day-picker"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
@@ -32,10 +32,10 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import holiday_jp from '@holiday-jp/holiday_jp';
-import { StoreSelector } from "@/components/ui/store-selector";
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
+import holiday_jp from '@holiday-jp/holiday_jp'
+import { StoreSelector } from "@/components/ui/store-selector"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,9 +51,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { useToast } from "@/hooks/use-toast";
-import { Separator } from "@/components/ui/separator";
-import { useAdmin } from "@/hooks/use-admin";
+import { useToast } from "@/hooks/use-toast"
+import { Separator } from "@/components/ui/separator"
+import { useAdmin } from "@/hooks/use-admin"
 
 const DateRangePicker = ({ date, setDate }: { date: DateRange | undefined, setDate: (date: DateRange | undefined) => void }) => {
   return (
@@ -684,12 +684,19 @@ export default function DashboardPage() {
                                         </div>
                                     </div>
                                     <div className="grid gap-1">
-                                        {entry.items.map((item, i) => (
-                                            <div key={i} className="flex justify-between items-center text-sm">
-                                                <span>{item.name}</span>
-                                                <span className="font-bold">x{item.quantity}</span>
-                                            </div>
-                                        ))}
+                                        {entry.items.map((item, i) => {
+                                            const prod = products.find(p => p.id === item.productId);
+                                            const itemLoss = (prod?.price || 0) * item.quantity;
+                                            return (
+                                                <div key={i} className="flex justify-between items-center text-sm">
+                                                    <div className="flex flex-col">
+                                                        <span>{item.name}</span>
+                                                        <span className="text-[10px] text-muted-foreground">機会損失: ¥{itemLoss.toLocaleString()}</span>
+                                                    </div>
+                                                    <span className="font-bold">x{item.quantity}</span>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                               );

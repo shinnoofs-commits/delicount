@@ -209,13 +209,12 @@ export default function ABCAnalysisPage() {
         return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
     }
 
-    const overallWasteRate = analysisData && analysisData.totalProduction > 0 
+    const overallWasteRate = (analysisData && analysisData.totalProduction > 0) 
         ? (analysisData.totalWaste / analysisData.totalProduction) * 100 
         : 0;
 
     return (
         <div className="flex flex-col gap-1 h-full overflow-hidden">
-            {/* フィルターセクション */}
             <Card className="shrink-0 border-none shadow-none bg-muted/40">
                 <CardContent className="p-1 flex flex-wrap items-center gap-2">
                     <div className="flex items-center gap-1">
@@ -257,7 +256,6 @@ export default function ABCAnalysisPage() {
                 </div>
             ) : (
                 <div className="flex-1 flex flex-col gap-1 min-h-0">
-                    {/* KPIセクション */}
                     <div className="grid grid-cols-3 gap-1 shrink-0 px-1">
                         <Card className="bg-background border-l-[3px] border-l-blue-400 h-14">
                             <CardContent className="p-2">
@@ -279,7 +277,6 @@ export default function ABCAnalysisPage() {
                         </Card>
                     </div>
 
-                    {/* メイン分析パネル (曜日・天気) - レスポンシブ対応 */}
                     <div className="flex flex-col lg:grid lg:grid-cols-12 gap-1 px-1 shrink-0">
                         <Card className="lg:col-span-8 border-none shadow-none bg-background">
                             <CardHeader className="p-1 pb-0">
@@ -294,19 +291,10 @@ export default function ABCAnalysisPage() {
                                         const stats = analysisData.dayStats[actualDow];
                                         const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
                                         const isAlert = rate > 15;
-                                        
                                         let labelColor = "text-muted-foreground";
                                         let borderColor = "border-slate-200";
-
-                                        if (actualDow === 6) {
-                                            labelColor = "text-blue-500"; 
-                                            borderColor = "border-blue-400/60";
-                                        }
-                                        if (actualDow === 0 || actualDow === 7) {
-                                            labelColor = "text-destructive";
-                                            borderColor = "border-destructive/60";
-                                        }
-
+                                        if (actualDow === 6) { labelColor = "text-blue-500"; borderColor = "border-blue-400/60"; }
+                                        if (actualDow === 0 || actualDow === 7) { labelColor = "text-destructive"; borderColor = "border-destructive/60"; }
                                         return (
                                             <div key={label} onClick={() => setSelectedDayIdx(actualDow)} className={cn(
                                                 "flex items-center justify-between px-2 h-9 lg:h-8 rounded-full transition-all cursor-pointer hover:opacity-80 bg-muted/50 border shadow-sm",
@@ -357,7 +345,6 @@ export default function ABCAnalysisPage() {
                         </Card>
                     </div>
 
-                    {/* タブ分析セクション (200%拡大) */}
                     <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0">
                         <TabsList className="grid grid-cols-3 h-8 p-1 bg-muted/60 mx-1">
                             <TabsTrigger value="overview" className="text-[10px] font-bold"><PieChart className="h-3 w-3 mr-1" />カテゴリー別</TabsTrigger>
@@ -366,7 +353,6 @@ export default function ABCAnalysisPage() {
                         </TabsList>
 
                         <div className="flex-1 overflow-auto mt-1 px-1">
-                            {/* カテゴリー別サマリー (200%拡大) */}
                             <TabsContent value="overview" className="m-0 space-y-1 pb-4">
                                 <Card className="border-none shadow-none overflow-hidden bg-background">
                                     <CardHeader className="p-2 bg-primary/5 pb-1">
@@ -406,7 +392,6 @@ export default function ABCAnalysisPage() {
                                 </Card>
                             </TabsContent>
 
-                            {/* 商品分析タブ (200%拡大) */}
                             <TabsContent value="product" className="m-0 pb-4">
                                 <Card className="border-none shadow-none bg-background">
                                     <CardContent className="p-0">
@@ -427,7 +412,6 @@ export default function ABCAnalysisPage() {
                                                         .filter(item => item.count > 0)
                                                         .sort((a, b) => b.count - a.count)
                                                         .slice(0, 3);
-
                                                     return (
                                                         <TableRow key={p.id} className="h-16 hover:bg-muted/10">
                                                             <TableCell className="px-4 py-2">
@@ -463,7 +447,6 @@ export default function ABCAnalysisPage() {
                                 </Card>
                             </TabsContent>
 
-                            {/* クロス分析タブ (200%拡大) */}
                             <TabsContent value="cross" className="m-0 pb-4">
                                 <Card className="border-none shadow-none overflow-hidden bg-background">
                                     <CardHeader className="p-2 bg-muted/40 pb-1">
@@ -520,7 +503,6 @@ export default function ABCAnalysisPage() {
                         </div>
                     </Tabs>
 
-                    {/* 曜日詳細ポップアップ */}
                     <Dialog open={selectedDayIdx !== null} onOpenChange={(open) => !open && setSelectedDayIdx(null)}>
                         <DialogContent className="max-w-[400px] p-4">
                             <DialogHeader>
@@ -561,7 +543,6 @@ export default function ABCAnalysisPage() {
                         </DialogContent>
                     </Dialog>
 
-                    {/* カテゴリー詳細ポップアップ */}
                     <Dialog open={!!selectedCategoryForDetail} onOpenChange={(open) => !open && setSelectedCategoryForDetail(null)}>
                         <DialogContent className="max-w-[500px] max-h-[80vh] flex flex-col p-4">
                             <DialogHeader>
