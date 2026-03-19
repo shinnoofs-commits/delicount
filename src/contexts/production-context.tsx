@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { ProductionEntry } from '@/lib/types';
@@ -20,17 +19,17 @@ export const ProductionContext = createContext<ProductionContextType | undefined
 
 export function ProductionProvider({ children }: { children: React.ReactNode }) {
   const firestore = useFirestore();
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const { toast } = useToast();
-  const { isAdmin } = useAdmin();
-  const { userStore } = useStores();
+  const { isAdmin, isAdminLoading } = useAdmin();
+  const { userStore, loading: storesLoading } = useStores();
   const { selectedStoreIds } = useStoreSelection();
   
   const [productionEntries, setProductionEntries] = useState<ProductionEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!firestore) return;
+    if (!firestore || !user || isUserLoading || isAdminLoading || storesLoading) return;
     
     setLoading(true);
     const storeIdsToFetch = isAdmin ? selectedStoreIds : (userStore ? [userStore.id] : []);
@@ -68,7 +67,7 @@ export function ProductionProvider({ children }: { children: React.ReactNode }) 
 
     return () => unsubscribers.forEach(unsub => unsub());
 
-  }, [firestore, isAdmin, userStore, selectedStoreIds]);
+  }, [firestore, user, isUserLoading, isAdmin, isAdminLoading, userStore, selectedStoreIds, storesLoading]);
 
 
   const addProductionEntry = useCallback((productionEntryData: Omit<ProductionEntry, 'id' | 'userId'>) => {

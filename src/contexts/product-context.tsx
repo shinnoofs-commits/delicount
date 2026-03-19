@@ -1,9 +1,8 @@
-
 'use client';
 
 import type { Product, DailyProduction } from '@/lib/types';
 import React, { createContext, useContext, useCallback, useMemo, useState, useEffect } from 'react';
-import { useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useFirestore, errorEmitter, FirestorePermissionError, useUser } from '@/firebase';
 import { collection, doc, addDoc, setDoc, writeBatch, query, where, getDocs, onSnapshot, Unsubscribe } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useAdmin } from '@/hooks/use-admin';
@@ -27,16 +26,18 @@ export const ProductContext = createContext<ProductContextType | undefined>(unde
 
 export function ProductProvider({ children }: { children: React.ReactNode }) {
   const firestore = useFirestore();
+  const { user, isUserLoading } = useUser();
   const { toast } = useToast();
-  const { isAdmin } = useAdmin();
-  const { userStore, stores } = useStores();
+  const { isAdmin, isAdminLoading } = useAdmin();
+  const { userStore, stores, loading: storesLoading } = useStores();
   const { selectedStoreIds } = useStoreSelection();
   
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchProducts = useCallback(() => {
-    if (!firestore) return;
+    // Ensure we have a user and auth/store state is ready before fetching to avoid permission errors
+    if (!firestore || !user || isUserLoading || isAdminLoading || storesLoading) return;
 
     setLoading(true);
     const storeIdsToFetch = isAdmin ? selectedStoreIds : (userStore ? [userStore.id] : []);
@@ -71,10 +72,11 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
 
     return () => unsubscribers.forEach(unsub => unsub());
     
-  }, [firestore, isAdmin, userStore, selectedStoreIds]);
+  }, [firestore, user, isUserLoading, isAdmin, isAdminLoading, userStore, selectedStoreIds, storesLoading]);
 
   useEffect(() => {
-    fetchProducts();
+    const unsub = fetchProducts();
+    return () => unsub?.();
   }, [fetchProducts]);
 
   const saveAdminProduct = useCallback(async (productData: Omit<Product, 'id' | 'storeId'>) => {
@@ -179,11 +181,52 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
   }, [firestore, toast]);
 
   const importProductsFromCSV = useCallback(async (newProducts: Omit<Product, 'id' | 'storeId'>[]) => {
-    // 省略（以前の実装を維持）
-  }, [firestore, isAdmin, stores, toast]);
+    // Basic CSV import logic could go here
+    if (!firestore || !userStore) return;
+    const batch = writeBatch(firestore);
+    newProducts.forEach(product => {
+        const newDocRef = doc(collection(firestore, 'stores', userStore.id, 'products'));
+        batch.set(newDocRef, {
+            ...product,
+            dailyProductionSunny: { sun: 0, mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, holiday: 0 },
+            dailyProductionRainy: { sun: 0, mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, holiday: 0 }
+        });
+    });
+    await batch.commit();
+    toast({ title: "CSVインポート完了" });
+  }, [firestore, userStore, toast]);
 
   const syncAllProducts = useCallback(async (sourceStoreId: string) => {
-    // 省略（以前の実装を維持）
+    if (!firestore || !isAdmin || !stores) return;
+    const sourceProducts = products.filter(p => p.storeId === sourceStoreId);
+    
+    const processingToast = toast({ title: '全店舗へ商品データを同期中...' });
+    
+    try {
+        for (const store of stores) {
+            if (store.id === sourceStoreId) continue;
+            const batch = writeBatch(firestore);
+            const targetProductsCollection = collection(firestore, 'stores', store.id, 'products');
+            
+            for (const srcProd of sourceProducts) {
+                const { id, storeId: _, ...data } = srcProd;
+                const q = query(targetProductsCollection, where('productCode', '==', srcProd.productCode));
+                const snap = await getDocs(q);
+                
+                if (snap.empty) {
+                    batch.set(doc(targetProductsCollection), data);
+                } else {
+                    snap.forEach(d => batch.update(d.ref, data as any));
+                }
+            }
+            await batch.commit();
+        }
+        processingToast.dismiss();
+        toast({ title: "全店舗の同期が完了しました" });
+    } catch (e) {
+        processingToast.dismiss();
+        toast({ variant: 'destructive', title: "同期エラー" });
+    }
   }, [firestore, isAdmin, stores, products, toast]);
 
   const value = useMemo(() => ({

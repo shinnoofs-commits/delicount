@@ -22,17 +22,17 @@ export const TransactionContext = createContext<TransactionContextType | undefin
 
 export function TransactionProvider({ children }: { children: React.ReactNode }) {
   const firestore = useFirestore();
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const { toast } = useToast();
-  const { isAdmin } = useAdmin();
-  const { userStore } = useStores();
+  const { isAdmin, isAdminLoading } = useAdmin();
+  const { userStore, loading: storesLoading } = useStores();
   const { selectedStoreIds } = useStoreSelection();
   
   const [wasteEntries, setWasteEntries] = useState<WasteEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!firestore) return;
+    if (!firestore || !user || isUserLoading || isAdminLoading || storesLoading) return;
     
     setLoading(true);
     const storeIdsToFetch = isAdmin ? selectedStoreIds : (userStore ? [userStore.id] : []);
@@ -72,7 +72,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
 
     return () => unsubscribers.forEach(unsub => unsub());
 
-  }, [firestore, isAdmin, userStore, selectedStoreIds]);
+  }, [firestore, user, isUserLoading, isAdmin, isAdminLoading, userStore, selectedStoreIds, storesLoading]);
 
 
   const addWasteEntry = useCallback((wasteEntryData: Omit<WasteEntry, 'id' | 'userId'>) => {
