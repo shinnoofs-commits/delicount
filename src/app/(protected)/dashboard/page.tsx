@@ -16,11 +16,11 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useTransactions } from "@/contexts/transaction-context"
-import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid, getDay, addDays, isSameDay } from "date-fns"
+import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid, getDay, addDays, isSameDay, subMonths } from "date-fns"
 import { ja } from "date-fns/locale"
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts"
-import { Calendar as CalendarIcon, Trash2, TrendingDown, Edit, MoreHorizontal, Plus, Minus, Loader2, Sun, Cloud, CloudRain, Snowflake, Package, Sparkles, AlertCircle, ArrowRight } from 'lucide-react'
-import { useMemo, useState, useEffect } from "react"
+import { Calendar as CalendarIcon, Trash2, TrendingDown, Edit, MoreHorizontal, Plus, Minus, Loader2, Sun, Cloud, CloudRain, Snowflake, Package, Sparkles, AlertCircle, ArrowRight, PlayCircle } from 'lucide-react'
+import { useMemo, useState, useCallback } from "react"
 import type { WasteEntry, WasteItem, WeatherType } from "@/lib/types"
 import { useProducts } from "@/contexts/product-context"
 import { DateRange } from "react-day-picker"
@@ -56,7 +56,6 @@ import { Separator } from "@/components/ui/separator"
 import { useAdmin } from "@/hooks/use-admin"
 import { useStores } from "@/contexts/store-context"
 import { getWasteInsights, type WasteInsightsOutput } from "@/ai/flows/waste-insights-flow"
-import { Badge } from "@/components/ui/badge"
 
 const DateRangePicker = ({ date, setDate }: { date: DateRange | undefined, setDate: (date: DateRange | undefined) => void }) => {
   return (
@@ -166,6 +165,7 @@ export default function DashboardPage() {
   // AI Insights state
   const [aiInsights, setAiInsights] = useState<WasteInsightsOutput | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [analyzedLabel, setAnalyzedLabel] = useState<string>('');
 
   const [date, setDate] = useState<DateRange | undefined>({
     from: subDays(new Date(), 6),
@@ -199,50 +199,80 @@ export default function DashboardPage() {
     });
   }, [date, wasteEntries, selectedFilters]);
 
-  // AI Analysis trigger
-  useEffect(() => {
-    async function analyzeData() {
-      if (filteredWasteEntries.length === 0 || products.length === 0) {
-        setAiInsights(null);
-        return;
-      }
+  // Manual AI Analysis function
+  const runAiAnalysis = useCallback(async (preset?: 'last_month' | 'this_month' | 'weekly' | 'current') => {
+    setIsAiLoading(true);
+    let targetEntries = filteredWasteEntries;
+    let label = '現在の表示範囲';
 
-      setIsAiLoading(true);
-      try {
-        const summary = {
-          entriesCount: filteredWasteEntries.length,
-          totalWasteCost: filteredWasteEntries.reduce((acc, e) => acc + e.totalWasteCost, 0),
-          weatherImpact: filteredWasteEntries.reduce((acc: any, e) => {
-            const w = e.weather || 'unknown';
-            acc[w] = (acc[w] || 0) + e.totalWasteCost;
-            return acc;
-          }, {}),
-          products: products.map(p => ({
-            name: p.name,
-            category: p.category,
-            displaySlots: p.displayTimeSlots,
-            waste: filteredWasteEntries.reduce((sum, entry) => {
-              const item = entry.items.find(i => i.productId === p.id);
-              return sum + (item?.quantity || 0);
-            }, 0)
-          })).sort((a, b) => b.waste - a.waste).slice(0, 10)
-        };
-
-        const result = await getWasteInsights({
-          summaryData: JSON.stringify(summary),
-          storeName: userStore?.name
-        });
-        setAiInsights(result);
-      } catch (e) {
-        console.error('AI Insight error:', e);
-      } finally {
-        setIsAiLoading(false);
+    if (preset && preset !== 'current') {
+      const now = new Date();
+      let from: Date, to: Date;
+      if (preset === 'last_month') {
+        from = startOfMonth(subMonths(now, 1));
+        to = endOfMonth(subMonths(now, 1));
+        label = '先月 (' + format(from, 'M月') + ')';
+      } else if (preset === 'this_month') {
+        from = startOfMonth(now);
+        to = endOfMonth(now);
+        label = '今月 (' + format(from, 'M月') + ')';
+      } else { // weekly
+        from = subDays(now, 6);
+        to = now;
+        label = '直近7日間';
       }
+      
+      // Update overall dashboard filter to match analysis for clarity
+      setDate({ from, to });
+      
+      // Calculate target entries for analysis
+      targetEntries = wasteEntries.filter(e => {
+        const d = new Date(e.date);
+        return d >= startOfDay(from) && d <= endOfDay(to);
+      });
     }
 
-    const timer = setTimeout(analyzeData, 1000); // Debounce
-    return () => clearTimeout(timer);
-  }, [filteredWasteEntries, products, userStore]);
+    if (targetEntries.length === 0) {
+      toast({ title: "データ不足", description: "指定された期間に廃棄データが見つかりません。" });
+      setIsAiLoading(false);
+      return;
+    }
+
+    try {
+      const summary = {
+        period: label,
+        entriesCount: targetEntries.length,
+        totalWasteCost: targetEntries.reduce((acc, e) => acc + e.totalWasteCost, 0),
+        weatherImpact: targetEntries.reduce((acc: any, e) => {
+          const w = e.weather || 'unknown';
+          acc[w] = (acc[w] || 0) + e.totalWasteCost;
+          return acc;
+        }, {}),
+        products: products.map(p => ({
+          name: p.name,
+          category: p.category,
+          displaySlots: p.displayTimeSlots,
+          waste: targetEntries.reduce((sum, entry) => {
+            const item = entry.items.find(i => i.productId === p.id);
+            return sum + (item?.quantity || 0);
+          }, 0)
+        })).sort((a, b) => b.waste - a.waste).slice(0, 10)
+      };
+
+      const result = await getWasteInsights({
+        summaryData: JSON.stringify(summary),
+        storeName: userStore?.name
+      });
+      setAiInsights(result);
+      setAnalyzedLabel(label);
+      toast({ title: "分析完了", description: `${label}の分析が完了しました。` });
+    } catch (e) {
+      console.error('AI Insight error:', e);
+      toast({ variant: "destructive", title: "分析エラー", description: "AIの分析に失敗しました。時間をおいてお試しください。" });
+    } finally {
+      setIsAiLoading(false);
+    }
+  }, [wasteEntries, filteredWasteEntries, products, userStore, toast]);
 
   const wasteAnalysisData: WasteData[] = useMemo(() => {
     const wasteDataMap = new Map<string, WasteData>();
@@ -464,20 +494,41 @@ export default function DashboardPage() {
               </div>
               <div>
                 <CardTitle className="text-base">AIからの改善提案（β）</CardTitle>
-                <CardDescription>直近の傾向からGeminiが分析したアドバイスです。</CardDescription>
+                <CardDescription>
+                  {aiInsights ? `${analyzedLabel} のデータを分析済み` : '通信節約のため、ボタンを押したときのみ分析を実行します。'}
+                </CardDescription>
               </div>
             </div>
             {isAiLoading && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
           </div>
         </CardHeader>
         <CardContent>
+          <div className="flex flex-wrap items-center gap-2 mb-6 p-3 bg-background/50 rounded-lg border">
+            <span className="text-xs font-bold mr-2 text-muted-foreground">分析を実行:</span>
+            <Button size="sm" variant="outline" onClick={() => runAiAnalysis('this_month')} disabled={isAiLoading} className="h-8 text-xs">
+              今月を分析
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => runAiAnalysis('last_month')} disabled={isAiLoading} className="h-8 text-xs">
+              先月を分析
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => runAiAnalysis('weekly')} disabled={isAiLoading} className="h-8 text-xs">
+              直近7日間を分析
+            </Button>
+            <Separator orientation="vertical" className="h-6 mx-1" />
+            <Button size="sm" variant="default" onClick={() => runAiAnalysis('current')} disabled={isAiLoading || filteredWasteEntries.length === 0} className="h-8 text-xs">
+              <PlayCircle className="h-3 w-3 mr-1.5" />
+              現在の表示範囲で分析
+            </Button>
+          </div>
+
           {!aiInsights && !isAiLoading ? (
-            <div className="flex flex-col items-center justify-center py-6 text-muted-foreground">
-              <AlertCircle className="h-8 w-8 mb-2 opacity-20" />
-              <p className="text-sm">分析するデータが不足しています。期間を広げてお試しください。</p>
+            <div className="flex flex-col items-center justify-center py-10 text-muted-foreground border-2 border-dashed rounded-xl">
+              <Sparkles className="h-10 w-10 mb-2 opacity-10" />
+              <p className="text-sm font-medium">上のボタンから分析期間を指定してください。</p>
+              <p className="text-[10px] opacity-60 mt-1">※通信量を抑えるため自動実行はオフになっています。</p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className={cn("space-y-4 transition-opacity", isAiLoading && "opacity-50")}>
               {aiInsights?.summary && (
                 <div className="bg-background/50 p-3 rounded-md border text-sm font-medium italic">
                   "{aiInsights.summary}"
