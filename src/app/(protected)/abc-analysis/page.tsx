@@ -78,7 +78,6 @@ export default function ABCAnalysisPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedDayIdx, setSelectedDayIdx] = useState<number | null>(null);
   const [selectedCategoryForDetail, setSelectedCategoryForDetail] = useState<string | null>(null);
-  const [activeAnalysisDay, setActiveAnalysisDay] = useState<number>(1); // デフォルト月曜日
 
   const categories = useMemo(() => {
     return ['all', ...Array.from(new Set(products.map(p => p.category)))];
@@ -451,75 +450,67 @@ export default function ABCAnalysisPage() {
                 </Card>
               </TabsContent>
 
-              <TabsContent value="daily" className="m-0 space-y-2 pb-4">
-                <div className="flex flex-wrap gap-1 p-1 bg-muted/40 rounded-lg">
-                  {dayLabels.map((label, i) => (
-                    <Button 
-                      key={label} 
-                      variant={activeAnalysisDay === dayOrder[i] ? "default" : "outline"} 
-                      size="sm" 
-                      className="h-8 text-[11px] font-black flex-1 min-w-[50px]"
-                      onClick={() => setActiveAnalysisDay(dayOrder[i])}
-                    >
-                      {label}
-                    </Button>
-                  ))}
+              <TabsContent value="daily" className="m-0 space-y-4 pb-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 px-1">
+                  {dayLabels.map((label, i) => {
+                    const actualDow = dayOrder[i];
+                    const dayWastes = analysisData.products
+                      .filter(p => (p.dow[actualDow] || 0) > 0)
+                      .sort((a, b) => b.dow[actualDow] - a.dow[actualDow]);
+                    const totalDayWaste = dayWastes.reduce((sum, p) => sum + p.dow[actualDow], 0);
+
+                    return (
+                      <Card key={label} className="border bg-background shadow-sm overflow-hidden flex flex-col h-[400px]">
+                        <CardHeader className={cn(
+                          "p-3 py-2 border-b flex flex-row items-center justify-between shrink-0",
+                          (actualDow === 0 || actualDow === 7) ? "bg-destructive/5" : (actualDow === 6 ? "bg-blue-50" : "bg-muted/30")
+                        )}>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={(actualDow === 0 || actualDow === 7) ? "destructive" : (actualDow === 6 ? "default" : "outline")} className="h-7 w-7 rounded-full flex items-center justify-center p-0 font-black text-[14px]">
+                              {label}
+                            </Badge>
+                            <span className="text-[12px] font-bold text-muted-foreground">{actualDowLabel(actualDow)}曜日の廃棄</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-[18px] font-black text-destructive">{totalDayWaste.toLocaleString()}</span>
+                            <span className="text-[10px] font-bold ml-1">個</span>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="p-0 flex-1 overflow-auto">
+                          {dayWastes.length > 0 ? (
+                            <Table>
+                              <TableHeader className="bg-muted/20 sticky top-0 z-10">
+                                <TableRow className="h-8">
+                                  <TableHead className="h-8 p-2 px-3 text-[10px] font-bold">商品名</TableHead>
+                                  <TableHead className="h-8 p-2 px-3 text-[10px] font-bold text-right">数/ロス</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {dayWastes.map(p => (
+                                  <TableRow key={p.id} className="h-12 hover:bg-muted/5">
+                                    <TableCell className="p-2 px-3">
+                                      <p className="text-[14px] font-black leading-tight truncate max-w-[150px]">{p.name}</p>
+                                      <p className="text-[9px] text-muted-foreground font-bold">{p.category}</p>
+                                    </TableCell>
+                                    <TableCell className="p-2 px-3 text-right">
+                                      <p className="text-[16px] font-black text-destructive leading-none">{p.dow[actualDow]}<span className="text-[10px] font-normal ml-0.5">個</span></p>
+                                      <p className="text-[11px] font-black text-blue-900 mt-0.5">¥{(p.dow[actualDow] * (p.price || 0)).toLocaleString()}</p>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          ) : (
+                            <div className="flex flex-col items-center justify-center h-full text-muted-foreground opacity-40">
+                              <ClipboardList className="h-8 w-8 mb-2" />
+                              <p className="text-xs font-bold">データなし</p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
-                <Card className="border-none shadow-none bg-background">
-                  <CardHeader className="p-2 pb-0 flex flex-row items-center justify-between">
-                    <CardTitle className="text-[14px] font-black flex items-center">
-                      <ClipboardList className="h-4 w-4 mr-2 text-primary" />
-                      {actualDowLabel(activeAnalysisDay)}曜日の廃棄商品一覧
-                    </CardTitle>
-                    <div className="text-right">
-                        <p className="text-[10px] text-muted-foreground font-bold">この曜日の合計廃棄数</p>
-                        <p className="text-xl font-black text-destructive">
-                            {analysisData.products.reduce((sum, p) => sum + (p.dow[activeAnalysisDay] || 0), 0).toLocaleString()} <span className="text-xs font-normal text-foreground">個</span>
-                        </p>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <Table>
-                      <TableHeader className="bg-muted/30">
-                        <TableRow className="h-10">
-                          <TableHead className="h-10 text-[16px] font-black px-4">商品名</TableHead>
-                          <TableHead className="h-10 text-[16px] font-black px-4 text-right">廃棄数</TableHead>
-                          <TableHead className="h-10 text-[16px] font-black px-4 text-right">機会損失 (売価計)</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {analysisData.products
-                          .filter(p => (p.dow[activeAnalysisDay] || 0) > 0)
-                          .sort((a, b) => b.dow[activeAnalysisDay] - a.dow[activeAnalysisDay])
-                          .map(p => (
-                            <TableRow key={p.id} className="h-14">
-                              <TableCell className="px-4 py-2">
-                                <div className="flex flex-col">
-                                  <span className="text-[20px] font-black">{p.name}</span>
-                                  <span className="text-[10px] text-muted-foreground font-bold">{p.category}</span>
-                                </div>
-                              </TableCell>
-                              <TableCell className="px-4 py-2 text-right">
-                                <span className="text-[24px] font-black text-destructive">{p.dow[activeAnalysisDay].toLocaleString()}</span>
-                                <span className="text-[14px] font-bold ml-1">個</span>
-                              </TableCell>
-                              <TableCell className="px-4 py-2 text-right">
-                                <span className="text-[24px] font-black text-blue-900">¥{(p.dow[activeAnalysisDay] * (p.price || 0)).toLocaleString()}</span>
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        }
-                        {!analysisData.products.some(p => (p.dow[activeAnalysisDay] || 0) > 0) && (
-                          <TableRow>
-                            <TableCell colSpan={3} className="text-center py-10 text-muted-foreground font-bold">
-                              この曜日の廃棄データはありません
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
               </TabsContent>
 
               <TabsContent value="cross" className="m-0 pb-4">
