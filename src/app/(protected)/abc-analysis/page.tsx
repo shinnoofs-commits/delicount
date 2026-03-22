@@ -117,6 +117,7 @@ export default function ABCAnalysisPage() {
       }
     });
 
+    // 各曜日の「製造数」を集計
     productionEntries.filter(entry => dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd'))).forEach(entry => {
       const entryDate = new Date(entry.date);
       const isHoliday = holiday_jp.isHoliday(entryDate);
@@ -138,8 +139,9 @@ export default function ABCAnalysisPage() {
         };
         stats.production += item.quantity;
         productStats.set(item.productId, stats);
-        dayStats[dow].production += item.quantity;
 
+        // 曜日別・天気別の分母（製造数）を加算
+        dayStats[dow].production += item.quantity;
         if (weather !== 'unknown') {
           weatherStats[weather].production += item.quantity;
           const matrixKey = `${dow}-${weather}`;
@@ -151,6 +153,7 @@ export default function ABCAnalysisPage() {
       });
     });
 
+    // 各曜日の「廃棄数」を集計
     wasteEntries.filter(entry => dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd'))).forEach(entry => {
       const entryDate = new Date(entry.date);
       const isHoliday = holiday_jp.isHoliday(entryDate);
@@ -166,6 +169,8 @@ export default function ABCAnalysisPage() {
           stats.waste += item.quantity;
           stats.dow[dow] += item.quantity;
         }
+        
+        // 曜日別・天気別の分子（廃棄数）を加算
         dayStats[dow].waste += item.quantity;
         if (weather !== 'unknown') {
           weatherStats[weather].waste += item.quantity;
@@ -278,7 +283,7 @@ export default function ABCAnalysisPage() {
             </Card>
           </div>
 
-          {/* 曜日・天気サマリー (ピル型UI) */}
+          {/* 曜日・天気サマリー (カプセルUI) */}
           <div className="flex flex-col lg:grid lg:grid-cols-12 gap-1 px-1 shrink-0">
             <Card className="lg:col-span-8 border-none shadow-none bg-background">
               <CardHeader className="p-1 pb-0">
@@ -403,7 +408,7 @@ export default function ABCAnalysisPage() {
                           <TableHead className="h-10 text-[18px] font-black px-4 text-center">商品名</TableHead>
                           <TableHead className="h-10 text-[18px] font-black px-4 text-right">廃棄/製造</TableHead>
                           <TableHead className="h-10 text-[18px] font-black px-4 text-right">廃棄率</TableHead>
-                          <TableHead className="h-10 text-[18px] font-black px-4 text-center">ロス傾向</TableHead>
+                          <TableHead className="h-10 text-[18px] font-black px-4 text-center">主要廃棄曜日</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
