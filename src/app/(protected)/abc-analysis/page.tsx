@@ -101,6 +101,7 @@ export default function ABCAnalysisPage() {
   const analysisData = useMemo(() => {
     if (wasteLoading || productsLoading || productionLoading || validDates.length === 0) return null;
 
+    // 分析対象は前日までに制限（確定データのみ）
     const yesterdayStr = format(subDays(new Date(), 1), 'yyyy-MM-dd');
     const datesToProcess = validDates.filter(d => d <= yesterdayStr);
     
@@ -152,49 +153,51 @@ export default function ABCAnalysisPage() {
     for (let i = 0; i < 8; i++) dayStats[i] = { waste: 0, production: 0 };
     Object.keys(weatherLabels).forEach(w => weatherStats[w] = { waste: 0, production: 0 });
 
-    // 4. 厳密な1パス集計（計画 + 補正）
-    datesToProcess.forEach(dateKey => {
-      const entryDate = new Date(dateKey);
-      const isHoliday = holiday_jp.isHoliday(entryDate);
-      const dow = isHoliday ? 7 : getDay(entryDate);
-      const weather = dateToWeather.get(dateKey) || 'sunny';
-      const dowKey = isHoliday ? 'holiday' : dayMap[dow];
-      const matrixKey = `${dow}-${weather}`;
+    // 4. 重複なしの精密合算パス
+    // 商品ごとにループを回し、各日付に対して一度だけ計画＋補正を適用
+    products.forEach(product => {
+      // カテゴリーフィルタ
+      if (selectedCategory !== 'all' && product.category !== selectedCategory) return;
 
-      products.forEach(product => {
-        if (selectedCategory !== 'all' && product.category !== selectedCategory) return;
+      let stats = productStats.get(product.id);
+      if (!stats) {
+        stats = {
+          id: product.id,
+          name: product.name,
+          category: product.category,
+          price: product.price,
+          waste: 0,
+          production: 0,
+          wasteDow: { 0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 },
+          prodDow: { 0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 }
+        };
+        productStats.set(product.id, stats);
+      }
 
-        // 計画数
+      datesToProcess.forEach(dateKey => {
+        const entryDate = new Date(dateKey);
+        const isHoliday = holiday_jp.isHoliday(entryDate);
+        const dow = isHoliday ? 7 : getDay(entryDate);
+        const weather = dateToWeather.get(dateKey) || 'sunny';
+        const dowKey = isHoliday ? 'holiday' : dayMap[dow];
+        const matrixKey = `${dow}-${weather}`;
+
+        // その日の計画数
         const dailyProduction = weather === 'rainy' ? product.dailyProductionRainy : product.dailyProductionSunny;
         const planned = (isHoliday && dailyProduction?.holiday !== undefined)
             ? dailyProduction.holiday
             : (dailyProduction as any)?.[dowKey] || 0;
 
-        // 補正数
+        // その日の補正数
         const correction = correctionsMap.get(dateKey)?.get(product.id) || 0;
         
-        // 最終製造数
+        // 最終製造数（1日1回確定）
         const finalProduction = planned + correction;
 
         // 廃棄数
         const finalWaste = wasteMap.get(dateKey)?.get(product.id) || 0;
 
         if (finalProduction > 0 || finalWaste > 0) {
-          let stats = productStats.get(product.id);
-          if (!stats) {
-            stats = {
-              id: product.id,
-              name: product.name,
-              category: product.category,
-              price: product.price,
-              waste: 0,
-              production: 0,
-              wasteDow: { 0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 },
-              prodDow: { 0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 }
-            };
-            productStats.set(product.id, stats);
-          }
-
           stats.production += finalProduction;
           stats.prodDow[dow] += finalProduction;
           stats.waste += finalWaste;
@@ -700,7 +703,7 @@ export default function ABCAnalysisPage() {
                           })
                           .map(p => {
                             const pWaste = p.wasteDow[selectedDayIdx] || 0;
-                            const pProd = p.prodDow[selectedDayIdx] || 0;
+                            const pProd = p.prodDow[actualDow] || 0; // ここでも一貫性を保つ
                             const pRate = pProd > 0 ? (pWaste / pProd) * 100 : 0;
                             return (
                               <TableRow key={p.id} className="h-14">

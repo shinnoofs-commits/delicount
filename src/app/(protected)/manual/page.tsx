@@ -102,43 +102,43 @@ export default function ManualPage() {
             <CarouselItem key={index}>
               <div className="p-0.5">
                 <Card className="min-h-[340px] border-none shadow-md overflow-hidden bg-background flex flex-col">
-                  <CardHeader className="bg-slate-900 text-white p-2 space-y-0 shrink-0">
+                  <CardHeader className="bg-slate-900 text-white p-2.5 space-y-0 shrink-0">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <div className="p-1 bg-primary/20 rounded-md">
-                                <slide.icon className="h-3 w-3 text-primary" />
+                                <slide.icon className="h-4 w-4 text-primary" />
                             </div>
                             <div>
-                                <p className="text-primary text-[7px] font-bold uppercase tracking-widest">Chapter {index + 1}</p>
-                                <CardTitle className="text-xs font-black leading-none">{slide.title}</CardTitle>
+                                <p className="text-primary text-[8px] font-bold uppercase tracking-widest">Chapter {index + 1}</p>
+                                <CardTitle className="text-sm font-black leading-none">{slide.title}</CardTitle>
                             </div>
                         </div>
-                        <Badge className="bg-primary text-primary-foreground text-[9px] font-black h-3.5 w-3.5 rounded-full flex items-center justify-center p-0">
+                        <Badge className="bg-primary text-primary-foreground text-[10px] font-black h-4 w-4 rounded-full flex items-center justify-center p-0">
                             {index + 1}
                         </Badge>
                     </div>
-                    <CardDescription className="text-slate-300 text-[8px] font-medium leading-none mt-1">{slide.description}</CardDescription>
+                    <CardDescription className="text-slate-300 text-[10px] font-medium leading-none mt-1">{slide.description}</CardDescription>
                   </CardHeader>
-                  <CardContent className="flex-1 p-2 flex flex-col justify-between space-y-1 overflow-hidden">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-2 gap-y-0.5">
+                  <CardContent className="flex-1 p-3 flex flex-col justify-between space-y-2 overflow-hidden">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1.5">
                         {slide.points.map((point, pIndex) => (
-                            <div key={pIndex} className="flex gap-1 group items-start">
-                                <div className="mt-1 h-0.5 w-0.5 rounded-full bg-primary shrink-0" />
-                                <span className="text-[10px] font-bold leading-tight text-slate-700">{point}</span>
+                            <div key={pIndex} className="flex gap-1.5 group items-start">
+                                <div className="mt-1.5 h-1 w-1 rounded-full bg-primary shrink-0" />
+                                <span className="text-[13px] font-bold leading-tight text-slate-700">{point}</span>
                             </div>
                         ))}
                     </div>
 
-                    <div className="space-y-1 mt-auto">
-                        <div className="p-1.5 rounded-md bg-primary/5 border border-primary/20 relative">
-                            <Badge variant="default" className="mb-0.5 bg-primary text-primary-foreground font-black px-1 py-0 text-[7px] leading-none">運用成功の鍵</Badge>
-                            <p className="font-black text-slate-800 text-[10px] leading-tight">{slide.important}</p>
+                    <div className="space-y-1.5 mt-auto">
+                        <div className="p-2 rounded-md bg-primary/5 border border-primary/20 relative">
+                            <Badge variant="default" className="mb-1 bg-primary text-primary-foreground font-black px-1.5 py-0 text-[9px] leading-none">運用成功の鍵</Badge>
+                            <p className="font-black text-slate-800 text-[14px] leading-tight">{slide.important}</p>
                         </div>
 
-                        <div className="flex items-center gap-2 text-[8px] font-black text-slate-500 bg-muted/50 p-1 rounded-md">
-                            <ArrowRight className="h-2 w-2 text-primary" />
+                        <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 bg-muted/50 p-1.5 rounded-md">
+                            <ArrowRight className="h-3 w-3 text-primary" />
                             <span>期待される成果:</span>
-                            <span className="text-slate-900">{slide.outcome}</span>
+                            <span className="text-slate-900 text-[11px]">{slide.outcome}</span>
                         </div>
                     </div>
                   </CardContent>
@@ -147,17 +147,17 @@ export default function ManualPage() {
             </CarouselItem>
           ))}
         </CarouselContent>
-        <CarouselPrevious className="h-5 w-5 border -left-1" />
-        <CarouselNext className="h-5 w-5 border -right-1" />
+        <CarouselPrevious className="h-6 w-6 border -left-2" />
+        <CarouselNext className="h-6 w-6 border -right-2" />
       </Carousel>
 
       <div className="flex flex-col items-center gap-0.5 mt-1 shrink-0 pb-2">
-        <p className="text-[7px] text-muted-foreground font-bold tracking-widest uppercase opacity-60">
-            v2.6 Professional | Screen Optimized
+        <p className="text-[8px] text-muted-foreground font-bold tracking-widest uppercase opacity-60">
+            v2.7 Professional | Screen Optimized
         </p>
         <div className="flex gap-1">
             {[0,1,2,3,4].map(i => (
-                <div key={i} className="h-0.5 w-2 rounded-full bg-slate-200" />
+                <div key={i} className="h-0.5 w-3 rounded-full bg-slate-200" />
             ))}
         </div>
       </div>
