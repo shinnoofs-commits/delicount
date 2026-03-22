@@ -636,7 +636,6 @@ export default function DashboardPage() {
           </DialogContent>
       </Dialog>
 
-      {/* グラフタップ時の詳細ダイアログ (機会損失表示) */}
       <Dialog open={!!selectedDayWaste} onOpenChange={(open) => !open && setSelectedDayWaste(null)}>
           <DialogContent className="max-w-md max-h-[80vh] flex flex-col">
               <DialogHeader>
