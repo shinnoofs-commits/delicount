@@ -703,7 +703,7 @@ export default function ABCAnalysisPage() {
                           })
                           .map(p => {
                             const pWaste = p.wasteDow[selectedDayIdx] || 0;
-                            const pProd = p.prodDow[actualDow] || 0; // ここでも一貫性を保つ
+                            const pProd = p.prodDow[selectedDayIdx] || 0;
                             const pRate = pProd > 0 ? (pWaste / pProd) * 100 : 0;
                             return (
                               <TableRow key={p.id} className="h-14">

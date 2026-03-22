@@ -123,7 +123,7 @@ export default function ManualPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1.5">
                         {slide.points.map((point, pIndex) => (
                             <div key={pIndex} className="flex gap-1.5 group items-start">
-                                <div className="mt-1.5 h-1 w-1 rounded-full bg-primary shrink-0" />
+                                <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
                                 <span className="text-[13px] font-bold leading-tight text-slate-700">{point}</span>
                             </div>
                         ))}
