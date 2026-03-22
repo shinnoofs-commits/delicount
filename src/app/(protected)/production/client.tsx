@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
@@ -219,7 +220,7 @@ export default function ProductionClient() {
                                     <TableRow>
                                         <TableHead>商品名</TableHead>
                                         <TableHead className="w-24 text-center bg-muted/30">計画数</TableHead>
-                                        <TableHead className="w-56 text-center">補正数調整</TableHead>
+                                        <TableHead className="w-56 text-center">補正数調整 (調整分のみ入力)</TableHead>
                                         <TableHead className="w-32 text-right font-bold text-primary">最終製造数</TableHead>
                                     </TableRow>
                                 </TableHeader>
