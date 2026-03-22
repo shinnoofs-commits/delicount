@@ -42,7 +42,6 @@ import { StoreSelector } from "@/components/ui/store-selector";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 
-// 曜日ラベル（月曜開始）
 const dayLabels = ['月', '火', '水', '木', '金', '土', '日', '祝'];
 const dayOrder = [1, 2, 3, 4, 5, 6, 0, 7];
 
@@ -141,7 +140,6 @@ export default function ABCAnalysisPage() {
         stats.production += item.quantity;
         stats.prodDow[dow] += item.quantity;
         productStats.set(item.productId, stats);
-
         dayStats[dow].production += item.quantity;
         if (weather !== 'unknown') {
           weatherStats[weather].production += item.quantity;
@@ -169,7 +167,6 @@ export default function ABCAnalysisPage() {
           stats.waste += item.quantity;
           stats.wasteDow[dow] += item.quantity;
         }
-        
         dayStats[dow].waste += item.quantity;
         if (weather !== 'unknown') {
           weatherStats[weather].waste += item.quantity;
@@ -209,20 +206,14 @@ export default function ABCAnalysisPage() {
     return (analysisData.totalWaste / analysisData.totalProduction) * 100;
   }, [analysisData]);
 
-  if (wasteLoading || productsLoading || productionLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
-
   const renderDailyGrid = (isFull: boolean = false) => {
     if (!analysisData) return null;
     return (
       <div className={cn(
-        "grid gap-4 px-1",
-        isFull ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-4" : "grid-cols-1 md:grid-cols-2 xl:grid-cols-4"
+        "px-1",
+        isFull 
+          ? "flex flex-nowrap overflow-x-auto gap-2 pb-6 min-h-0" 
+          : "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4"
       )}>
         {dayLabels.map((label, i) => {
           const actualDow = dayOrder[i];
@@ -237,7 +228,7 @@ export default function ABCAnalysisPage() {
             <Card key={label} onClick={() => !isFull && setSelectedDayIdx(actualDow)} className={cn(
               "border bg-background shadow-sm overflow-hidden flex flex-col transition-all",
               !isFull && "hover:border-primary/50 cursor-pointer h-[400px]",
-              isFull && "h-auto"
+              isFull && "min-w-[260px] flex-1 max-w-[320px] h-full border-2"
             )}>
               <CardHeader className={cn(
                 "p-3 py-2 border-b shrink-0",
@@ -248,15 +239,15 @@ export default function ABCAnalysisPage() {
                     <Badge variant={(actualDow === 0 || actualDow === 7) ? "destructive" : (actualDow === 6 ? "default" : "outline")} className="h-7 w-7 rounded-full flex items-center justify-center p-0 font-black text-[14px]">
                       {label}
                     </Badge>
-                    <span className="text-[12px] font-bold text-muted-foreground">{actualDowLabel(actualDow)}曜日</span>
+                    <span className="text-[12px] font-bold text-muted-foreground">{actualDowLabel(actualDow)}</span>
                   </div>
-                  <div className={cn("text-[16px] font-black", rate > 15 ? "text-destructive" : "text-blue-900")}>
+                  <div className={cn("text-[18px] font-black", rate > 15 ? "text-destructive" : "text-blue-900")}>
                     {rate.toFixed(1)}%
                   </div>
                 </div>
                 <div className="flex justify-between items-center text-[10px] font-bold opacity-70">
-                   <span>製造: {stats.production.toLocaleString()}個</span>
-                   <span className="text-destructive">廃棄: {stats.waste.toLocaleString()}個</span>
+                   <span>製造: {stats.production}</span>
+                   <span className="text-destructive">廃棄: {stats.waste}</span>
                 </div>
               </CardHeader>
               <CardContent className="p-0 flex-1 overflow-auto">
@@ -264,8 +255,8 @@ export default function ABCAnalysisPage() {
                   <Table>
                     <TableHeader className="bg-muted/20 sticky top-0 z-10">
                       <TableRow className="h-8">
-                        <TableHead className="h-8 p-2 px-3 text-[10px] font-bold">商品名</TableHead>
-                        <TableHead className="h-8 p-2 px-3 text-[10px] font-bold text-right">ロス/率</TableHead>
+                        <TableHead className="h-8 p-1.5 px-3 text-[10px] font-bold">品名</TableHead>
+                        <TableHead className="h-8 p-1.5 px-3 text-[10px] font-bold text-right">率</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -275,13 +266,12 @@ export default function ABCAnalysisPage() {
                         const pRate = pProd > 0 ? (pWaste / pProd) * 100 : 0;
                         return (
                           <TableRow key={p.id} className="h-12 hover:bg-muted/5">
-                            <TableCell className="p-2 px-3">
-                              <p className="text-[13px] font-black leading-tight truncate max-w-[140px]">{p.name}</p>
-                              <p className="text-[9px] text-muted-foreground font-bold">製造: {pProd}個</p>
+                            <TableCell className="p-1.5 px-3">
+                              <p className="text-[12px] font-black leading-tight truncate">{p.name}</p>
+                              <p className="text-[9px] text-muted-foreground font-bold">{pWaste}/{pProd}</p>
                             </TableCell>
-                            <TableCell className="p-2 px-3 text-right">
-                              <p className="text-[15px] font-black text-destructive leading-none">{pWaste}<span className="text-[9px] font-normal ml-0.5">個</span></p>
-                              <p className={cn("text-[11px] font-black mt-0.5", pRate > 15 ? "text-destructive" : "text-blue-900")}>
+                            <TableCell className="p-1.5 px-3 text-right">
+                              <p className={cn("text-[13px] font-black", pRate > 15 ? "text-destructive" : "text-blue-900")}>
                                 {pRate.toFixed(1)}%
                               </p>
                             </TableCell>
@@ -291,7 +281,7 @@ export default function ABCAnalysisPage() {
                     </TableBody>
                   </Table>
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground opacity-40 py-8">
+                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground opacity-30 py-8">
                     <ClipboardList className="h-8 w-8 mb-2" />
                     <p className="text-xs font-bold">データなし</p>
                   </div>
@@ -303,6 +293,14 @@ export default function ABCAnalysisPage() {
       </div>
     );
   };
+
+  if (wasteLoading || productsLoading || productionLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-1 h-full overflow-hidden">
@@ -544,7 +542,7 @@ export default function ABCAnalysisPage() {
                 <div className="flex justify-end mb-2">
                   <Button variant="outline" size="sm" onClick={() => setIsFullScreenDaily(true)} className="h-8 font-black text-[10px]">
                     <Maximize2 className="h-3.5 w-3.5 mr-2" />
-                    全画面で比較する
+                    全画面・一列で比較する
                   </Button>
                 </div>
                 {renderDailyGrid(false)}
@@ -598,17 +596,16 @@ export default function ABCAnalysisPage() {
             </div>
           </Tabs>
 
-          {/* 曜日別分析 全画面ダイアログ */}
           <Dialog open={isFullScreenDaily} onOpenChange={setIsFullScreenDaily}>
             <DialogContent className="max-w-none w-[98vw] h-[95vh] flex flex-col p-4 bg-muted/5">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-black flex items-center">
                   <CalendarDays className="mr-3 h-6 w-6 text-primary" />
-                  全曜日 廃棄詳細比較分析
+                  全曜日 横一列・詳細比較分析
                 </DialogTitle>
-                <DialogDescription className="text-sm font-bold">全曜日の廃棄状況を並べて比較し、製造計画の最適化に活用してください。</DialogDescription>
+                <DialogDescription className="text-sm font-bold">全曜日を一列に並べて比較し、製造計画の「曜日ごとのズレ」を一目で特定します。</DialogDescription>
               </DialogHeader>
-              <div className="flex-1 overflow-auto mt-4">
+              <div className="flex-1 overflow-hidden mt-4">
                 {renderDailyGrid(true)}
               </div>
             </DialogContent>
@@ -686,13 +683,6 @@ export default function ABCAnalysisPage() {
                             );
                           })
                         }
-                        {selectedDayIdx !== null && (!analysisData?.products.some(p => (p.wasteDow[selectedDayIdx] || 0) > 0 || (p.prodDow[selectedDayIdx] || 0) > 0)) && (
-                          <TableRow>
-                            <TableCell colSpan={3} className="text-center py-4 text-muted-foreground text-xs">
-                              この曜日の廃棄データはありません
-                            </TableCell>
-                          </TableRow>
-                        )}
                       </TableBody>
                     </Table>
                   </div>
