@@ -259,8 +259,8 @@ export default function ABCAnalysisPage() {
                   <Table className="w-full table-fixed">
                     <TableHeader className="bg-muted/20 sticky top-0 z-10">
                       <TableRow className="h-8">
-                        <TableHead className="h-8 p-1 px-3 text-[10px] font-black">商品実績</TableHead>
-                        <TableHead className="h-8 p-1 px-3 text-[10px] font-black text-right w-20">廃棄率</TableHead>
+                        <TableHead className="h-8 p-1 px-2 text-[10px] font-black">商品実績</TableHead>
+                        <TableHead className="h-8 p-1 px-2 text-[10px] font-black text-right w-[110px]">廃棄率</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -270,14 +270,14 @@ export default function ABCAnalysisPage() {
                         const pRate = pProd > 0 ? (pWaste / pProd) * 100 : 0;
                         return (
                           <TableRow key={p.id} className="h-16 hover:bg-muted/5 border-b last:border-0">
-                            <TableCell className="p-2 px-3">
+                            <TableCell className="p-2 px-2">
                               <p className="text-[16px] font-black leading-tight truncate w-full">{p.name}</p>
                               <div className="text-[16px] font-black mt-1 flex items-center gap-2 tabular-nums">
-                                <span className="text-muted-foreground/80">製:{pProd}</span>
-                                <span className="text-destructive">廃:{pWaste}</span>
+                                <span className="text-muted-foreground/80 shrink-0">製:{pProd}</span>
+                                <span className="text-destructive shrink-0">廃:{pWaste}</span>
                               </div>
                             </TableCell>
-                            <TableCell className="p-2 px-3 text-right">
+                            <TableCell className="p-2 px-2 text-right">
                               <p className={cn("text-[26px] font-black leading-none tabular-nums", pRate > 15 ? "text-destructive" : "text-blue-900")}>
                                 {pRate.toFixed(1)}%
                               </p>
@@ -532,9 +532,14 @@ export default function ABCAnalysisPage() {
 
               <TabsContent value="daily" className="m-0 space-y-4 pb-4">
                 <div className="flex justify-end px-1">
-                  <Button variant="outline" size="lg" onClick={() => setIsFullScreenDaily(true)} className="h-12 border-2 font-black text-primary hover:bg-primary hover:text-white transition-all shadow-md">
+                  <Button 
+                    variant="outline" 
+                    size="lg" 
+                    onClick={() => setIsFullScreenDaily(true)} 
+                    className="h-12 border-2 border-primary font-black text-primary hover:bg-primary hover:text-white transition-all shadow-md"
+                  >
                     <Maximize2 className="h-5 w-5 mr-2" />
-                    全画面・4×2グリッド比較
+                    全画面一覧比較
                   </Button>
                 </div>
                 {renderDailyGrid(false)}
@@ -584,14 +589,14 @@ export default function ABCAnalysisPage() {
           </Tabs>
 
           <Dialog open={isFullScreenDaily} onOpenChange={setIsFullScreenDaily}>
-            <DialogContent className="max-w-[98vw] h-[95vh] flex flex-col p-4 bg-muted/5 overflow-x-hidden">
-              <DialogHeader className="mb-2">
+            <DialogContent className="max-w-[98vw] h-[95vh] flex flex-col p-4 bg-muted/5 overflow-hidden">
+              <DialogHeader className="mb-2 shrink-0">
                 <DialogTitle className="text-2xl font-black">全曜日実績比較（4×2グリッド俯瞰）</DialogTitle>
                 <DialogDescription className="text-sm font-bold text-muted-foreground">
                   全8曜日のデータを1画面に集約。各カードは廃棄率が高い順に並び、上位4件までが固定表示されます。
                 </DialogDescription>
               </DialogHeader>
-              <div className="flex-1 overflow-y-auto mt-2">
+              <div className="flex-1 overflow-y-auto mt-2 overflow-x-hidden">
                 {renderDailyGrid(true)}
               </div>
             </DialogContent>
@@ -619,7 +624,10 @@ export default function ABCAnalysisPage() {
                         "flex items-center justify-between p-3 rounded-xl border-2 shadow-sm transition-all bg-background",
                         isAlert ? "border-destructive/40" : "border-orange-400/30"
                       )}>
-                        <span className="text-[12px] font-black text-muted-foreground">{label} 廃棄率</span>
+                        <div className="flex flex-col">
+                           <span className="text-[12px] font-black text-muted-foreground">{label}</span>
+                           <span className="text-[10px] text-muted-foreground font-bold">廃棄率</span>
+                        </div>
                         <div className={cn("text-[22px] font-black tabular-nums", isAlert ? "text-destructive" : "text-blue-900")}>
                           {rate.toFixed(1)}%
                         </div>
