@@ -116,14 +116,14 @@ export default function ABCAnalysisPage() {
       }
     });
 
-    // 2. 製造補正（オフセット）をマッピング
-    const correctionsMap = new Map<string, Map<string, number>>();
+    // 2. 製造実績（実績データがある場合のみマッピング）
+    const actualProductionMap = new Map<string, Map<string, number>>();
     productionEntries
       .filter(entry => dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd')))
       .forEach(entry => {
         const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
-        if (!correctionsMap.has(dateKey)) correctionsMap.set(dateKey, new Map());
-        const prodMap = correctionsMap.get(dateKey)!;
+        if (!actualProductionMap.has(dateKey)) actualProductionMap.set(dateKey, new Map());
+        const prodMap = actualProductionMap.get(dateKey)!;
         entry.items.forEach(item => {
           prodMap.set(item.productId, (prodMap.get(item.productId) || 0) + item.quantity);
         });
@@ -151,10 +151,10 @@ export default function ABCAnalysisPage() {
     for (let i = 0; i < 8; i++) dayStats[i] = { waste: 0, production: 0 };
     Object.keys(weatherLabels).forEach(w => weatherStats[w] = { waste: 0, production: 0 });
 
-    // 重複を完全に排除した商品リストを作成（コンテキスト由来の重複を防止）
+    // 重複を完全に排除した商品リストを作成
     const uniqueProducts = Array.from(new Map(products.map(p => [p.id, p])).values());
 
-    // 4. 精密合算パス
+    // 4. 精密集計（0ベース: 実績があればそれを、なければ計画を採用）
     uniqueProducts.forEach(product => {
       if (selectedCategory !== 'all' && product.category !== selectedCategory) return;
 
@@ -177,17 +177,16 @@ export default function ABCAnalysisPage() {
         const dowKey = isHoliday ? 'holiday' : dayMap[dow];
         const matrixKey = `${dow}-${weather}`;
 
-        // 計画数
+        // A. 計画数
         const dailyProduction = weather === 'rainy' ? product.dailyProductionRainy : product.dailyProductionSunny;
         const planned = (isHoliday && dailyProduction?.holiday !== undefined)
             ? dailyProduction.holiday
             : (dailyProduction as any)?.[dowKey] || 0;
 
-        // 補正数
-        const correction = correctionsMap.get(dateKey)?.get(product.id) || 0;
+        // B. 実績登録数（あればそれを採用、なければ計画を採用）
+        const recordedCount = actualProductionMap.get(dateKey)?.get(product.id);
+        const finalProduction = (recordedCount !== undefined) ? recordedCount : planned;
         
-        // 最終製造数（1回のみ算出）
-        const finalProduction = planned + correction;
         const finalWaste = wasteMap.get(dateKey)?.get(product.id) || 0;
 
         if (finalProduction > 0 || finalWaste > 0) {
@@ -699,9 +698,8 @@ export default function ABCAnalysisPage() {
                           })
                           .map(p => {
                             const pWaste = p.wasteDow[selectedDayIdx] || 0;
-                            const pProd = p.prodDow[actualDow] || 0; // ここでも一貫性を保つため actualDow ではなく selectedDayIdx を使用
-                            const finalProd = p.prodDow[selectedDayIdx] || 0;
-                            const pRate = finalProd > 0 ? (pWaste / finalProd) * 100 : 0;
+                            const pProd = p.prodDow[selectedDayIdx] || 0;
+                            const pRate = pProd > 0 ? (pWaste / pProd) * 100 : 0;
                             return (
                               <TableRow key={p.id} className="h-14">
                                 <TableCell className="py-2 px-4 text-[18px] font-black leading-tight">{p.name}</TableCell>
@@ -709,7 +707,7 @@ export default function ABCAnalysisPage() {
                                   <div className={cn("font-black text-[22px] tabular-nums leading-none", pRate > 15 ? "text-destructive" : "text-blue-900")}>
                                     {pRate.toFixed(1)}%
                                   </div>
-                                  <div className="text-[11px] text-muted-foreground font-bold mt-1">({pWaste} / {finalProd})</div>
+                                  <div className="text-[11px] text-muted-foreground font-bold mt-1">({pWaste} / {pProd})</div>
                                 </TableCell>
                               </TableRow>
                             );

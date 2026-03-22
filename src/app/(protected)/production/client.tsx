@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
@@ -32,7 +31,7 @@ export default function ProductionClient() {
   const { isAdmin } = useAdmin();
   
   const [selectedCategory, setSelectedCategory] = useState('すべて');
-  const [correctionQuantities, setCorrectionQuantities] = useState<Record<string, string>>({});
+  const [resultQuantities, setResultQuantities] = useState<Record<string, string>>({});
   const [date, setDate] = useState<Date>(new Date());
   const [weather, setWeather] = useState<WeatherType>('sunny');
   const [isWeatherRepresentative, setIsWeatherRepresentative] = useState(false);
@@ -94,27 +93,40 @@ export default function ProductionClient() {
     if (userStore) fetchWeather(date);
   }, [fetchWeather, date, userStore]);
 
+  // 日付や天気が変わった際、入力値をその日の計画数で初期化
+  useEffect(() => {
+    if (allProducts.length === 0) return;
+    const isHoliday = holiday_jp.isHoliday(date);
+    const dayKey = dayMap[getDay(date)];
+    
+    const initialQuantities: Record<string, string> = {};
+    allProducts.forEach(product => {
+      const dailyProduction = weather === 'rainy' ? product.dailyProductionRainy : product.dailyProductionSunny;
+      const plannedQuantity = (isHoliday && dailyProduction?.holiday !== undefined)
+          ? dailyProduction.holiday
+          : (dailyProduction as any)?.[dayKey] ?? 0;
+      initialQuantities[product.id] = plannedQuantity.toString();
+    });
+    setResultQuantities(initialQuantities);
+  }, [date, weather, allProducts]);
+
   const handleQuantityChange = (productId: string, value: string) => {
-    setCorrectionQuantities(prev => ({ ...prev, [productId]: value }));
+    setResultQuantities(prev => ({ ...prev, [productId]: value }));
   };
 
   const handleAdjustQuantity = (productId: string, delta: number) => {
-    setCorrectionQuantities(prev => {
+    setResultQuantities(prev => {
       const current = parseInt(prev[productId] || '0', 10);
-      return { ...prev, [productId]: (current + delta).toString() };
+      return { ...prev, [productId]: Math.max(0, current + delta).toString() };
     });
   };
 
-  const totalCorrectionCount = useMemo(() => {
-    return Object.values(correctionQuantities).reduce((sum, current) => sum + (parseInt(current, 10) || 0), 0);
-  }, [correctionQuantities]);
-
   const handleRecordProduction = async () => {
-    const itemsToRecord = Object.entries(correctionQuantities)
+    const itemsToRecord = Object.entries(resultQuantities)
       .map(([productId, quantityStr]) => {
         const product = allProducts.find(p => p.id === productId);
         const quantity = parseInt(quantityStr, 10);
-        if (!product || isNaN(quantity) || quantity === 0) return null;
+        if (!product || isNaN(quantity)) return null;
         return {
           productId: product.id,
           productCode: product.productCode,
@@ -125,7 +137,7 @@ export default function ProductionClient() {
       .filter((item): item is NonNullable<typeof item> => item !== null);
 
     if (itemsToRecord.length === 0) {
-      toast({ variant: "destructive", title: "入力エラー", description: "補正数を入力してください。" });
+      toast({ variant: "destructive", title: "入力エラー", description: "製造数を入力してください。" });
       return;
     }
     
@@ -139,11 +151,8 @@ export default function ProductionClient() {
     };
 
     await addProductionEntry(newProductionEntry);
-    setCorrectionQuantities({});
+    toast({ title: "製造実績を記録しました" });
   };
-
-  const isHoliday = holiday_jp.isHoliday(date);
-  const dayKey = dayMap[getDay(date)];
 
   if (isAdmin) {
     return (
@@ -164,10 +173,10 @@ export default function ProductionClient() {
         <CardHeader>
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
-              <CardTitle>製造補正登録</CardTitle>
+              <CardTitle>製造実績登録</CardTitle>
               <CardDescription>
-                計画数に対する「補正数」を記録します。減算（マイナス）も可能です。<br/>
-                最終製造数 ＝ 計画数 ＋ 補正数 として分析されます。
+                今日の最終的な製造数を登録してください。計画数から変更がある場合は修正してください。<br/>
+                登録された数値は「0ベース」で実績として分析に反映されます。
               </CardDescription>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -192,15 +201,10 @@ export default function ProductionClient() {
                      </Button>
                    )}
                 </div>
-                {isWeatherRepresentative && (
-                   <p className="text-[10px] text-blue-600 font-bold flex items-center gap-1 pl-1">
-                      <Info className="h-2 w-2" /> 廃棄実績の天気に同期中
-                   </p>
-                )}
               </div>
-              <Button className="bg-primary text-primary-foreground" onClick={handleRecordProduction} disabled={totalCorrectionCount === 0 || productionLoading}>
+              <Button className="bg-primary text-primary-foreground font-bold" onClick={handleRecordProduction} disabled={productionLoading}>
                 {productionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
-                補正分を記録
+                実績を記録
               </Button>
             </div>
           </div>
@@ -219,35 +223,35 @@ export default function ProductionClient() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>商品名</TableHead>
-                                        <TableHead className="w-24 text-center bg-muted/30">計画数</TableHead>
-                                        <TableHead className="w-56 text-center">補正数調整 (調整分のみ入力)</TableHead>
-                                        <TableHead className="w-32 text-right font-bold text-primary">最終製造数</TableHead>
+                                        <TableHead className="w-24 text-center bg-muted/30">計画参考</TableHead>
+                                        <TableHead className="w-56 text-center">製造実績 (今日の総数を確認)</TableHead>
+                                        <TableHead className="w-32 text-right font-bold text-primary">記録数</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {allProducts.filter(p => category === 'すべて' || p.category === category).map(product => {
+                                        const isHoliday = holiday_jp.isHoliday(date);
+                                        const dayKey = dayMap[getDay(date)];
                                         const dailyProduction = weather === 'rainy' ? product.dailyProductionRainy : product.dailyProductionSunny;
                                         const plannedQuantity = (isHoliday && dailyProduction?.holiday !== undefined)
                                             ? dailyProduction.holiday
                                             : (dailyProduction as any)?.[dayKey] ?? 0;
                                         
-                                        const correction = parseInt(correctionQuantities[product.id] || '0', 10);
-                                        const finalQuantity = plannedQuantity + correction;
+                                        const currentVal = parseInt(resultQuantities[product.id] || '0', 10);
 
                                         return (
                                         <TableRow key={product.id}>
                                             <TableCell className="font-medium">{product.name}</TableCell>
                                             <TableCell className="text-center text-muted-foreground bg-muted/30">
-                                                <span className="font-bold text-foreground">{plannedQuantity}</span>
+                                                <span className="font-bold text-foreground opacity-50">{plannedQuantity}</span>
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center justify-center gap-1">
                                                     <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleAdjustQuantity(product.id, -1)}><Minus className="h-3 w-3"/></Button>
                                                     <Input 
                                                         type="number" 
-                                                        className="text-center w-16 h-8 p-0" 
-                                                        placeholder="0"
-                                                        value={correctionQuantities[product.id] || ''} 
+                                                        className="text-center w-16 h-8 p-0 font-bold" 
+                                                        value={resultQuantities[product.id] || ''} 
                                                         onChange={(e) => handleQuantityChange(product.id, e.target.value)} 
                                                     />
                                                     <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleAdjustQuantity(product.id, 1)}><Plus className="h-3 w-3"/></Button>
@@ -255,9 +259,8 @@ export default function ProductionClient() {
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex items-center justify-end gap-1">
-                                                    <Calculator className="h-3 w-3 opacity-30" />
-                                                    <span className={cn("text-lg font-black", finalQuantity < plannedQuantity ? "text-orange-500" : (finalQuantity > plannedQuantity ? "text-blue-600" : "text-primary"))}>
-                                                        {finalQuantity}
+                                                    <span className={cn("text-lg font-black", currentVal !== plannedQuantity ? "text-blue-600" : "text-primary")}>
+                                                        {currentVal}
                                                     </span>
                                                     <span className="text-[10px] text-muted-foreground">個</span>
                                                 </div>
@@ -272,12 +275,6 @@ export default function ProductionClient() {
             </Tabs>
         </CardContent>
         <CardFooter className="flex flex-col items-end gap-2 bg-muted/50 p-6">
-          <div className="w-full max-w-sm flex justify-between font-bold text-lg border-b border-white pb-2 mb-2">
-              <span className="text-sm">今回の補正合計</span>
-              <span className={cn(totalCorrectionCount < 0 ? "text-destructive" : "text-primary")}>
-                {totalCorrectionCount > 0 ? "+" : ""}{totalCorrectionCount} 個
-              </span>
-          </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
              <MapPin className="h-3 w-3" />
              店舗地域: {userStore?.name || '-'}
