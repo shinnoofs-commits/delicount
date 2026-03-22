@@ -29,7 +29,7 @@ import {
   DialogTitle, 
   DialogDescription 
 } from "@/components/ui/dialog";
-import { Calendar as CalendarIcon, Loader2, CalendarDays, Sun, Filter, PieChart, Package, Cloud, CloudRain, Snowflake, TrendingDown } from 'lucide-react';
+import { Calendar as CalendarIcon, Loader2, CalendarDays, Sun, Filter, PieChart, Package, Cloud, CloudRain, Snowflake, TrendingDown, ClipboardList } from 'lucide-react';
 import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, getDay, addDays } from "date-fns"
 import { ja } from "date-fns/locale"
 import holiday_jp from '@holiday-jp/holiday_jp';
@@ -78,6 +78,7 @@ export default function ABCAnalysisPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedDayIdx, setSelectedDayIdx] = useState<number | null>(null);
   const [selectedCategoryForDetail, setSelectedCategoryForDetail] = useState<string | null>(null);
+  const [activeAnalysisDay, setActiveAnalysisDay] = useState<number>(1); // デフォルト月曜日
 
   const categories = useMemo(() => {
     return ['all', ...Array.from(new Set(products.map(p => p.category)))];
@@ -117,7 +118,6 @@ export default function ABCAnalysisPage() {
       }
     });
 
-    // 各曜日の「製造数」を集計
     productionEntries.filter(entry => dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd'))).forEach(entry => {
       const entryDate = new Date(entry.date);
       const isHoliday = holiday_jp.isHoliday(entryDate);
@@ -140,7 +140,6 @@ export default function ABCAnalysisPage() {
         stats.production += item.quantity;
         productStats.set(item.productId, stats);
 
-        // 曜日別・天気別の分母（製造数）を加算
         dayStats[dow].production += item.quantity;
         if (weather !== 'unknown') {
           weatherStats[weather].production += item.quantity;
@@ -153,7 +152,6 @@ export default function ABCAnalysisPage() {
       });
     });
 
-    // 各曜日の「廃棄数」を集計
     wasteEntries.filter(entry => dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd'))).forEach(entry => {
       const entryDate = new Date(entry.date);
       const isHoliday = holiday_jp.isHoliday(entryDate);
@@ -170,7 +168,6 @@ export default function ABCAnalysisPage() {
           stats.dow[dow] += item.quantity;
         }
         
-        // 曜日別・天気別の分子（廃棄数）を加算
         dayStats[dow].waste += item.quantity;
         if (weather !== 'unknown') {
           weatherStats[weather].waste += item.quantity;
@@ -220,7 +217,6 @@ export default function ABCAnalysisPage() {
 
   return (
     <div className="flex flex-col gap-1 h-full overflow-hidden">
-      {/* フィルターセクション */}
       <Card className="shrink-0 border-none shadow-none bg-muted/40">
         <CardContent className="p-1 flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1">
@@ -283,7 +279,6 @@ export default function ABCAnalysisPage() {
             </Card>
           </div>
 
-          {/* 曜日・天気サマリー (カプセルUI) */}
           <div className="flex flex-col lg:grid lg:grid-cols-12 gap-1 px-1 shrink-0">
             <Card className="lg:col-span-8 border-none shadow-none bg-background">
               <CardHeader className="p-1 pb-0">
@@ -353,10 +348,11 @@ export default function ABCAnalysisPage() {
           </div>
 
           <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0">
-            <TabsList className="grid grid-cols-3 h-8 p-1 bg-muted/60 mx-1">
-              <TabsTrigger value="overview" className="text-[10px] font-bold"><PieChart className="h-3 w-3 mr-1" />カテゴリー別</TabsTrigger>
-              <TabsTrigger value="product" className="text-[10px] font-bold"><Package className="h-3 w-3 mr-1" />商品別</TabsTrigger>
-              <TabsTrigger value="cross" className="text-[10px] font-bold"><Filter className="h-3 w-3 mr-1" />クロス分析</TabsTrigger>
+            <TabsList className="grid grid-cols-4 h-8 p-1 bg-muted/60 mx-1">
+              <TabsTrigger value="overview" className="text-[10px] font-bold">カテゴリー別</TabsTrigger>
+              <TabsTrigger value="product" className="text-[10px] font-bold">商品別</TabsTrigger>
+              <TabsTrigger value="daily" className="text-[10px] font-bold">曜日別一覧</TabsTrigger>
+              <TabsTrigger value="cross" className="text-[10px] font-bold">クロス分析</TabsTrigger>
             </TabsList>
 
             <div className="flex-1 overflow-auto mt-1 px-1">
@@ -455,6 +451,77 @@ export default function ABCAnalysisPage() {
                 </Card>
               </TabsContent>
 
+              <TabsContent value="daily" className="m-0 space-y-2 pb-4">
+                <div className="flex flex-wrap gap-1 p-1 bg-muted/40 rounded-lg">
+                  {dayLabels.map((label, i) => (
+                    <Button 
+                      key={label} 
+                      variant={activeAnalysisDay === dayOrder[i] ? "default" : "outline"} 
+                      size="sm" 
+                      className="h-8 text-[11px] font-black flex-1 min-w-[50px]"
+                      onClick={() => setActiveAnalysisDay(dayOrder[i])}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+                <Card className="border-none shadow-none bg-background">
+                  <CardHeader className="p-2 pb-0 flex flex-row items-center justify-between">
+                    <CardTitle className="text-[14px] font-black flex items-center">
+                      <ClipboardList className="h-4 w-4 mr-2 text-primary" />
+                      {actualDowLabel(activeAnalysisDay)}曜日の廃棄商品一覧
+                    </CardTitle>
+                    <div className="text-right">
+                        <p className="text-[10px] text-muted-foreground font-bold">この曜日の合計廃棄数</p>
+                        <p className="text-xl font-black text-destructive">
+                            {analysisData.products.reduce((sum, p) => sum + (p.dow[activeAnalysisDay] || 0), 0).toLocaleString()} <span className="text-xs font-normal text-foreground">個</span>
+                        </p>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader className="bg-muted/30">
+                        <TableRow className="h-10">
+                          <TableHead className="h-10 text-[16px] font-black px-4">商品名</TableHead>
+                          <TableHead className="h-10 text-[16px] font-black px-4 text-right">廃棄数</TableHead>
+                          <TableHead className="h-10 text-[16px] font-black px-4 text-right">機会損失 (売価計)</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {analysisData.products
+                          .filter(p => (p.dow[activeAnalysisDay] || 0) > 0)
+                          .sort((a, b) => b.dow[activeAnalysisDay] - a.dow[activeAnalysisDay])
+                          .map(p => (
+                            <TableRow key={p.id} className="h-14">
+                              <TableCell className="px-4 py-2">
+                                <div className="flex flex-col">
+                                  <span className="text-[20px] font-black">{p.name}</span>
+                                  <span className="text-[10px] text-muted-foreground font-bold">{p.category}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="px-4 py-2 text-right">
+                                <span className="text-[24px] font-black text-destructive">{p.dow[activeAnalysisDay].toLocaleString()}</span>
+                                <span className="text-[14px] font-bold ml-1">個</span>
+                              </TableCell>
+                              <TableCell className="px-4 py-2 text-right">
+                                <span className="text-[24px] font-black text-blue-900">¥{(p.dow[activeAnalysisDay] * (p.price || 0)).toLocaleString()}</span>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        }
+                        {!analysisData.products.some(p => (p.dow[activeAnalysisDay] || 0) > 0) && (
+                          <TableRow>
+                            <TableCell colSpan={3} className="text-center py-10 text-muted-foreground font-bold">
+                              この曜日の廃棄データはありません
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
               <TabsContent value="cross" className="m-0 pb-4">
                 <Card className="border-none shadow-none overflow-hidden bg-background">
                   <CardHeader className="p-2 bg-muted/40 pb-1">
@@ -503,7 +570,6 @@ export default function ABCAnalysisPage() {
             </div>
           </Tabs>
 
-          {/* 曜日詳細ダイアログ */}
           <Dialog open={selectedDayIdx !== null} onOpenChange={(open) => !open && setSelectedDayIdx(null)}>
             <DialogContent className="max-w-[500px] max-h-[90vh] flex flex-col p-4">
               <DialogHeader>
@@ -515,7 +581,6 @@ export default function ABCAnalysisPage() {
               </DialogHeader>
               
               <div className="flex-1 overflow-auto mt-4 space-y-6">
-                {/* 天気別の内訳 */}
                 <div className="space-y-2">
                   <h4 className="text-[11px] font-black text-muted-foreground uppercase flex items-center">
                     <Sun className="h-3 w-3 mr-1" />天気別実績
@@ -543,7 +608,6 @@ export default function ABCAnalysisPage() {
 
                 <Separator />
 
-                {/* 曜日ごとの廃棄商品一覧 */}
                 <div className="space-y-2 pb-4">
                   <h4 className="text-[11px] font-black text-muted-foreground uppercase flex items-center">
                     <TrendingDown className="h-3 w-3 mr-1 text-destructive" />この曜日の廃棄商品一覧
@@ -588,7 +652,6 @@ export default function ABCAnalysisPage() {
             </DialogContent>
           </Dialog>
 
-          {/* カテゴリー詳細ダイアログ (機会損失表示) */}
           <Dialog open={!!selectedCategoryForDetail} onOpenChange={(open) => !open && setSelectedCategoryForDetail(null)}>
             <DialogContent className="max-w-[500px] max-h-[80vh] flex flex-col p-4">
               <DialogHeader>
