@@ -30,8 +30,8 @@ import {
   DialogTitle, 
   DialogDescription 
 } from "@/components/ui/dialog";
-import { Calendar as CalendarIcon, Loader2, CalendarDays, Sun, Filter, PieChart, Package, Cloud, CloudRain, Snowflake, Maximize2, ClipboardList } from 'lucide-react';
-import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, getDay, addDays } from "date-fns"
+import { Calendar as CalendarIcon, Loader2, CalendarDays, Sun, Filter, PieChart, Package, Cloud, CloudRain, Snowflake, Maximize2, ClipboardList, Info } from 'lucide-react';
+import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, getDay, addDays, subDays } from "date-fns"
 import { ja } from "date-fns/locale"
 import holiday_jp from '@holiday-jp/holiday_jp';
 import { DateRange } from "react-day-picker"
@@ -101,7 +101,13 @@ export default function ABCAnalysisPage() {
   const analysisData = useMemo(() => {
     if (wasteLoading || productsLoading || productionLoading || validDates.length === 0) return null;
 
-    const dateSet = new Set(validDates);
+    // 前日（昨日）までの日付のみを対象にする
+    const yesterdayStr = format(subDays(new Date(), 1), 'yyyy-MM-dd');
+    const datesToProcess = validDates.filter(d => d <= yesterdayStr);
+    
+    if (datesToProcess.length === 0) return null;
+
+    const dateSet = new Set(datesToProcess);
     const productStats = new Map<string, any>();
     const dayStats: Record<number, { waste: number; production: number }> = {};
     const weatherStats: Record<string, { waste: number; production: number }> = {};
@@ -137,8 +143,8 @@ export default function ABCAnalysisPage() {
       return stats;
     };
 
-    // 1. 計画ベースの製造数集計
-    validDates.forEach(dateKey => {
+    // 1. 計画ベースの製造数集計 (前日分まで)
+    datesToProcess.forEach(dateKey => {
       const entryDate = new Date(dateKey);
       const isHoliday = holiday_jp.isHoliday(entryDate);
       const dow = isHoliday ? 7 : getDay(entryDate);
@@ -170,58 +176,62 @@ export default function ABCAnalysisPage() {
       });
     });
 
-    // 2. 製造補正の集計 (計画 + 補正 = 実製造数)
-    productionEntries.filter(entry => dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd'))).forEach(entry => {
-      const entryDate = new Date(entry.date);
-      const isHoliday = holiday_jp.isHoliday(entryDate);
-      const dow = isHoliday ? 7 : getDay(entryDate);
-      const weather = dateToWeather.get(format(startOfDay(entryDate), 'yyyy-MM-dd')) || 'sunny';
-      
-      entry.items.forEach(item => {
-        const product = products.find(p => p.id === item.productId);
-        if (!product || (selectedCategory !== 'all' && product.category !== selectedCategory)) return;
+    // 2. 製造補正の集計 (前日分まで)
+    productionEntries
+      .filter(entry => dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd')))
+      .forEach(entry => {
+        const entryDate = new Date(entry.date);
+        const isHoliday = holiday_jp.isHoliday(entryDate);
+        const dow = isHoliday ? 7 : getDay(entryDate);
+        const weather = dateToWeather.get(format(startOfDay(entryDate), 'yyyy-MM-dd')) || 'sunny';
+        
+        entry.items.forEach(item => {
+          const product = products.find(p => p.id === item.productId);
+          if (!product || (selectedCategory !== 'all' && product.category !== selectedCategory)) return;
 
-        const stats = getOrCreateStats(item.productId, product);
-        stats.production += item.quantity;
-        stats.prodDow[dow] += item.quantity;
-        dayStats[dow].production += item.quantity;
-        weatherStats[weather].production += item.quantity;
-        
-        const matrixKey = `${dow}-${weather}`;
-        if (!matrixStats[matrixKey]) matrixStats[matrixKey] = { waste: 0, production: 0 };
-        matrixStats[matrixKey].production += item.quantity;
-        
-        if (!categoryStats[product.category]) categoryStats[product.category] = { waste: 0, production: 0 };
-        categoryStats[product.category].production += item.quantity;
+          const stats = getOrCreateStats(item.productId, product);
+          stats.production += item.quantity;
+          stats.prodDow[dow] += item.quantity;
+          dayStats[dow].production += item.quantity;
+          weatherStats[weather].production += item.quantity;
+          
+          const matrixKey = `${dow}-${weather}`;
+          if (!matrixStats[matrixKey]) matrixStats[matrixKey] = { waste: 0, production: 0 };
+          matrixStats[matrixKey].production += item.quantity;
+          
+          if (!categoryStats[product.category]) categoryStats[product.category] = { waste: 0, production: 0 };
+          categoryStats[product.category].production += item.quantity;
+        });
       });
-    });
 
-    // 3. 廃棄実績の集計
-    wasteEntries.filter(entry => dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd'))).forEach(entry => {
-      const entryDate = new Date(entry.date);
-      const isHoliday = holiday_jp.isHoliday(entryDate);
-      const dow = isHoliday ? 7 : getDay(entryDate);
-      const weather = entry.weather || 'sunny';
-      
-      entry.items.forEach(item => {
-        const product = products.find(p => p.id === item.productId);
-        if (!product || (selectedCategory !== 'all' && product.category !== selectedCategory)) return;
+    // 3. 廃棄実績の集計 (前日分まで)
+    wasteEntries
+      .filter(entry => dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd')))
+      .forEach(entry => {
+        const entryDate = new Date(entry.date);
+        const isHoliday = holiday_jp.isHoliday(entryDate);
+        const dow = isHoliday ? 7 : getDay(entryDate);
+        const weather = entry.weather || 'sunny';
+        
+        entry.items.forEach(item => {
+          const product = products.find(p => p.id === item.productId);
+          if (!product || (selectedCategory !== 'all' && product.category !== selectedCategory)) return;
 
-        const stats = getOrCreateStats(item.productId, product);
-        stats.waste += item.quantity;
-        stats.wasteDow[dow] += item.quantity;
-        
-        dayStats[dow].waste += item.quantity;
-        weatherStats[weather].waste += item.quantity;
-        
-        const matrixKey = `${dow}-${weather}`;
-        if (!matrixStats[matrixKey]) matrixStats[matrixKey] = { waste: 0, production: 0 };
-        matrixStats[matrixKey].waste += item.quantity;
-        
-        if (!categoryStats[product.category]) categoryStats[product.category] = { waste: 0, production: 0 };
-        categoryStats[product.category].waste += item.quantity;
+          const stats = getOrCreateStats(item.productId, product);
+          stats.waste += item.quantity;
+          stats.wasteDow[dow] += item.quantity;
+          
+          dayStats[dow].waste += item.quantity;
+          weatherStats[weather].waste += item.quantity;
+          
+          const matrixKey = `${dow}-${weather}`;
+          if (!matrixStats[matrixKey]) matrixStats[matrixKey] = { waste: 0, production: 0 };
+          matrixStats[matrixKey].waste += item.quantity;
+          
+          if (!categoryStats[product.category]) categoryStats[product.category] = { waste: 0, production: 0 };
+          categoryStats[product.category].waste += item.quantity;
+        });
       });
-    });
 
     return {
       products: Array.from(productStats.values()),
@@ -386,13 +396,17 @@ export default function ABCAnalysisPage() {
               </SelectContent>
             </Select>
           </div>
+          <Badge variant="secondary" className="ml-auto h-6 text-[9px] font-bold bg-blue-50 text-blue-700 flex gap-1 items-center">
+            <Info className="h-2.5 w-2.5" />
+            データは前日分まで集計されています
+          </Badge>
         </CardContent>
       </Card>
 
       {!analysisData || (analysisData.totalProduction <= 0 && analysisData.totalWaste === 0) ? (
         <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground bg-muted/20 rounded-lg border-2 border-dashed m-4">
           <PieChart className="h-10 w-10 mb-2 opacity-20" />
-          <p className="font-bold">対象期間にデータがありません</p>
+          <p className="font-bold">対象期間（前日まで）にデータがありません</p>
         </div>
       ) : (
         <div className="flex-1 flex flex-col gap-1 min-h-0">
