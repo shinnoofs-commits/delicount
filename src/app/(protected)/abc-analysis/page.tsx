@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useMemo, useState } from "react";
@@ -44,6 +45,7 @@ import { Separator } from "@/components/ui/separator";
 
 const dayLabels = ['月', '火', '水', '木', '金', '土', '日', '祝'];
 const dayOrder = [1, 2, 3, 4, 5, 6, 0, 7];
+const dayMap: any[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'holiday'];
 
 const weatherLabels: Record<string, string> = {
   sunny: '晴れ',
@@ -117,19 +119,12 @@ export default function ABCAnalysisPage() {
       }
     });
 
-    productionEntries.filter(entry => dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd'))).forEach(entry => {
-      const entryDate = new Date(entry.date);
-      const isHoliday = holiday_jp.isHoliday(entryDate);
-      const dow = isHoliday ? 7 : getDay(entryDate);
-      const weather = dateToWeather.get(format(startOfDay(entryDate), 'yyyy-MM-dd')) || 'unknown';
-      
-      entry.items.forEach(item => {
-        const product = products.find(p => p.id === item.productId);
-        if (!product || (selectedCategory !== 'all' && product.category !== selectedCategory)) return;
-
-        const stats = productStats.get(item.productId) || {
-          id: item.productId,
-          name: item.name,
+    const getOrCreateStats = (productId: string, product: any) => {
+      let stats = productStats.get(productId);
+      if (!stats) {
+        stats = {
+          id: productId,
+          name: product.name,
           category: product.category,
           price: product.price,
           waste: 0,
@@ -137,26 +132,76 @@ export default function ABCAnalysisPage() {
           wasteDow: { 0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 },
           prodDow: { 0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 }
         };
-        stats.production += item.quantity;
-        stats.prodDow[dow] += item.quantity;
-        productStats.set(item.productId, stats);
-        dayStats[dow].production += item.quantity;
-        if (weather !== 'unknown') {
-          weatherStats[weather].production += item.quantity;
+        productStats.set(productId, stats);
+      }
+      return stats;
+    };
+
+    // Calculate Final Production = Planned + Corrections
+    validDates.forEach(dateKey => {
+      const entryDate = new Date(dateKey);
+      const isHoliday = holiday_jp.isHoliday(entryDate);
+      const dow = isHoliday ? 7 : getDay(entryDate);
+      const weather = dateToWeather.get(dateKey) || 'sunny';
+      const dowKey = isHoliday ? 'holiday' : dayMap[dow];
+
+      products.forEach(product => {
+        if (selectedCategory !== 'all' && product.category !== selectedCategory) return;
+
+        const dailyProduction = weather === 'rainy' ? product.dailyProductionRainy : product.dailyProductionSunny;
+        const planned = (isHoliday && dailyProduction?.holiday !== undefined)
+            ? dailyProduction.holiday
+            : (dailyProduction as any)?.[dowKey] || 0;
+
+        if (planned > 0) {
+          const stats = getOrCreateStats(product.id, product);
+          stats.production += planned;
+          stats.prodDow[dow] += planned;
+          dayStats[dow].production += planned;
+          weatherStats[weather].production += planned;
+          
           const matrixKey = `${dow}-${weather}`;
           if (!matrixStats[matrixKey]) matrixStats[matrixKey] = { waste: 0, production: 0 };
-          matrixStats[matrixKey].production += item.quantity;
+          matrixStats[matrixKey].production += planned;
+
+          if (!categoryStats[product.category]) categoryStats[product.category] = { waste: 0, production: 0 };
+          categoryStats[product.category].production += planned;
         }
+      });
+    });
+
+    // Add corrections from productionEntries
+    productionEntries.filter(entry => dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd'))).forEach(entry => {
+      const entryDate = new Date(entry.date);
+      const isHoliday = holiday_jp.isHoliday(entryDate);
+      const dow = isHoliday ? 7 : getDay(entryDate);
+      const weather = dateToWeather.get(format(startOfDay(entryDate), 'yyyy-MM-dd')) || 'sunny';
+      
+      entry.items.forEach(item => {
+        const product = products.find(p => p.id === item.productId);
+        if (!product || (selectedCategory !== 'all' && product.category !== selectedCategory)) return;
+
+        const stats = getOrCreateStats(item.productId, product);
+        stats.production += item.quantity;
+        stats.prodDow[dow] += item.quantity;
+        dayStats[dow].production += item.quantity;
+        
+        weatherStats[weather].production += item.quantity;
+        const matrixKey = `${dow}-${weather}`;
+        if (!matrixStats[matrixKey]) matrixStats[matrixKey] = { waste: 0, production: 0 };
+        matrixStats[matrixKey].production += item.quantity;
+        
         if (!categoryStats[product.category]) categoryStats[product.category] = { waste: 0, production: 0 };
         categoryStats[product.category].production += item.quantity;
       });
     });
 
+    // Add waste stats
     wasteEntries.filter(entry => dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd'))).forEach(entry => {
       const entryDate = new Date(entry.date);
       const isHoliday = holiday_jp.isHoliday(entryDate);
       const dow = isHoliday ? 7 : getDay(entryDate);
-      const weather = entry.weather || 'unknown';
+      const weather = entry.weather || 'sunny';
       
       entry.items.forEach(item => {
         const product = products.find(p => p.id === item.productId);
@@ -168,12 +213,12 @@ export default function ABCAnalysisPage() {
           stats.wasteDow[dow] += item.quantity;
         }
         dayStats[dow].waste += item.quantity;
-        if (weather !== 'unknown') {
-          weatherStats[weather].waste += item.quantity;
-          const matrixKey = `${dow}-${weather}`;
-          if (!matrixStats[matrixKey]) matrixStats[matrixKey] = { waste: 0, production: 0 };
-          matrixStats[matrixKey].waste += item.quantity;
-        }
+        
+        weatherStats[weather].waste += item.quantity;
+        const matrixKey = `${dow}-${weather}`;
+        if (!matrixStats[matrixKey]) matrixStats[matrixKey] = { waste: 0, production: 0 };
+        matrixStats[matrixKey].waste += item.quantity;
+        
         if (!categoryStats[product.category]) categoryStats[product.category] = { waste: 0, production: 0 };
         categoryStats[product.category].waste += item.quantity;
       });
@@ -202,7 +247,7 @@ export default function ABCAnalysisPage() {
   }, [analysisData]);
 
   const overallWasteRate = useMemo(() => {
-    if (!analysisData || analysisData.totalProduction === 0) return 0;
+    if (!analysisData || analysisData.totalProduction <= 0) return 0;
     return (analysisData.totalWaste / analysisData.totalProduction) * 100;
   }, [analysisData]);
 
@@ -345,7 +390,7 @@ export default function ABCAnalysisPage() {
         </CardContent>
       </Card>
 
-      {!analysisData || (analysisData.totalProduction === 0 && analysisData.totalWaste === 0) ? (
+      {!analysisData || (analysisData.totalProduction <= 0 && analysisData.totalWaste === 0) ? (
         <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground bg-muted/20 rounded-lg border-2 border-dashed m-4">
           <PieChart className="h-10 w-10 mb-2 opacity-20" />
           <p className="font-bold">対象期間にデータがありません</p>

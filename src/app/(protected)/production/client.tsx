@@ -1,7 +1,8 @@
+
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Loader2, CalendarIcon, Plus, RefreshCw, MapPin, Info } from 'lucide-react';
+import { Loader2, CalendarIcon, Plus, Minus, RefreshCw, MapPin, Info, Calculator } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -31,7 +32,7 @@ export default function ProductionClient() {
   const { isAdmin } = useAdmin();
   
   const [selectedCategory, setSelectedCategory] = useState('すべて');
-  const [additionalQuantities, setAdditionalQuantities] = useState<Record<string, string>>({});
+  const [correctionQuantities, setCorrectionQuantities] = useState<Record<string, string>>({});
   const [date, setDate] = useState<Date>(new Date());
   const [weather, setWeather] = useState<WeatherType>('sunny');
   const [isWeatherRepresentative, setIsWeatherRepresentative] = useState(false);
@@ -51,7 +52,6 @@ export default function ProductionClient() {
   const fetch1000Weather = useCallback(async (targetDate: Date) => {
     if (!userStore) return;
 
-    // First check if representative weather is already set in waste entries
     const dailyWasteEntry = wasteEntries.find(e => e.storeId === userStore.id && isSameDay(e.date, targetDate) && e.weather);
     if (dailyWasteEntry && dailyWasteEntry.weather) {
       setWeather(dailyWasteEntry.weather);
@@ -95,19 +95,26 @@ export default function ProductionClient() {
   }, [fetch1000Weather, date, userStore]);
 
   const handleQuantityChange = (productId: string, value: string) => {
-    setAdditionalQuantities(prev => ({ ...prev, [productId]: value }));
+    setCorrectionQuantities(prev => ({ ...prev, [productId]: value }));
   };
 
-  const totalAdditionalCount = useMemo(() => {
-    return Object.values(additionalQuantities).reduce((sum, current) => sum + (Number(current) || 0), 0);
-  }, [additionalQuantities]);
+  const handleAdjustQuantity = (productId: string, delta: number) => {
+    setCorrectionQuantities(prev => {
+      const current = parseInt(prev[productId] || '0', 10);
+      return { ...prev, [productId]: (current + delta).toString() };
+    });
+  };
+
+  const totalCorrectionCount = useMemo(() => {
+    return Object.values(correctionQuantities).reduce((sum, current) => sum + (parseInt(current, 10) || 0), 0);
+  }, [correctionQuantities]);
 
   const handleRecordProduction = async () => {
-    const itemsToRecord = Object.entries(additionalQuantities)
+    const itemsToRecord = Object.entries(correctionQuantities)
       .map(([productId, quantityStr]) => {
         const product = allProducts.find(p => p.id === productId);
-        const quantity = Number(quantityStr);
-        if (!product || !quantity || quantity <= 0) return null;
+        const quantity = parseInt(quantityStr, 10);
+        if (!product || isNaN(quantity) || quantity === 0) return null;
         return {
           productId: product.id,
           productCode: product.productCode,
@@ -118,7 +125,7 @@ export default function ProductionClient() {
       .filter((item): item is NonNullable<typeof item> => item !== null);
 
     if (itemsToRecord.length === 0) {
-      toast({ variant: "destructive", title: "入力エラー", description: "追加製造数を入力してください。" });
+      toast({ variant: "destructive", title: "入力エラー", description: "補正数を入力してください。" });
       return;
     }
     
@@ -132,7 +139,7 @@ export default function ProductionClient() {
     };
 
     await addProductionEntry(newProductionEntry);
-    setAdditionalQuantities({});
+    setCorrectionQuantities({});
   };
 
   const isLoading = productsLoading || storesLoading;
@@ -157,8 +164,11 @@ export default function ProductionClient() {
         <CardHeader>
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
-              <CardTitle>追加製造登録</CardTitle>
-              <CardDescription>当日の基本製造分（予定数）以外の追加分のみを記録します。</CardDescription>
+              <CardTitle>製造補正登録</CardTitle>
+              <CardDescription>
+                計画数に対する「補正数」を記録します。減算（マイナス）も可能です。<br/>
+                最終製造数 ＝ 計画数 ＋ 補正数 として分析されます。
+              </CardDescription>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Popover>
@@ -188,15 +198,15 @@ export default function ProductionClient() {
                    </p>
                 )}
               </div>
-              <Button className="bg-primary text-primary-foreground" onClick={handleRecordProduction} disabled={totalAdditionalCount === 0 || productionLoading}>
-                {productionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Plus className="mr-2 h-4 w-4"/>}
-                追加分を記録
+              <Button className="bg-primary text-primary-foreground" onClick={handleRecordProduction} disabled={totalCorrectionCount === 0 || productionLoading}>
+                {productionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
+                補正分を記録
               </Button>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-            <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
+            <Tabs defaultValue="すべて" value={selectedCategory} onValueChange={setSelectedCategory}>
                 <TabsList className="bg-transparent h-auto p-0 justify-start gap-1 flex-wrap">
                     {categories.map(category => (
                         <TabsTrigger key={category} value={category} className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border rounded-md">{category}</TabsTrigger>
@@ -209,33 +219,47 @@ export default function ProductionClient() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>商品名</TableHead>
-                                        <TableHead className="w-32 text-center bg-muted/30">予定数</TableHead>
-                                        <TableHead className="w-40 text-right">追加製造数</TableHead>
+                                        <TableHead className="w-24 text-center bg-muted/30">計画数</TableHead>
+                                        <TableHead className="w-56 text-center">補正数調整</TableHead>
+                                        <TableHead className="w-32 text-right font-bold text-primary">最終製造数</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {allProducts.filter(p => category === 'すべて' || p.category === category).map(product => {
                                         const dailyProduction = weather === 'rainy' ? product.dailyProductionRainy : product.dailyProductionSunny;
-                                        const scheduledQuantity = (isHoliday && dailyProduction?.holiday !== undefined)
+                                        const plannedQuantity = (isHoliday && dailyProduction?.holiday !== undefined)
                                             ? dailyProduction.holiday
                                             : dailyProduction?.[dayKey] ?? 0;
+                                        
+                                        const correction = parseInt(correctionQuantities[product.id] || '0', 10);
+                                        const finalQuantity = plannedQuantity + correction;
+
                                         return (
                                         <TableRow key={product.id}>
                                             <TableCell className="font-medium">{product.name}</TableCell>
                                             <TableCell className="text-center text-muted-foreground bg-muted/30">
-                                                <span className="font-bold text-foreground">{scheduledQuantity.toLocaleString()}</span> 個
+                                                <span className="font-bold text-foreground">{plannedQuantity}</span>
                                             </TableCell>
                                             <TableCell>
-                                                <div className="flex items-center gap-2 justify-end">
+                                                <div className="flex items-center justify-center gap-1">
+                                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleAdjustQuantity(product.id, -1)}><Minus className="h-3 w-3"/></Button>
                                                     <Input 
                                                         type="number" 
-                                                        className="text-right w-24" 
+                                                        className="text-center w-16 h-8 p-0" 
                                                         placeholder="0"
-                                                        value={additionalQuantities[product.id] || ''} 
+                                                        value={correctionQuantities[product.id] || ''} 
                                                         onChange={(e) => handleQuantityChange(product.id, e.target.value)} 
-                                                        min="0" 
                                                     />
-                                                    <span className="text-sm font-medium">個</span>
+                                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleAdjustQuantity(product.id, 1)}><Plus className="h-3 w-3"/></Button>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <div className="flex items-center justify-end gap-1">
+                                                    <Calculator className="h-3 w-3 opacity-30" />
+                                                    <span className={cn("text-lg font-black", finalQuantity < plannedQuantity ? "text-orange-500" : (finalQuantity > plannedQuantity ? "text-blue-600" : "text-primary"))}>
+                                                        {finalQuantity}
+                                                    </span>
+                                                    <span className="text-[10px] text-muted-foreground">個</span>
                                                 </div>
                                             </TableCell>
                                         </TableRow>
@@ -247,10 +271,12 @@ export default function ProductionClient() {
                  ))}
             </Tabs>
         </CardContent>
-        <CardFooter className="flex flex-col items-end gap-4 bg-muted/50 p-6">
-          <div className="w-full max-w-sm flex justify-between font-bold text-lg">
-              <span>今回の追加製造合計</span>
-              <span className="text-primary">{totalAdditionalCount.toLocaleString()} 個</span>
+        <CardFooter className="flex flex-col items-end gap-2 bg-muted/50 p-6">
+          <div className="w-full max-w-sm flex justify-between font-bold text-lg border-b border-white pb-2 mb-2">
+              <span className="text-sm">今回の補正合計</span>
+              <span className={cn(totalCorrectionCount < 0 ? "text-destructive" : "text-primary")}>
+                {totalCorrectionCount > 0 ? "+" : ""}{totalCorrectionCount} 個
+              </span>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
              <MapPin className="h-3 w-3" />
