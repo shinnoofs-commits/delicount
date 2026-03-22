@@ -38,11 +38,13 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
   const fetchProducts = useCallback(() => {
     if (!firestore || !user || isUserLoading || isAdminLoading || storesLoading) return;
 
+    // 店舗選択が変更されたタイミングで、一旦リストを空にして二重計上を防ぐ
+    setProducts([]);
     setLoading(true);
+    
     const storeIdsToFetch = isAdmin ? selectedStoreIds : (userStore ? [userStore.id] : []);
 
     if (storeIdsToFetch.length === 0) {
-      setProducts([]);
       setLoading(false);
       return;
     }
@@ -84,16 +86,13 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
 
   const saveAdminProduct = useCallback(async (productData: Omit<Product, 'id' | 'storeId'>) => {
     if (!firestore || !stores || stores.length === 0) return;
-    
     const processingToast = toast({ title: '全店舗の商品を同期中...' });
-    
     try {
         const batch = writeBatch(firestore);
         for (const store of stores) {
             const productsCollection = collection(firestore, 'stores', store.id, 'products');
             const q = query(productsCollection, where('productCode', '==', productData.productCode));
             const querySnapshot = await getDocs(q);
-
             if (querySnapshot.empty) {
                 const newDocRef = doc(productsCollection);
                 batch.set(newDocRef, productData);
@@ -111,14 +110,12 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
     }
   }, [firestore, stores, toast]);
 
-
   const addProduct = useCallback(async (storeId: string, productData: Omit<Product, 'id' | 'storeId'>) => {
     const dataWithSchedules = {
       ...productData,
       dailyProductionSunny: productData.dailyProductionSunny || { sun: 0, mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, holiday: 0 },
       dailyProductionRainy: productData.dailyProductionRainy || { sun: 0, mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, holiday: 0 }
     };
-
     if (isAdmin) {
         await saveAdminProduct(dataWithSchedules);
     } else {
@@ -129,7 +126,6 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
         });
     }
   }, [firestore, toast, isAdmin, saveAdminProduct]);
-
 
   const updateProduct = useCallback(async (storeId: string, productData: Product) => {
     if (isAdmin) {
@@ -145,7 +141,6 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
     }
   }, [firestore, toast, isAdmin, saveAdminProduct]);
 
-
   const deleteProducts = useCallback((storeId: string, productIds: string[]) => {
     if (!firestore) return;
     const batch = writeBatch(firestore);
@@ -159,20 +154,14 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
     if (!firestore) return;
     const batch = writeBatch(firestore);
     const key = weatherPattern === 'rainy' ? 'dailyProductionRainy' : 'dailyProductionSunny';
-    
-    // Update quantities
     Object.entries(schedules).forEach(([productId, dailyProduction]) => {
       const productRef = doc(firestore, 'stores', storeId, 'products', productId);
       const updateData: any = { [key]: dailyProduction };
-      
-      // Also update time slots if provided for this product
       if (timeSlots && timeSlots[productId]) {
         updateData.displayTimeSlots = timeSlots[productId];
       }
-      
       batch.update(productRef, updateData);
     });
-
     try {
       await batch.commit();
       toast({ title: "製造計画を保存しました。" });
@@ -209,20 +198,16 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
   const syncAllProducts = useCallback(async (sourceStoreId: string) => {
     if (!firestore || !isAdmin || !stores) return;
     const sourceProducts = products.filter(p => p.storeId === sourceStoreId);
-    
     const processingToast = toast({ title: '全店舗へ商品データを同期中...' });
-    
     try {
         for (const store of stores) {
             if (store.id === sourceStoreId) continue;
             const batch = writeBatch(firestore);
             const targetProductsCollection = collection(firestore, 'stores', store.id, 'products');
-            
             for (const srcProd of sourceProducts) {
                 const { id, storeId: _, ...data } = srcProd;
                 const q = query(targetProductsCollection, where('productCode', '==', srcProd.productCode));
                 const snap = await getDocs(q);
-                
                 if (snap.empty) {
                     batch.set(doc(targetProductsCollection), data);
                 } else {

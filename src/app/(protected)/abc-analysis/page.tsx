@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useMemo, useState } from "react";
@@ -101,15 +100,14 @@ export default function ABCAnalysisPage() {
   const analysisData = useMemo(() => {
     if (wasteLoading || productsLoading || productionLoading || validDates.length === 0) return null;
 
-    // 分析対象は前日までに制限（確定データのみ）
+    // 前日分までの確定データを対象とする
     const yesterdayStr = format(subDays(new Date(), 1), 'yyyy-MM-dd');
     const datesToProcess = validDates.filter(d => d <= yesterdayStr);
-    
     if (datesToProcess.length === 0) return null;
 
     const dateSet = new Set(datesToProcess);
     
-    // 1. 日別の代表天気を特定
+    // 1. 日別の代表天気をマッピング
     const dateToWeather = new Map<string, string>();
     wasteEntries.forEach(entry => {
       const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
@@ -118,7 +116,7 @@ export default function ABCAnalysisPage() {
       }
     });
 
-    // 2. 製造補正（オフセット）を日別・商品別に集約
+    // 2. 製造補正（オフセット）をマッピング
     const correctionsMap = new Map<string, Map<string, number>>();
     productionEntries
       .filter(entry => dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd')))
@@ -131,7 +129,7 @@ export default function ABCAnalysisPage() {
         });
       });
 
-    // 3. 廃棄実績を日別・商品別に集約
+    // 3. 廃棄実績をマッピング
     const wasteMap = new Map<string, Map<string, number>>();
     wasteEntries
       .filter(entry => dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd')))
@@ -153,26 +151,23 @@ export default function ABCAnalysisPage() {
     for (let i = 0; i < 8; i++) dayStats[i] = { waste: 0, production: 0 };
     Object.keys(weatherLabels).forEach(w => weatherStats[w] = { waste: 0, production: 0 });
 
-    // 4. 重複なしの精密合算パス
-    // 商品ごとにループを回し、各日付に対して一度だけ計画＋補正を適用
-    products.forEach(product => {
-      // カテゴリーフィルタ
+    // 重複を完全に排除した商品リストを作成（コンテキスト由来の重複を防止）
+    const uniqueProducts = Array.from(new Map(products.map(p => [p.id, p])).values());
+
+    // 4. 精密合算パス
+    uniqueProducts.forEach(product => {
       if (selectedCategory !== 'all' && product.category !== selectedCategory) return;
 
-      let stats = productStats.get(product.id);
-      if (!stats) {
-        stats = {
-          id: product.id,
-          name: product.name,
-          category: product.category,
-          price: product.price,
-          waste: 0,
-          production: 0,
-          wasteDow: { 0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 },
-          prodDow: { 0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 }
-        };
-        productStats.set(product.id, stats);
-      }
+      const stats = {
+        id: product.id,
+        name: product.name,
+        category: product.category,
+        price: product.price,
+        waste: 0,
+        production: 0,
+        wasteDow: { 0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 } as Record<number, number>,
+        prodDow: { 0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 } as Record<number, number>
+      };
 
       datesToProcess.forEach(dateKey => {
         const entryDate = new Date(dateKey);
@@ -182,19 +177,17 @@ export default function ABCAnalysisPage() {
         const dowKey = isHoliday ? 'holiday' : dayMap[dow];
         const matrixKey = `${dow}-${weather}`;
 
-        // その日の計画数
+        // 計画数
         const dailyProduction = weather === 'rainy' ? product.dailyProductionRainy : product.dailyProductionSunny;
         const planned = (isHoliday && dailyProduction?.holiday !== undefined)
             ? dailyProduction.holiday
             : (dailyProduction as any)?.[dowKey] || 0;
 
-        // その日の補正数
+        // 補正数
         const correction = correctionsMap.get(dateKey)?.get(product.id) || 0;
         
-        // 最終製造数（1日1回確定）
+        // 最終製造数（1回のみ算出）
         const finalProduction = planned + correction;
-
-        // 廃棄数
         const finalWaste = wasteMap.get(dateKey)?.get(product.id) || 0;
 
         if (finalProduction > 0 || finalWaste > 0) {
@@ -218,16 +211,19 @@ export default function ABCAnalysisPage() {
           categoryStats[product.category].waste += finalWaste;
         }
       });
+
+      productStats.set(product.id, stats);
     });
 
+    const productsArray = Array.from(productStats.values());
     return {
-      products: Array.from(productStats.values()),
+      products: productsArray,
       dayStats,
       weatherStats,
       matrixStats,
       categoryStats,
-      totalWaste: Array.from(productStats.values()).reduce((sum, p) => sum + p.waste, 0),
-      totalProduction: Array.from(productStats.values()).reduce((sum, p) => sum + p.production, 0)
+      totalWaste: productsArray.reduce((sum, p) => sum + p.waste, 0),
+      totalProduction: productsArray.reduce((sum, p) => sum + p.production, 0)
     };
   }, [wasteEntries, productionEntries, products, validDates, wasteLoading, productionLoading, productsLoading, selectedCategory]);
 
@@ -703,8 +699,9 @@ export default function ABCAnalysisPage() {
                           })
                           .map(p => {
                             const pWaste = p.wasteDow[selectedDayIdx] || 0;
-                            const pProd = p.prodDow[selectedDayIdx] || 0;
-                            const pRate = pProd > 0 ? (pWaste / pProd) * 100 : 0;
+                            const pProd = p.prodDow[actualDow] || 0; // ここでも一貫性を保つため actualDow ではなく selectedDayIdx を使用
+                            const finalProd = p.prodDow[selectedDayIdx] || 0;
+                            const pRate = finalProd > 0 ? (pWaste / finalProd) * 100 : 0;
                             return (
                               <TableRow key={p.id} className="h-14">
                                 <TableCell className="py-2 px-4 text-[18px] font-black leading-tight">{p.name}</TableCell>
@@ -712,7 +709,7 @@ export default function ABCAnalysisPage() {
                                   <div className={cn("font-black text-[22px] tabular-nums leading-none", pRate > 15 ? "text-destructive" : "text-blue-900")}>
                                     {pRate.toFixed(1)}%
                                   </div>
-                                  <div className="text-[11px] text-muted-foreground font-bold mt-1">({pWaste} / {pProd})</div>
+                                  <div className="text-[11px] text-muted-foreground font-bold mt-1">({pWaste} / {finalProd})</div>
                                 </TableCell>
                               </TableRow>
                             );

@@ -31,11 +31,13 @@ export function ProductionProvider({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     if (!firestore || !user || isUserLoading || isAdminLoading || storesLoading) return;
     
+    // リセットして二重計上を防ぐ
+    setProductionEntries([]);
     setLoading(true);
+    
     const storeIdsToFetch = isAdmin ? selectedStoreIds : (userStore ? [userStore.id] : []);
     
     if (storeIdsToFetch.length === 0) {
-      setProductionEntries([]);
       setLoading(false);
       return;
     }

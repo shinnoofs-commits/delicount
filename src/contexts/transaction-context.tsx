@@ -39,11 +39,13 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         return;
     }
     
+    // リセットして二重計上を防ぐ
+    setWasteEntries([]);
     setLoading(true);
+    
     const storeIdsToFetch = isAdmin ? selectedStoreIds : (userStore ? [userStore.id] : []);
     
     if (storeIdsToFetch.length === 0) {
-      setWasteEntries([]);
       setLoading(false);
       return;
     }
@@ -127,7 +129,6 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   const updateWasteEntry = useCallback(async (storeId: string, entryId: string, items: WasteItem[], totalWasteCost: number, weather?: WeatherType) => {
     if (!firestore) return;
     
-    // If weather is provided, update all entries for that day to keep it representative
     if (weather) {
       const entry = wasteEntries.find(e => e.id === entryId);
       if (entry) {
@@ -159,7 +160,6 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   const updateDailyWeather = useCallback(async (storeId: string, date: Date, weather: WeatherType) => {
     if (!firestore) return;
 
-    // Find all entries for this store on this day
     const dayEntries = wasteEntries.filter(e => e.storeId === storeId && isSameDay(e.date, date));
     if (dayEntries.length === 0) return;
 
