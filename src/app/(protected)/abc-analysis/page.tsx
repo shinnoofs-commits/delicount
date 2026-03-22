@@ -136,6 +136,7 @@ export default function ABCAnalysisPage() {
       return stats;
     };
 
+    // 1. 計画ベースの製造数集計
     validDates.forEach(dateKey => {
       const entryDate = new Date(dateKey);
       const isHoliday = holiday_jp.isHoliday(entryDate);
@@ -168,6 +169,7 @@ export default function ABCAnalysisPage() {
       });
     });
 
+    // 2. 製造補正の集計 (計画 + 補正 = 実製造数)
     productionEntries.filter(entry => dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd'))).forEach(entry => {
       const entryDate = new Date(entry.date);
       const isHoliday = holiday_jp.isHoliday(entryDate);
@@ -193,6 +195,7 @@ export default function ABCAnalysisPage() {
       });
     });
 
+    // 3. 廃棄実績の集計
     wasteEntries.filter(entry => dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd'))).forEach(entry => {
       const entryDate = new Date(entry.date);
       const isHoliday = holiday_jp.isHoliday(entryDate);
