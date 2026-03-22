@@ -13,7 +13,7 @@ import {
   CarouselItem,
   CarouselNext,
   CarouselPrevious,
-} from "@/carousel"
+} from "@/components/ui/carousel"
 import { Badge } from "@/components/ui/badge";
 
 const manualSlides = [
