@@ -44,7 +44,7 @@ import { Separator } from "@/components/ui/separator";
 
 const dayLabels = ['月', '火', '水', '木', '金', '土', '日', '祝'];
 const dayOrder = [1, 2, 3, 4, 5, 6, 0, 7];
-const dayMap: any[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'holiday'];
+const dayMap: string[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'holiday'];
 
 const weatherLabels: Record<string, string> = {
   sunny: '晴れ',
@@ -197,7 +197,6 @@ export default function ABCAnalysisPage() {
       const entryDate = new Date(entry.date);
       const isHoliday = holiday_jp.isHoliday(entryDate);
       const dow = isHoliday ? 7 : getDay(entryDate);
-      const weather = entry.weather || 'sunny';
       
       entry.items.forEach(item => {
         const product = products.find(p => p.id === item.productId);
@@ -209,6 +208,7 @@ export default function ABCAnalysisPage() {
           stats.wasteDow[dow] += item.quantity;
         }
         dayStats[dow].waste += item.quantity;
+        const weather = entry.weather || 'sunny';
         weatherStats[weather].waste += item.quantity;
         
         const matrixKey = `${dow}-${weather}`;
