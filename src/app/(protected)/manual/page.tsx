@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -16,7 +15,6 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel"
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sparkles, BarChart3, Factory, ClipboardCheck, Zap, ArrowRight, ShieldCheck } from 'lucide-react';
 
 const manualSlides = [
@@ -57,7 +55,7 @@ const manualSlides = [
             "【詳細ドリルダウン】: 曜日をタップすれば「天気別廃棄率」を、カテゴリーをタップすれば「機会損失額（売価）」を詳細確認。"
         ],
         important: "「特定の曜日だけ、特定の商品の廃棄率が常に高い」といった、人間の直感では気づきにくいパターンを発見してください。",
-        outcome: "曜日別製造計画の科学的根拠に基づく修正、ロスの早期発見"
+        outcome: "曜日別製造計画の科学利益体質の構築、ロスの早期発見"
     },
     {
         title: "AI改善提案 (Gemini)：データを利益に変えるアドバイス",

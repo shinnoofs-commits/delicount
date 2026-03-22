@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Loader2, CalendarIcon, Plus, Minus, RefreshCw, MapPin, Info, Calculator, Save } from 'lucide-react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { Loader2, CalendarIcon, Plus, Minus, RefreshCw, Info, Calculator, Save, MapPin } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -48,7 +48,7 @@ export default function ProductionClient() {
     return 'sunny';
   };
 
-  const fetch1000Weather = useCallback(async (targetDate: Date) => {
+  const fetchWeather = useCallback(async (targetDate: Date) => {
     if (!userStore) return;
 
     const dailyWasteEntry = wasteEntries.find(e => e.storeId === userStore.id && isSameDay(e.date, targetDate) && e.weather);
@@ -90,8 +90,8 @@ export default function ProductionClient() {
   }, [userStore, wasteEntries]);
 
   useEffect(() => {
-    if (userStore) fetch1000Weather(date);
-  }, [fetch1000Weather, date, userStore]);
+    if (userStore) fetchWeather(date);
+  }, [fetchWeather, date, userStore]);
 
   const handleQuantityChange = (productId: string, value: string) => {
     setCorrectionQuantities(prev => ({ ...prev, [productId]: value }));
@@ -141,7 +141,6 @@ export default function ProductionClient() {
     setCorrectionQuantities({});
   };
 
-  const isLoading = productsLoading || storesLoading;
   const isHoliday = holiday_jp.isHoliday(date);
   const dayKey = dayMap[getDay(date)];
 
@@ -149,13 +148,14 @@ export default function ProductionClient() {
     return (
         <div className="flex items-center justify-center h-full">
             <Card className="w-full max-w-md text-center">
-                <CardHeader><CardTitle>店舗アカウントでログインしてください</CardTitle></CardHeader>
+                <CardHeader><CardTitle>管理者アカウント</CardTitle></CardHeader>
+                <CardContent><p className="text-muted-foreground">この画面は店舗アカウントで利用してください。</p></CardContent>
             </Card>
         </div>
     )
   }
 
-  if (isLoading) return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  if (productsLoading || storesLoading) return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
 
   return (
     <div className="flex flex-col gap-4">
@@ -186,7 +186,7 @@ export default function ProductionClient() {
                    {weather === 'rainy' ? <RefreshCw className="h-4 w-4 text-blue-500" /> : <RefreshCw className="h-4 w-4 text-yellow-500" />}
                    <span className="text-sm font-medium">{weather === 'rainy' ? '雨 (代表天気)' : '晴 (代表天気)'}</span>
                    {!isWeatherRepresentative && (
-                     <Button variant="ghost" size="icon" className="h-6 w-6 ml-1" onClick={() => fetch1000Weather(date)} disabled={isFetchingWeather}>
+                     <Button variant="ghost" size="icon" className="h-6 w-6 ml-1" onClick={() => fetchWeather(date)} disabled={isFetchingWeather}>
                         <RefreshCw className={cn("h-3 w-3", isFetchingWeather && "animate-spin")} />
                      </Button>
                    )}
@@ -228,7 +228,7 @@ export default function ProductionClient() {
                                         const dailyProduction = weather === 'rainy' ? product.dailyProductionRainy : product.dailyProductionSunny;
                                         const plannedQuantity = (isHoliday && dailyProduction?.holiday !== undefined)
                                             ? dailyProduction.holiday
-                                            : dailyProduction?.[dayKey] ?? 0;
+                                            : (dailyProduction as any)?.[dayKey] ?? 0;
                                         
                                         const correction = parseInt(correctionQuantities[product.id] || '0', 10);
                                         const finalQuantity = plannedQuantity + correction;

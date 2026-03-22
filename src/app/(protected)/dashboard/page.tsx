@@ -162,7 +162,6 @@ export default function DashboardPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [selectedDayWaste, setSelectedDayWaste] = useState<{ date: Date, entries: WasteEntry[] } | null>(null);
 
-  // AI Insights state
   const [aiInsights, setAiInsights] = useState<WasteInsightsOutput | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [analyzedLabel, setAnalyzedLabel] = useState<string>('');
@@ -199,7 +198,6 @@ export default function DashboardPage() {
     });
   }, [date, wasteEntries, selectedFilters]);
 
-  // Manual AI Analysis function
   const runAiAnalysis = useCallback(async (preset?: 'last_month' | 'this_month' | 'weekly' | 'current') => {
     setIsAiLoading(true);
     let targetEntries = filteredWasteEntries;
@@ -222,10 +220,7 @@ export default function DashboardPage() {
         label = '直近7日間';
       }
       
-      // Update overall dashboard filter to match analysis for clarity
       setDate({ from, to });
-      
-      // Calculate target entries for analysis
       targetEntries = wasteEntries.filter(e => {
         const d = new Date(e.date);
         return d >= startOfDay(from) && d <= endOfDay(to);
@@ -484,7 +479,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* AI Insights Section */}
       <Card className="border-primary/20 bg-primary/5">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">

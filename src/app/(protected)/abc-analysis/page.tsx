@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useMemo, useState } from "react";
@@ -137,7 +136,6 @@ export default function ABCAnalysisPage() {
       return stats;
     };
 
-    // Calculate Final Production = Planned + Corrections
     validDates.forEach(dateKey => {
       const entryDate = new Date(dateKey);
       const isHoliday = holiday_jp.isHoliday(entryDate);
@@ -170,7 +168,6 @@ export default function ABCAnalysisPage() {
       });
     });
 
-    // Add corrections from productionEntries
     productionEntries.filter(entry => dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd'))).forEach(entry => {
       const entryDate = new Date(entry.date);
       const isHoliday = holiday_jp.isHoliday(entryDate);
@@ -185,8 +182,8 @@ export default function ABCAnalysisPage() {
         stats.production += item.quantity;
         stats.prodDow[dow] += item.quantity;
         dayStats[dow].production += item.quantity;
-        
         weatherStats[weather].production += item.quantity;
+        
         const matrixKey = `${dow}-${weather}`;
         if (!matrixStats[matrixKey]) matrixStats[matrixKey] = { waste: 0, production: 0 };
         matrixStats[matrixKey].production += item.quantity;
@@ -196,7 +193,6 @@ export default function ABCAnalysisPage() {
       });
     });
 
-    // Add waste stats
     wasteEntries.filter(entry => dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd'))).forEach(entry => {
       const entryDate = new Date(entry.date);
       const isHoliday = holiday_jp.isHoliday(entryDate);
@@ -213,8 +209,8 @@ export default function ABCAnalysisPage() {
           stats.wasteDow[dow] += item.quantity;
         }
         dayStats[dow].waste += item.quantity;
-        
         weatherStats[weather].waste += item.quantity;
+        
         const matrixKey = `${dow}-${weather}`;
         if (!matrixStats[matrixKey]) matrixStats[matrixKey] = { waste: 0, production: 0 };
         matrixStats[matrixKey].waste += item.quantity;
