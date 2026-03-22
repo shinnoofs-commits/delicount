@@ -101,13 +101,48 @@ export default function ABCAnalysisPage() {
   const analysisData = useMemo(() => {
     if (wasteLoading || productsLoading || productionLoading || validDates.length === 0) return null;
 
-    // 前日（昨日）までの日付のみを対象にする
     const yesterdayStr = format(subDays(new Date(), 1), 'yyyy-MM-dd');
     const datesToProcess = validDates.filter(d => d <= yesterdayStr);
     
     if (datesToProcess.length === 0) return null;
 
     const dateSet = new Set(datesToProcess);
+    
+    // 1. 日別の代表天気を特定
+    const dateToWeather = new Map<string, string>();
+    wasteEntries.forEach(entry => {
+      const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
+      if (entry.weather && dateSet.has(dateKey)) {
+        dateToWeather.set(dateKey, entry.weather);
+      }
+    });
+
+    // 2. 製造補正（オフセット）を日別・商品別に集約
+    const correctionsMap = new Map<string, Map<string, number>>();
+    productionEntries
+      .filter(entry => dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd')))
+      .forEach(entry => {
+        const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
+        if (!correctionsMap.has(dateKey)) correctionsMap.set(dateKey, new Map());
+        const prodMap = correctionsMap.get(dateKey)!;
+        entry.items.forEach(item => {
+          prodMap.set(item.productId, (prodMap.get(item.productId) || 0) + item.quantity);
+        });
+      });
+
+    // 3. 廃棄実績を日別・商品別に集約
+    const wasteMap = new Map<string, Map<string, number>>();
+    wasteEntries
+      .filter(entry => dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd')))
+      .forEach(entry => {
+        const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
+        if (!wasteMap.has(dateKey)) wasteMap.set(dateKey, new Map());
+        const prodMap = wasteMap.get(dateKey)!;
+        entry.items.forEach(item => {
+          prodMap.set(item.productId, (prodMap.get(item.productId) || 0) + item.quantity);
+        });
+      });
+
     const productStats = new Map<string, any>();
     const dayStats: Record<number, { waste: number; production: number }> = {};
     const weatherStats: Record<string, { waste: number; production: number }> = {};
@@ -117,121 +152,70 @@ export default function ABCAnalysisPage() {
     for (let i = 0; i < 8; i++) dayStats[i] = { waste: 0, production: 0 };
     Object.keys(weatherLabels).forEach(w => weatherStats[w] = { waste: 0, production: 0 });
 
-    const dateToWeather = new Map<string, string>();
-    wasteEntries.forEach(entry => {
-      const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
-      if (entry.weather && dateSet.has(dateKey)) {
-        dateToWeather.set(dateKey, entry.weather);
-      }
-    });
-
-    const getOrCreateStats = (productId: string, product: any) => {
-      let stats = productStats.get(productId);
-      if (!stats) {
-        stats = {
-          id: productId,
-          name: product.name,
-          category: product.category,
-          price: product.price,
-          waste: 0,
-          production: 0,
-          wasteDow: { 0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 },
-          prodDow: { 0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 }
-        };
-        productStats.set(productId, stats);
-      }
-      return stats;
-    };
-
-    // 1. 計画ベースの製造数集計 (前日分まで)
+    // 4. 厳密な1パス集計（計画 + 補正）
     datesToProcess.forEach(dateKey => {
       const entryDate = new Date(dateKey);
       const isHoliday = holiday_jp.isHoliday(entryDate);
       const dow = isHoliday ? 7 : getDay(entryDate);
       const weather = dateToWeather.get(dateKey) || 'sunny';
       const dowKey = isHoliday ? 'holiday' : dayMap[dow];
+      const matrixKey = `${dow}-${weather}`;
 
       products.forEach(product => {
         if (selectedCategory !== 'all' && product.category !== selectedCategory) return;
 
+        // 計画数
         const dailyProduction = weather === 'rainy' ? product.dailyProductionRainy : product.dailyProductionSunny;
         const planned = (isHoliday && dailyProduction?.holiday !== undefined)
             ? dailyProduction.holiday
             : (dailyProduction as any)?.[dowKey] || 0;
 
-        if (planned > 0) {
-          const stats = getOrCreateStats(product.id, product);
-          stats.production += planned;
-          stats.prodDow[dow] += planned;
-          dayStats[dow].production += planned;
-          weatherStats[weather].production += planned;
-          
-          const matrixKey = `${dow}-${weather}`;
+        // 補正数
+        const correction = correctionsMap.get(dateKey)?.get(product.id) || 0;
+        
+        // 最終製造数
+        const finalProduction = planned + correction;
+
+        // 廃棄数
+        const finalWaste = wasteMap.get(dateKey)?.get(product.id) || 0;
+
+        if (finalProduction > 0 || finalWaste > 0) {
+          let stats = productStats.get(product.id);
+          if (!stats) {
+            stats = {
+              id: product.id,
+              name: product.name,
+              category: product.category,
+              price: product.price,
+              waste: 0,
+              production: 0,
+              wasteDow: { 0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 },
+              prodDow: { 0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 }
+            };
+            productStats.set(product.id, stats);
+          }
+
+          stats.production += finalProduction;
+          stats.prodDow[dow] += finalProduction;
+          stats.waste += finalWaste;
+          stats.wasteDow[dow] += finalWaste;
+
+          dayStats[dow].production += finalProduction;
+          dayStats[dow].waste += finalWaste;
+
+          weatherStats[weather].production += finalProduction;
+          weatherStats[weather].waste += finalWaste;
+
           if (!matrixStats[matrixKey]) matrixStats[matrixKey] = { waste: 0, production: 0 };
-          matrixStats[matrixKey].production += planned;
+          matrixStats[matrixKey].production += finalProduction;
+          matrixStats[matrixKey].waste += finalWaste;
 
           if (!categoryStats[product.category]) categoryStats[product.category] = { waste: 0, production: 0 };
-          categoryStats[product.category].production += planned;
+          categoryStats[product.category].production += finalProduction;
+          categoryStats[product.category].waste += finalWaste;
         }
       });
     });
-
-    // 2. 製造補正の集計 (前日分まで)
-    productionEntries
-      .filter(entry => dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd')))
-      .forEach(entry => {
-        const entryDate = new Date(entry.date);
-        const isHoliday = holiday_jp.isHoliday(entryDate);
-        const dow = isHoliday ? 7 : getDay(entryDate);
-        const weather = dateToWeather.get(format(startOfDay(entryDate), 'yyyy-MM-dd')) || 'sunny';
-        
-        entry.items.forEach(item => {
-          const product = products.find(p => p.id === item.productId);
-          if (!product || (selectedCategory !== 'all' && product.category !== selectedCategory)) return;
-
-          const stats = getOrCreateStats(item.productId, product);
-          stats.production += item.quantity;
-          stats.prodDow[dow] += item.quantity;
-          dayStats[dow].production += item.quantity;
-          weatherStats[weather].production += item.quantity;
-          
-          const matrixKey = `${dow}-${weather}`;
-          if (!matrixStats[matrixKey]) matrixStats[matrixKey] = { waste: 0, production: 0 };
-          matrixStats[matrixKey].production += item.quantity;
-          
-          if (!categoryStats[product.category]) categoryStats[product.category] = { waste: 0, production: 0 };
-          categoryStats[product.category].production += item.quantity;
-        });
-      });
-
-    // 3. 廃棄実績の集計 (前日分まで)
-    wasteEntries
-      .filter(entry => dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd')))
-      .forEach(entry => {
-        const entryDate = new Date(entry.date);
-        const isHoliday = holiday_jp.isHoliday(entryDate);
-        const dow = isHoliday ? 7 : getDay(entryDate);
-        const weather = entry.weather || 'sunny';
-        
-        entry.items.forEach(item => {
-          const product = products.find(p => p.id === item.productId);
-          if (!product || (selectedCategory !== 'all' && product.category !== selectedCategory)) return;
-
-          const stats = getOrCreateStats(item.productId, product);
-          stats.waste += item.quantity;
-          stats.wasteDow[dow] += item.quantity;
-          
-          dayStats[dow].waste += item.quantity;
-          weatherStats[weather].waste += item.quantity;
-          
-          const matrixKey = `${dow}-${weather}`;
-          if (!matrixStats[matrixKey]) matrixStats[matrixKey] = { waste: 0, production: 0 };
-          matrixStats[matrixKey].waste += item.quantity;
-          
-          if (!categoryStats[product.category]) categoryStats[product.category] = { waste: 0, production: 0 };
-          categoryStats[product.category].waste += item.quantity;
-        });
-      });
 
     return {
       products: Array.from(productStats.values()),

@@ -27,7 +27,7 @@ const manualSlides = [
             "【機会損失最小化】: 廃棄を「失った売上」として売価で可視化。",
             "【現場判断の高速化】: タブレット前提の特大フォントUI。",
             "【データ整合性】: 前日までの確定データのみを集計しノイズを排除。",
-            "【店舗最適化】: 立地に応じた「曜日・天気別計画」を利益の基盤に。"
+            "【店舗最適化】: 曜日・天気別計画を利益の基盤に。"
         ],
         important: "「作りすぎ」と「少なすぎ」の両端を削ぎ落とすことが目的です。",
         outcome: "営業利益率の向上、属人化からの脱却"
@@ -51,11 +51,11 @@ const manualSlides = [
         icon: BarChart3,
         points: [
             "【全画面比較】: 横4列×縦2列。曜日を跨いだ廃棄傾向を一目で比較。",
-            "【優先順ソート】: 各カード内は「対策優先度の高い順」に商品を整列。",
-            "【特大フォント】: 商品名・廃棄率を最大26pxで表示。現場視認性を極大化。",
+            "【優先順ソート】: 「対策優先度の高い順」に商品を整列。",
+            "【特大フォント】: 商品名・廃棄率を最大26pxで表示。現場視認性極大。",
             "【詳細検証】: カテゴリ詳細で「製造・廃棄率・機会損失」を同時検証。"
         ],
-        important: "「特定の曜日だけ廃棄が高い」といった異常パターンを一挙に発見できます。",
+        important: "「特定の曜日だけ廃棄が高い」といった異常パターンを一挙に発見。",
         outcome: "曜日別製造計画の科学的ブラッシュアップ"
     },
     {
@@ -63,10 +63,10 @@ const manualSlides = [
         description: "Gemini 2.5 Flashが24時間体制でデータを分析。",
         icon: Sparkles,
         points: [
-            "【オンデマンド】: 「先月」「今月」「週間」を指定し通信コストを最適化。",
-            "【具体アクション】: 「雨の日の製造を2個減らすべき」等の即時指示。",
-            "【4つの視点】: 廃棄削減・機会損失・天気・時間帯の多角的なインサイト。",
-            "【影響の数値化】: コスト削減や売上向上見込みを具体的に数値で提示。"
+            "【オンデマンド】: 「先月」「今月」「週間」を指定し通信コスト最適化。",
+            "【具体アクション】: 「雨の日の製造を2個減らす」等の即時指示。",
+            "【4つの視点】: 廃棄削減・機会損失・天気・時間帯の多角分析。",
+            "【影響の数値化】: コスト削減や売上向上見込みを具体的に提示。"
         ],
         important: "AIは店舗の専属コンサル。定期的に実行し、製造計画を更新してください。",
         outcome: "分析業務の自動化、客観的な改善サイクルの確立"
@@ -76,10 +76,10 @@ const manualSlides = [
         description: "システムを活用し、店舗運営を次のステージへ。",
         icon: Zap,
         points: [
-            "Step 1【計画】: 曜日・天気別のベース製造数と陳列時間を設定。",
-            "Step 2【記録】: 日々の廃棄と補正数を入力。天気はシステムが自動管理。",
+            "Step 1【計画】: 曜日・天気別の製造数と陳列時間を設定。",
+            "Step 2【記録】: 日々の廃棄と補正を入力。天気は自動管理。",
             "Step 3【分析】: 週次で「4×2グリッド」を確認。異常値と損失を特定。",
-            "Step 4【改善】: AI提案を参考に計画を修正。このサイクルで廃棄率を低下。"
+            "Step 4【改善】: AI提案を参考に計画を修正。このサイクルを回す。"
         ],
         important: "Step 4の「計画修正」の継続こそが、収益構造を劇的に改善させます。",
         outcome: "「感覚」に頼らない、持続可能な利益体質の構築"
@@ -88,10 +88,10 @@ const manualSlides = [
 
 export default function ManualPage() {
   return (
-    <div className="flex flex-col gap-1 py-1 items-center min-h-screen bg-muted/30 overflow-hidden">
+    <div className="flex flex-col gap-1 py-1 items-center min-h-[90vh] bg-muted/30 overflow-hidden">
         <div className="text-center max-w-2xl px-4 shrink-0">
             <Badge variant="outline" className="px-2 py-0 border-primary text-primary font-bold text-[8px]">BUSINESS GUIDE</Badge>
-            <h1 className="text-base font-black tracking-tight text-slate-900 leading-none mt-0.5">
+            <h1 className="text-sm font-black tracking-tight text-slate-900 leading-none mt-0.5">
                 商品構成・廃棄管理パートナー <span className="text-primary">Manual</span>
             </h1>
         </div>
@@ -101,38 +101,38 @@ export default function ManualPage() {
           {manualSlides.map((slide, index) => (
             <CarouselItem key={index}>
               <div className="p-0.5">
-                <Card className="min-h-[380px] border-none shadow-lg overflow-hidden bg-background flex flex-col">
-                  <CardHeader className="bg-slate-900 text-white p-2.5 space-y-0">
+                <Card className="min-h-[340px] border-none shadow-md overflow-hidden bg-background flex flex-col">
+                  <CardHeader className="bg-slate-900 text-white p-2 space-y-0 shrink-0">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <div className="p-1 bg-primary/20 rounded-md">
-                                <slide.icon className="h-3.5 w-3.5 text-primary" />
+                                <slide.icon className="h-3 w-3 text-primary" />
                             </div>
                             <div>
                                 <p className="text-primary text-[7px] font-bold uppercase tracking-widest">Chapter {index + 1}</p>
-                                <CardTitle className="text-sm font-black leading-tight">{slide.title}</CardTitle>
+                                <CardTitle className="text-xs font-black leading-none">{slide.title}</CardTitle>
                             </div>
                         </div>
-                        <Badge className="bg-primary text-primary-foreground text-[10px] font-black h-4 w-4 rounded-full flex items-center justify-center p-0">
+                        <Badge className="bg-primary text-primary-foreground text-[9px] font-black h-3.5 w-3.5 rounded-full flex items-center justify-center p-0">
                             {index + 1}
                         </Badge>
                     </div>
-                    <CardDescription className="text-slate-300 text-[9px] font-medium leading-tight">{slide.description}</CardDescription>
+                    <CardDescription className="text-slate-300 text-[8px] font-medium leading-none mt-1">{slide.description}</CardDescription>
                   </CardHeader>
-                  <CardContent className="flex-1 p-3 flex flex-col justify-between space-y-1.5">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-0.5">
+                  <CardContent className="flex-1 p-2 flex flex-col justify-between space-y-1 overflow-hidden">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-2 gap-y-0.5">
                         {slide.points.map((point, pIndex) => (
                             <div key={pIndex} className="flex gap-1 group items-start">
                                 <div className="mt-1 h-0.5 w-0.5 rounded-full bg-primary shrink-0" />
-                                <span className="text-[11px] font-bold leading-tight text-slate-700">{point}</span>
+                                <span className="text-[10px] font-bold leading-tight text-slate-700">{point}</span>
                             </div>
                         ))}
                     </div>
 
-                    <div className="space-y-1">
-                        <div className="p-1.5 rounded-lg bg-primary/5 border border-primary/20 relative">
-                            <Badge variant="default" className="mb-0.5 bg-primary text-primary-foreground font-black px-1 py-0 text-[7px]">運用成功の鍵</Badge>
-                            <p className="font-black text-slate-800 text-[11px] leading-tight">{slide.important}</p>
+                    <div className="space-y-1 mt-auto">
+                        <div className="p-1.5 rounded-md bg-primary/5 border border-primary/20 relative">
+                            <Badge variant="default" className="mb-0.5 bg-primary text-primary-foreground font-black px-1 py-0 text-[7px] leading-none">運用成功の鍵</Badge>
+                            <p className="font-black text-slate-800 text-[10px] leading-tight">{slide.important}</p>
                         </div>
 
                         <div className="flex items-center gap-2 text-[8px] font-black text-slate-500 bg-muted/50 p-1 rounded-md">
@@ -147,17 +147,17 @@ export default function ManualPage() {
             </CarouselItem>
           ))}
         </CarouselContent>
-        <CarouselPrevious className="h-6 w-6 border-2 -left-1" />
-        <CarouselNext className="h-6 w-6 border-2 -right-1" />
+        <CarouselPrevious className="h-5 w-5 border -left-1" />
+        <CarouselNext className="h-5 w-5 border -right-1" />
       </Carousel>
 
-      <div className="flex flex-col items-center gap-0.5 mt-1 shrink-0">
+      <div className="flex flex-col items-center gap-0.5 mt-1 shrink-0 pb-2">
         <p className="text-[7px] text-muted-foreground font-bold tracking-widest uppercase opacity-60">
-            v2.5 Professional | Optimized for Presentation
+            v2.6 Professional | Screen Optimized
         </p>
         <div className="flex gap-1">
             {[0,1,2,3,4].map(i => (
-                <div key={i} className="h-0.5 w-2.5 rounded-full bg-slate-200" />
+                <div key={i} className="h-0.5 w-2 rounded-full bg-slate-200" />
             ))}
         </div>
       </div>
