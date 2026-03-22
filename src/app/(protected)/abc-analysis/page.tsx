@@ -29,7 +29,7 @@ import {
   DialogTitle, 
   DialogDescription 
 } from "@/components/ui/dialog";
-import { Calendar as CalendarIcon, Loader2, CalendarDays, Sun, Filter, PieChart, Package, Cloud, CloudRain, Snowflake, TrendingDown, ClipboardList } from 'lucide-react';
+import { Calendar as CalendarIcon, Loader2, CalendarDays, Sun, Filter, PieChart, Package, Cloud, CloudRain, Snowflake, TrendingDown, ClipboardList, Maximize2 } from 'lucide-react';
 import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, getDay, addDays } from "date-fns"
 import { ja } from "date-fns/locale"
 import holiday_jp from '@holiday-jp/holiday_jp';
@@ -78,6 +78,7 @@ export default function ABCAnalysisPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedDayIdx, setSelectedDayIdx] = useState<number | null>(null);
   const [selectedCategoryForDetail, setSelectedCategoryForDetail] = useState<string | null>(null);
+  const [isFullScreenDaily, setIsFullScreenDaily] = useState(false);
 
   const categories = useMemo(() => {
     return ['all', ...Array.from(new Set(products.map(p => p.category)))];
@@ -134,9 +135,11 @@ export default function ABCAnalysisPage() {
           price: product.price,
           waste: 0,
           production: 0,
-          dow: { 0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 }
+          wasteDow: { 0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 },
+          prodDow: { 0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 }
         };
         stats.production += item.quantity;
+        stats.prodDow[dow] += item.quantity;
         productStats.set(item.productId, stats);
 
         dayStats[dow].production += item.quantity;
@@ -164,7 +167,7 @@ export default function ABCAnalysisPage() {
         const stats = productStats.get(item.productId);
         if (stats) {
           stats.waste += item.quantity;
-          stats.dow[dow] += item.quantity;
+          stats.wasteDow[dow] += item.quantity;
         }
         
         dayStats[dow].waste += item.quantity;
@@ -213,6 +216,93 @@ export default function ABCAnalysisPage() {
       </div>
     );
   }
+
+  const renderDailyGrid = (isFull: boolean = false) => {
+    if (!analysisData) return null;
+    return (
+      <div className={cn(
+        "grid gap-4 px-1",
+        isFull ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-4" : "grid-cols-1 md:grid-cols-2 xl:grid-cols-4"
+      )}>
+        {dayLabels.map((label, i) => {
+          const actualDow = dayOrder[i];
+          const dowProducts = analysisData.products
+            .filter(p => (p.prodDow[actualDow] || 0) > 0 || (p.wasteDow[actualDow] || 0) > 0)
+            .sort((a, b) => b.wasteDow[actualDow] - a.wasteDow[actualDow]);
+          
+          const stats = analysisData.dayStats[actualDow];
+          const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
+
+          return (
+            <Card key={label} onClick={() => !isFull && setSelectedDayIdx(actualDow)} className={cn(
+              "border bg-background shadow-sm overflow-hidden flex flex-col transition-all",
+              !isFull && "hover:border-primary/50 cursor-pointer h-[400px]",
+              isFull && "h-auto"
+            )}>
+              <CardHeader className={cn(
+                "p-3 py-2 border-b shrink-0",
+                (actualDow === 0 || actualDow === 7) ? "bg-destructive/5" : (actualDow === 6 ? "bg-blue-50" : "bg-muted/30")
+              )}>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <Badge variant={(actualDow === 0 || actualDow === 7) ? "destructive" : (actualDow === 6 ? "default" : "outline")} className="h-7 w-7 rounded-full flex items-center justify-center p-0 font-black text-[14px]">
+                      {label}
+                    </Badge>
+                    <span className="text-[12px] font-bold text-muted-foreground">{actualDowLabel(actualDow)}曜日</span>
+                  </div>
+                  <div className={cn("text-[16px] font-black", rate > 15 ? "text-destructive" : "text-blue-900")}>
+                    {rate.toFixed(1)}%
+                  </div>
+                </div>
+                <div className="flex justify-between items-center text-[10px] font-bold opacity-70">
+                   <span>製造: {stats.production.toLocaleString()}個</span>
+                   <span className="text-destructive">廃棄: {stats.waste.toLocaleString()}個</span>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0 flex-1 overflow-auto">
+                {dowProducts.length > 0 ? (
+                  <Table>
+                    <TableHeader className="bg-muted/20 sticky top-0 z-10">
+                      <TableRow className="h-8">
+                        <TableHead className="h-8 p-2 px-3 text-[10px] font-bold">商品名</TableHead>
+                        <TableHead className="h-8 p-2 px-3 text-[10px] font-bold text-right">ロス/率</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {dowProducts.map(p => {
+                        const pWaste = p.wasteDow[actualDow] || 0;
+                        const pProd = p.prodDow[actualDow] || 0;
+                        const pRate = pProd > 0 ? (pWaste / pProd) * 100 : 0;
+                        return (
+                          <TableRow key={p.id} className="h-12 hover:bg-muted/5">
+                            <TableCell className="p-2 px-3">
+                              <p className="text-[13px] font-black leading-tight truncate max-w-[140px]">{p.name}</p>
+                              <p className="text-[9px] text-muted-foreground font-bold">製造: {pProd}個</p>
+                            </TableCell>
+                            <TableCell className="p-2 px-3 text-right">
+                              <p className="text-[15px] font-black text-destructive leading-none">{pWaste}<span className="text-[9px] font-normal ml-0.5">個</span></p>
+                              <p className={cn("text-[11px] font-black mt-0.5", pRate > 15 ? "text-destructive" : "text-blue-900")}>
+                                {pRate.toFixed(1)}%
+                              </p>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground opacity-40 py-8">
+                    <ClipboardList className="h-8 w-8 mb-2" />
+                    <p className="text-xs font-bold">データなし</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <div className="flex flex-col gap-1 h-full overflow-hidden">
@@ -409,7 +499,7 @@ export default function ABCAnalysisPage() {
                       <TableBody>
                         {analysisData.products.map((p) => {
                           const wasteRate = p.production > 0 ? (p.waste / p.production) * 100 : 0;
-                          const productDows = p.dow as Record<number, number>;
+                          const productDows = p.wasteDow as Record<number, number>;
                           const topDows = Object.entries(productDows)
                             .map(([dow, count]) => ({ dow: Number(dow), count: count }))
                             .filter(item => item.count > 0)
@@ -451,66 +541,13 @@ export default function ABCAnalysisPage() {
               </TabsContent>
 
               <TabsContent value="daily" className="m-0 space-y-4 pb-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 px-1">
-                  {dayLabels.map((label, i) => {
-                    const actualDow = dayOrder[i];
-                    const dayWastes = analysisData.products
-                      .filter(p => (p.dow[actualDow] || 0) > 0)
-                      .sort((a, b) => b.dow[actualDow] - a.dow[actualDow]);
-                    const totalDayWaste = dayWastes.reduce((sum, p) => sum + p.dow[actualDow], 0);
-
-                    return (
-                      <Card key={label} className="border bg-background shadow-sm overflow-hidden flex flex-col h-[400px]">
-                        <CardHeader className={cn(
-                          "p-3 py-2 border-b flex flex-row items-center justify-between shrink-0",
-                          (actualDow === 0 || actualDow === 7) ? "bg-destructive/5" : (actualDow === 6 ? "bg-blue-50" : "bg-muted/30")
-                        )}>
-                          <div className="flex items-center gap-2">
-                            <Badge variant={(actualDow === 0 || actualDow === 7) ? "destructive" : (actualDow === 6 ? "default" : "outline")} className="h-7 w-7 rounded-full flex items-center justify-center p-0 font-black text-[14px]">
-                              {label}
-                            </Badge>
-                            <span className="text-[12px] font-bold text-muted-foreground">{actualDowLabel(actualDow)}曜日の廃棄</span>
-                          </div>
-                          <div className="text-right">
-                            <span className="text-[18px] font-black text-destructive">{totalDayWaste.toLocaleString()}</span>
-                            <span className="text-[10px] font-bold ml-1">個</span>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="p-0 flex-1 overflow-auto">
-                          {dayWastes.length > 0 ? (
-                            <Table>
-                              <TableHeader className="bg-muted/20 sticky top-0 z-10">
-                                <TableRow className="h-8">
-                                  <TableHead className="h-8 p-2 px-3 text-[10px] font-bold">商品名</TableHead>
-                                  <TableHead className="h-8 p-2 px-3 text-[10px] font-bold text-right">数/ロス</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {dayWastes.map(p => (
-                                  <TableRow key={p.id} className="h-12 hover:bg-muted/5">
-                                    <TableCell className="p-2 px-3">
-                                      <p className="text-[14px] font-black leading-tight truncate max-w-[150px]">{p.name}</p>
-                                      <p className="text-[9px] text-muted-foreground font-bold">{p.category}</p>
-                                    </TableCell>
-                                    <TableCell className="p-2 px-3 text-right">
-                                      <p className="text-[16px] font-black text-destructive leading-none">{p.dow[actualDow]}<span className="text-[10px] font-normal ml-0.5">個</span></p>
-                                      <p className="text-[11px] font-black text-blue-900 mt-0.5">¥{(p.dow[actualDow] * (p.price || 0)).toLocaleString()}</p>
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          ) : (
-                            <div className="flex flex-col items-center justify-center h-full text-muted-foreground opacity-40">
-                              <ClipboardList className="h-8 w-8 mb-2" />
-                              <p className="text-xs font-bold">データなし</p>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
+                <div className="flex justify-end mb-2">
+                  <Button variant="outline" size="sm" onClick={() => setIsFullScreenDaily(true)} className="h-8 font-black text-[10px]">
+                    <Maximize2 className="h-3.5 w-3.5 mr-2" />
+                    全画面で比較する
+                  </Button>
                 </div>
+                {renderDailyGrid(false)}
               </TabsContent>
 
               <TabsContent value="cross" className="m-0 pb-4">
@@ -561,6 +598,22 @@ export default function ABCAnalysisPage() {
             </div>
           </Tabs>
 
+          {/* 曜日別分析 全画面ダイアログ */}
+          <Dialog open={isFullScreenDaily} onOpenChange={setIsFullScreenDaily}>
+            <DialogContent className="max-w-none w-[98vw] h-[95vh] flex flex-col p-4 bg-muted/5">
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-black flex items-center">
+                  <CalendarDays className="mr-3 h-6 w-6 text-primary" />
+                  全曜日 廃棄詳細比較分析
+                </DialogTitle>
+                <DialogDescription className="text-sm font-bold">全曜日の廃棄状況を並べて比較し、製造計画の最適化に活用してください。</DialogDescription>
+              </DialogHeader>
+              <div className="flex-1 overflow-auto mt-4">
+                {renderDailyGrid(true)}
+              </div>
+            </DialogContent>
+          </Dialog>
+
           <Dialog open={selectedDayIdx !== null} onOpenChange={(open) => !open && setSelectedDayIdx(null)}>
             <DialogContent className="max-w-[500px] max-h-[90vh] flex flex-col p-4">
               <DialogHeader>
@@ -608,27 +661,32 @@ export default function ABCAnalysisPage() {
                       <TableHeader className="bg-muted/50">
                         <TableRow>
                           <TableHead className="h-8 text-[10px] font-bold">商品名</TableHead>
-                          <TableHead className="h-8 text-[10px] font-bold text-right">廃棄数</TableHead>
-                          <TableHead className="h-8 text-[10px] font-bold text-right">機会損失 (売価)</TableHead>
+                          <TableHead className="h-8 text-[10px] font-bold text-right">廃棄 / 製造</TableHead>
+                          <TableHead className="h-8 text-[10px] font-bold text-right">廃棄率</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {selectedDayIdx !== null && analysisData?.products
-                          .filter(p => p.dow[selectedDayIdx] > 0)
-                          .sort((a, b) => b.dow[selectedDayIdx] - a.dow[selectedDayIdx])
-                          .map(p => (
-                            <TableRow key={p.id} className="h-10">
-                              <TableCell className="py-1 px-3 text-[14px] font-black">{p.name}</TableCell>
-                              <TableCell className="py-1 px-3 text-right text-destructive font-black text-[16px]">
-                                {p.dow[selectedDayIdx]}<span className="text-[10px] font-normal ml-0.5">個</span>
-                              </TableCell>
-                              <TableCell className="py-1 px-3 text-right font-black text-blue-900 text-[16px]">
-                                ¥{(p.dow[selectedDayIdx] * (p.price || 0)).toLocaleString()}
-                              </TableCell>
-                            </TableRow>
-                          ))
+                          .filter(p => (p.wasteDow[selectedDayIdx] || 0) > 0 || (p.prodDow[selectedDayIdx] || 0) > 0)
+                          .sort((a, b) => (b.wasteDow[selectedDayIdx] || 0) - (a.wasteDow[selectedDayIdx] || 0))
+                          .map(p => {
+                            const pWaste = p.wasteDow[selectedDayIdx] || 0;
+                            const pProd = p.prodDow[selectedDayIdx] || 0;
+                            const pRate = pProd > 0 ? (pWaste / pProd) * 100 : 0;
+                            return (
+                              <TableRow key={p.id} className="h-10">
+                                <TableCell className="py-1 px-3 text-[14px] font-black">{p.name}</TableCell>
+                                <TableCell className="py-1 px-3 text-right font-bold text-[13px]">
+                                  <span className="text-destructive font-black text-[15px]">{pWaste}</span> / {pProd}
+                                </TableCell>
+                                <TableCell className={cn("py-1 px-3 text-right font-black text-[15px]", pRate > 15 ? "text-destructive" : "text-blue-900")}>
+                                  {pRate.toFixed(1)}%
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })
                         }
-                        {selectedDayIdx !== null && (!analysisData?.products.some(p => p.dow[selectedDayIdx] > 0)) && (
+                        {selectedDayIdx !== null && (!analysisData?.products.some(p => (p.wasteDow[selectedDayIdx] || 0) > 0 || (p.prodDow[selectedDayIdx] || 0) > 0)) && (
                           <TableRow>
                             <TableCell colSpan={3} className="text-center py-4 text-muted-foreground text-xs">
                               この曜日の廃棄データはありません
