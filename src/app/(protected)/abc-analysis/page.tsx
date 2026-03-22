@@ -232,7 +232,7 @@ export default function ABCAnalysisPage() {
             <Card key={label} onClick={() => !isFull && setSelectedDayIdx(actualDow)} className={cn(
               "border bg-background shadow-sm overflow-hidden flex flex-col transition-all",
               !isFull && "hover:border-primary/50 cursor-pointer h-[500px]",
-              isFull && "h-[400px] border-2 shadow-md"
+              isFull && "h-[420px] border-2 shadow-md w-full"
             )}>
               <CardHeader className={cn(
                 "p-3 py-2 border-b shrink-0",
@@ -254,13 +254,13 @@ export default function ABCAnalysisPage() {
                    <span className="text-destructive">廃棄計: {stats.waste}</span>
                 </div>
               </CardHeader>
-              <CardContent className="p-0 flex-1 overflow-auto">
+              <CardContent className="p-0 flex-1 overflow-y-auto overflow-x-hidden">
                 {dowProducts.length > 0 ? (
-                  <Table>
+                  <Table className="w-full table-fixed">
                     <TableHeader className="bg-muted/20 sticky top-0 z-10">
                       <TableRow className="h-8">
                         <TableHead className="h-8 p-1 px-3 text-[10px] font-black">商品実績</TableHead>
-                        <TableHead className="h-8 p-1 px-3 text-[10px] font-black text-right">廃棄率</TableHead>
+                        <TableHead className="h-8 p-1 px-3 text-[10px] font-black text-right w-20">廃棄率</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -271,14 +271,14 @@ export default function ABCAnalysisPage() {
                         return (
                           <TableRow key={p.id} className="h-16 hover:bg-muted/5 border-b last:border-0">
                             <TableCell className="p-2 px-3">
-                              <p className="text-[16px] font-black leading-tight truncate">{p.name}</p>
-                              <div className="text-[16px] font-black mt-1 flex items-center gap-2">
+                              <p className="text-[16px] font-black leading-tight truncate w-full">{p.name}</p>
+                              <div className="text-[16px] font-black mt-1 flex items-center gap-2 tabular-nums">
                                 <span className="text-muted-foreground/80">製:{pProd}</span>
                                 <span className="text-destructive">廃:{pWaste}</span>
                               </div>
                             </TableCell>
                             <TableCell className="p-2 px-3 text-right">
-                              <p className={cn("text-[26px] font-black leading-none", pRate > 15 ? "text-destructive" : "text-blue-900")}>
+                              <p className={cn("text-[26px] font-black leading-none tabular-nums", pRate > 15 ? "text-destructive" : "text-blue-900")}>
                                 {pRate.toFixed(1)}%
                               </p>
                             </TableCell>
