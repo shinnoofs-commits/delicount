@@ -197,18 +197,17 @@ export default function ABCAnalysisPage() {
       const entryDate = new Date(entry.date);
       const isHoliday = holiday_jp.isHoliday(entryDate);
       const dow = isHoliday ? 7 : getDay(entryDate);
+      const weather = entry.weather || 'sunny';
       
       entry.items.forEach(item => {
         const product = products.find(p => p.id === item.productId);
         if (!product || (selectedCategory !== 'all' && product.category !== selectedCategory)) return;
 
-        const stats = productStats.get(item.productId);
-        if (stats) {
-          stats.waste += item.quantity;
-          stats.wasteDow[dow] += item.quantity;
-        }
+        const stats = getOrCreateStats(item.productId, product);
+        stats.waste += item.quantity;
+        stats.wasteDow[dow] += item.quantity;
+        
         dayStats[dow].waste += item.quantity;
-        const weather = entry.weather || 'sunny';
         weatherStats[weather].waste += item.quantity;
         
         const matrixKey = `${dow}-${weather}`;
