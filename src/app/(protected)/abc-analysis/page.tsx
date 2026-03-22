@@ -29,7 +29,7 @@ import {
   DialogTitle, 
   DialogDescription 
 } from "@/components/ui/dialog";
-import { Calendar as CalendarIcon, Loader2, CalendarDays, Sun, Filter, PieChart, Package, Cloud, CloudRain, Snowflake, TrendingDown, ClipboardList, Maximize2, SeparatorHorizontal } from 'lucide-react';
+import { Calendar as CalendarIcon, Loader2, CalendarDays, Sun, Filter, PieChart, Package, Cloud, CloudRain, Snowflake, Maximize2, ClipboardList } from 'lucide-react';
 import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, getDay, addDays } from "date-fns"
 import { ja } from "date-fns/locale"
 import holiday_jp from '@holiday-jp/holiday_jp';
@@ -212,7 +212,7 @@ export default function ABCAnalysisPage() {
       <div className={cn(
         "px-1",
         isFull 
-          ? "grid grid-cols-4 gap-2 pb-6" 
+          ? "grid grid-cols-4 gap-2 pb-6 w-full" 
           : "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4"
       )}>
         {dayLabels.map((label, i) => {
@@ -232,7 +232,7 @@ export default function ABCAnalysisPage() {
             <Card key={label} onClick={() => !isFull && setSelectedDayIdx(actualDow)} className={cn(
               "border bg-background shadow-sm overflow-hidden flex flex-col transition-all",
               !isFull && "hover:border-primary/50 cursor-pointer h-[500px]",
-              isFull && "h-[420px] border-2 shadow-md"
+              isFull && "h-[400px] border-2 shadow-md"
             )}>
               <CardHeader className={cn(
                 "p-3 py-2 border-b shrink-0",
@@ -264,11 +264,10 @@ export default function ABCAnalysisPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {dowProducts.map((p, idx) => {
+                      {dowProducts.map((p) => {
                         const pWaste = p.wasteDow[actualDow] || 0;
                         const pProd = p.prodDow[actualDow] || 0;
                         const pRate = pProd > 0 ? (pWaste / pProd) * 100 : 0;
-                        // 全画面表示時は上位4件を目安に、それ以外は全件表示（高さ制限あり）
                         return (
                           <TableRow key={p.id} className="h-16 hover:bg-muted/5 border-b last:border-0">
                             <TableCell className="p-2 px-3">
@@ -279,7 +278,7 @@ export default function ABCAnalysisPage() {
                               </div>
                             </TableCell>
                             <TableCell className="p-2 px-3 text-right">
-                              <p className={cn("text-[22px] font-black leading-none", pRate > 15 ? "text-destructive" : "text-blue-900")}>
+                              <p className={cn("text-[26px] font-black leading-none", pRate > 15 ? "text-destructive" : "text-blue-900")}>
                                 {pRate.toFixed(1)}%
                               </p>
                             </TableCell>
@@ -378,7 +377,7 @@ export default function ABCAnalysisPage() {
             <Card className="lg:col-span-8 border-none shadow-none bg-background">
               <CardHeader className="p-1 pb-0">
                 <CardTitle className="text-[9px] text-muted-foreground font-black uppercase flex items-center">
-                  <CalendarDays className="h-2.5 w-2.5 mr-1 text-primary" />曜日別 廃棄率 (条件内製造数ベース)
+                  <CalendarDays className="h-2.5 w-2.5 mr-1 text-primary" />曜日別 廃棄率
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-1">
@@ -412,7 +411,7 @@ export default function ABCAnalysisPage() {
             <Card className="lg:col-span-4 border-none shadow-none bg-background">
               <CardHeader className="p-1 pb-0">
                 <CardTitle className="text-[9px] text-muted-foreground font-black uppercase flex items-center">
-                  <Sun className="h-2.5 w-2.5 mr-1 text-orange-500" />天気別 廃棄率 (条件内製造数ベース)
+                  <Sun className="h-2.5 w-2.5 mr-1 text-orange-500" />天気別 廃棄率
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-1">
@@ -456,7 +455,7 @@ export default function ABCAnalysisPage() {
                   <CardHeader className="p-2 bg-primary/5 pb-1 border-b">
                     <CardTitle className="text-[12px] font-black flex items-center">
                       <Filter className="h-3.5 w-3.5 mr-2 text-primary" />
-                      カテゴリー別サマリー (行タップで詳細表示)
+                      カテゴリー別サマリー (行タップで詳細)
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-0">
@@ -535,7 +534,7 @@ export default function ABCAnalysisPage() {
                 <div className="flex justify-end px-1">
                   <Button variant="outline" size="lg" onClick={() => setIsFullScreenDaily(true)} className="h-12 border-2 font-black text-primary hover:bg-primary hover:text-white transition-all shadow-md">
                     <Maximize2 className="h-5 w-5 mr-2" />
-                    全画面・全曜日一括比較 (4×2グリッド)
+                    全画面・4×2グリッド比較
                   </Button>
                 </div>
                 {renderDailyGrid(false)}
@@ -585,11 +584,11 @@ export default function ABCAnalysisPage() {
           </Tabs>
 
           <Dialog open={isFullScreenDaily} onOpenChange={setIsFullScreenDaily}>
-            <DialogContent className="max-w-[98vw] h-[95vh] flex flex-col p-4 bg-muted/5">
+            <DialogContent className="max-w-[98vw] h-[95vh] flex flex-col p-4 bg-muted/5 overflow-x-hidden">
               <DialogHeader className="mb-2">
                 <DialogTitle className="text-2xl font-black">全曜日実績比較（4×2グリッド俯瞰）</DialogTitle>
                 <DialogDescription className="text-sm font-bold text-muted-foreground">
-                  全8曜日のデータを1画面に集約。各カードは「廃棄率が高い順」に並び、上位4件までが固定表示されます。
+                  全8曜日のデータを1画面に集約。各カードは廃棄率が高い順に並び、上位4件までが固定表示されます。
                 </DialogDescription>
               </DialogHeader>
               <div className="flex-1 overflow-y-auto mt-2">
@@ -679,7 +678,7 @@ export default function ABCAnalysisPage() {
               <DialogHeader>
                 <DialogTitle className="text-2xl font-black">{selectedCategoryForDetail} カテゴリー詳細</DialogTitle>
                 <DialogDescription className="text-sm font-bold">
-                  廃棄数と**機会損失（売価合計）**です。これだけの売上チャンスを逃しています。
+                  廃棄数と機会損失（売価合計）です。これだけの売上チャンスを逃しています。
                 </DialogDescription>
               </DialogHeader>
               <div className="flex-1 overflow-auto mt-6">
