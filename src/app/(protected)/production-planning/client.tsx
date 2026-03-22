@@ -1,7 +1,8 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from "react"
-import { Loader2, Sun, CloudRain, Save, Info, Zap, LayoutGrid, Edit3 } from "lucide-react"
+import { Loader2, Sun, CloudRain, Save, Info, Zap, LayoutGrid, Edit3, Clock } from "lucide-react"
 import type { Product, DailyProduction } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
@@ -25,6 +26,7 @@ import { useProducts } from "@/contexts/product-context"
 import { useStores } from "@/contexts/store-context"
 import { useAdmin } from "@/hooks/use-admin"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
 
 const daysOfWeek: (keyof DailyProduction)[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun', 'holiday'];
 const dayLabels: Record<keyof DailyProduction, string> = {
@@ -47,7 +49,7 @@ export default function ProductionPlanningClient() {
   
   const [managedStoreId, setManagedStoreId] = useState<string | undefined>(undefined);
   const [weatherPattern, setWeatherPattern] = useState<'sunny' | 'rainy'>('sunny');
-  const [viewMode, setViewMode] = useState<'edit' | 'summary'>('edit');
+  const [viewMode, setViewMode] = useState<'edit' | 'summary'>('summary'); // Default to summary to see time slots
   const [schedules, setSchedules] = useState<Record<string, Partial<DailyProduction>>>({});
   const [isSaving, setIsSaving] = useState(false);
 
@@ -133,19 +135,10 @@ export default function ProductionPlanningClient() {
         <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4">
           <div className="space-y-1">
             <CardTitle>製造計画</CardTitle>
-            <CardDescription>曜日・天気別の製造予定数を設定・確認します。</CardDescription>
+            <CardDescription>曜日・天気別の製造予定数を確認・設定します。</CardDescription>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center p-1 bg-muted rounded-md mr-2">
-                <Button 
-                    variant={viewMode === 'edit' ? "default" : "ghost"} 
-                    size="sm" 
-                    className="h-8 text-xs px-3"
-                    onClick={() => setViewMode('edit')}
-                >
-                    <Edit3 className="h-3.5 w-3.5 mr-1.5" />
-                    編集
-                </Button>
                 <Button 
                     variant={viewMode === 'summary' ? "default" : "ghost"} 
                     size="sm" 
@@ -154,6 +147,15 @@ export default function ProductionPlanningClient() {
                 >
                     <LayoutGrid className="h-3.5 w-3.5 mr-1.5" />
                     一覧表示
+                </Button>
+                <Button 
+                    variant={viewMode === 'edit' ? "default" : "ghost"} 
+                    size="sm" 
+                    className="h-8 text-xs px-3"
+                    onClick={() => setViewMode('edit')}
+                >
+                    <Edit3 className="h-3.5 w-3.5 mr-1.5" />
+                    編集
                 </Button>
             </div>
 
@@ -278,6 +280,7 @@ export default function ProductionPlanningClient() {
                                     <TableHeader>
                                         <TableRow className="bg-muted/30 h-6">
                                             <TableHead className="h-6 p-1 pl-2 font-bold text-foreground min-w-[80px]">品名</TableHead>
+                                            <TableHead className="h-6 p-1 text-center font-bold text-foreground w-[60px] border-r">陳列時間</TableHead>
                                             {daysOfWeek.map(day => (
                                                 <TableHead key={day} className="h-6 p-0.5 text-center font-bold text-foreground w-[28px]">{dayLabels[day]}</TableHead>
                                             ))}
@@ -287,6 +290,17 @@ export default function ProductionPlanningClient() {
                                         {filteredProducts.map(product => (
                                             <TableRow key={product.id} className="h-6 hover:bg-muted/10 border-b last:border-0">
                                                 <TableCell className="h-6 p-1 pl-2 py-0.5 font-medium border-r truncate max-w-[100px]">{product.name}</TableCell>
+                                                <TableCell className="h-6 p-1 text-center border-r">
+                                                    <div className="flex flex-col gap-0.5 items-center">
+                                                        {product.displayTimeSlots && product.displayTimeSlots.length > 0 ? (
+                                                            product.displayTimeSlots.map(slot => (
+                                                                <span key={slot} className="bg-primary/10 text-primary px-1 rounded-[2px] leading-none py-0.5 scale-90 origin-center">{slot}</span>
+                                                            ))
+                                                        ) : (
+                                                            <span className="text-muted-foreground opacity-30 italic">未設定</span>
+                                                        )}
+                                                    </div>
+                                                </TableCell>
                                                 {daysOfWeek.map(day => (
                                                     <TableCell key={day} className="h-6 p-0.5 text-center tabular-nums">
                                                         {schedules[product.id]?.[day] || 0}
@@ -305,10 +319,15 @@ export default function ProductionPlanningClient() {
         </CardContent>
       </Card>
       
-      {viewMode === 'edit' && (
+      {viewMode === 'edit' ? (
         <div className="flex items-center gap-2 p-4 bg-primary/10 border rounded-lg text-sm">
             <Info className="h-4 w-4 text-primary shrink-0" />
-            <p className="text-muted-foreground">「一括」列に数値を入力すると、その商品の月曜〜祝日までの全曜日に同じ数値が反映されます。製造数入力画面で「予定数を適用」ボタンを押すと、この計画に基づいた数値が自動入力されます。</p>
+            <p className="text-muted-foreground">「一括」列に数値を入力すると、その商品の月曜〜祝日までの全曜日に同じ数値が反映されます。「陳列時間帯」は商品詳細画面から設定してください。</p>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 p-4 bg-muted/20 border rounded-lg text-sm">
+            <Clock className="h-4 w-4 text-primary shrink-0" />
+            <p className="text-muted-foreground">「陳列時間」は店頭に並べるタイミングを示します。各時間帯の売れ行きを考慮して、曜日ごとの製造数を調整してください。</p>
         </div>
       )}
     </div>
