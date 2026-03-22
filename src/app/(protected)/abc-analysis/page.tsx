@@ -443,10 +443,10 @@ export default function ABCAnalysisPage() {
 
           <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0">
             <TabsList className="grid grid-cols-4 h-9 p-1 bg-muted/60 mx-1">
-              <TabsTrigger value="overview" className="text-[11px] font-black uppercase">カテゴリー別</TabsTrigger>
-              <TabsTrigger value="product" className="text-[11px] font-black uppercase">商品別実績</TabsTrigger>
-              <TabsTrigger value="daily" className="text-[11px] font-black uppercase">曜日別一覧</TabsTrigger>
-              <TabsTrigger value="cross" className="text-[11px] font-black uppercase">クロス分析</TabsTrigger>
+              <TabsTrigger value="overview" className="text-[13px] font-black uppercase">カテゴリー別</TabsTrigger>
+              <TabsTrigger value="product" className="text-[13px] font-black uppercase">商品別実績</TabsTrigger>
+              <TabsTrigger value="daily" className="text-[13px] font-black uppercase">曜日別一覧</TabsTrigger>
+              <TabsTrigger value="cross" className="text-[13px] font-black uppercase">クロス分析</TabsTrigger>
             </TabsList>
 
             <div className="flex-1 overflow-auto mt-1 px-1">
@@ -693,24 +693,35 @@ export default function ABCAnalysisPage() {
                 <Table>
                   <TableHeader className="bg-muted/50">
                     <TableRow className="h-10">
-                      <TableHead className="font-black text-[14px]">商品名</TableHead>
-                      <TableHead className="text-right font-black text-[14px]">廃棄数</TableHead>
-                      <TableHead className="text-right font-black text-[14px]">機会損失 (売価計)</TableHead>
+                      <TableHead className="font-black text-[13px]">商品名</TableHead>
+                      <TableHead className="text-right font-black text-[13px]">廃棄数</TableHead>
+                      <TableHead className="text-right font-black text-[13px]">製造数</TableHead>
+                      <TableHead className="text-right font-black text-[13px]">廃棄率</TableHead>
+                      <TableHead className="text-right font-black text-[13px]">機会損失</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {analysisData.products
                       .filter(p => p.category === selectedCategoryForDetail)
                       .sort((a,b) => b.waste - a.waste)
-                      .map(p => (
-                        <TableRow key={p.id} className="h-16 border-b">
-                          <TableCell className="font-black py-2 text-[20px] leading-tight">{p.name}</TableCell>
-                          <TableCell className="text-right text-destructive font-black py-2 text-[24px] tabular-nums">{p.waste}<span className="text-xs font-normal">個</span></TableCell>
-                          <TableCell className="text-right font-black text-blue-900 py-2 text-[24px] tabular-nums">
-                            ¥{(p.waste * (p.price || 0)).toLocaleString()}
-                          </TableCell>
-                        </TableRow>
-                      ))
+                      .map(p => {
+                        const rate = p.production > 0 ? (p.waste / p.production) * 100 : 0;
+                        return (
+                          <TableRow key={p.id} className="h-16 border-b">
+                            <TableCell className="font-black py-2 text-[18px] leading-tight">{p.name}</TableCell>
+                            <TableCell className="text-right text-destructive font-black py-2 text-[20px] tabular-nums">{p.waste}</TableCell>
+                            <TableCell className="text-right font-bold py-2 text-[20px] tabular-nums">{p.production}</TableCell>
+                            <TableCell className="text-right py-2">
+                              <span className={cn("text-[20px] font-black tabular-nums", rate > 15 ? "text-destructive" : "text-blue-900")}>
+                                {rate.toFixed(1)}%
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right font-black text-blue-900 py-2 text-[20px] tabular-nums">
+                              ¥{(p.waste * (p.price || 0)).toLocaleString()}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
                     }
                   </TableBody>
                 </Table>
