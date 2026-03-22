@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Loader2, CalendarIcon, Plus, RefreshCw, MapPin } from 'lucide-react';
+import { Loader2, CalendarIcon, Plus, RefreshCw, MapPin, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -11,10 +11,11 @@ import { useStores } from '@/contexts/store-context';
 import { useAdmin } from '@/hooks/use-admin';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { format, getDay } from 'date-fns';
+import { format, getDay, isSameDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useProduction } from '@/contexts/production-context';
+import { useTransactions } from '@/contexts/transaction-context';
 import type { ProductionEntry, DailyProduction, WeatherType } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
@@ -24,6 +25,7 @@ const dayMap: (keyof DailyProduction)[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'f
 
 export default function ProductionClient() {
   const { addProductionEntry, loading: productionLoading } = useProduction();
+  const { wasteEntries } = useTransactions();
   const { products: allProducts, loading: productsLoading } = useProducts();
   const { userStore, loading: storesLoading } = useStores();
   const { isAdmin } = useAdmin();
@@ -32,6 +34,7 @@ export default function ProductionClient() {
   const [additionalQuantities, setAdditionalQuantities] = useState<Record<string, string>>({});
   const [date, setDate] = useState<Date>(new Date());
   const [weather, setWeather] = useState<WeatherType>('sunny');
+  const [isWeatherRepresentative, setIsWeatherRepresentative] = useState(false);
   const [isFetchingWeather, setIsFetchingWeather] = useState(false);
   const { toast } = useToast();
 
@@ -47,6 +50,16 @@ export default function ProductionClient() {
 
   const fetch1000Weather = useCallback(async (targetDate: Date) => {
     if (!userStore) return;
+
+    // First check if representative weather is already set in waste entries
+    const dailyWasteEntry = wasteEntries.find(e => e.storeId === userStore.id && isSameDay(e.date, targetDate) && e.weather);
+    if (dailyWasteEntry && dailyWasteEntry.weather) {
+      setWeather(dailyWasteEntry.weather);
+      setIsWeatherRepresentative(true);
+      return;
+    }
+
+    setIsWeatherRepresentative(false);
     setIsFetchingWeather(true);
     try {
       const cityName = userStore?.name?.replace(/(店|支店|営業所)$/, '') || '';
@@ -75,7 +88,7 @@ export default function ProductionClient() {
     } finally {
       setIsFetchingWeather(false);
     }
-  }, [userStore]);
+  }, [userStore, wasteEntries]);
 
   useEffect(() => {
     if (userStore) fetch1000Weather(date);
@@ -159,12 +172,21 @@ export default function ProductionClient() {
                   <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} initialFocus locale={ja} />
                 </PopoverContent>
               </Popover>
-              <div className="flex items-center gap-2 border px-3 py-1.5 rounded-md bg-muted/50">
-                 {weather === 'rainy' ? <RefreshCw className="h-4 w-4 text-blue-500" /> : <RefreshCw className="h-4 w-4 text-yellow-500" />}
-                 <span className="text-sm font-medium">{weather === 'rainy' ? '雨 (10:00基準)' : '晴 (10:00基準)'}</span>
-                 <Button variant="ghost" size="icon" className="h-6 w-6 ml-1" onClick={() => fetch1000Weather(date)} disabled={isFetchingWeather}>
-                    <RefreshCw className={cn("h-3 w-3", isFetchingWeather && "animate-spin")} />
-                 </Button>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2 border px-3 py-1.5 rounded-md bg-muted/50">
+                   {weather === 'rainy' ? <RefreshCw className="h-4 w-4 text-blue-500" /> : <RefreshCw className="h-4 w-4 text-yellow-500" />}
+                   <span className="text-sm font-medium">{weather === 'rainy' ? '雨 (代表天気)' : '晴 (代表天気)'}</span>
+                   {!isWeatherRepresentative && (
+                     <Button variant="ghost" size="icon" className="h-6 w-6 ml-1" onClick={() => fetch1000Weather(date)} disabled={isFetchingWeather}>
+                        <RefreshCw className={cn("h-3 w-3", isFetchingWeather && "animate-spin")} />
+                     </Button>
+                   )}
+                </div>
+                {isWeatherRepresentative && (
+                   <p className="text-[10px] text-blue-600 font-bold flex items-center gap-1 pl-1">
+                      <Info className="h-2 w-2" /> 廃棄実績の天気に同期中
+                   </p>
+                )}
               </div>
               <Button className="bg-primary text-primary-foreground" onClick={handleRecordProduction} disabled={totalAdditionalCount === 0 || productionLoading}>
                 {productionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Plus className="mr-2 h-4 w-4"/>}

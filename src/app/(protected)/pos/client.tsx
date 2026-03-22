@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Plus, Minus, Trash2, Loader2, Sun, Cloud, CloudRain, Snowflake, MapPin } from 'lucide-react';
+import { Plus, Minus, Trash2, Loader2, Sun, Cloud, CloudRain, Snowflake, MapPin, Info } from 'lucide-react';
 import type { Product, WasteEntry, WeatherType } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,7 @@ import { useStores } from '@/contexts/store-context';
 import { useAdmin } from '@/hooks/use-admin';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { format } from 'date-fns';
+import { format, isSameDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
@@ -31,7 +31,7 @@ const weatherOptions: { value: WeatherType; label: string; icon: any }[] = [
 ];
 
 export default function PosClient() {
-  const { addWasteEntry, loading: wasteLoading } = useTransactions();
+  const { wasteEntries, addWasteEntry, loading: wasteLoading, updateDailyWeather } = useTransactions();
   const { products: allProducts, loading: productsLoading } = useProducts();
   const { userStore, loading: storesLoading } = useStores();
   const { isAdmin } = useAdmin();
@@ -40,6 +40,7 @@ export default function PosClient() {
   const [wasteList, setWasteList] = useState<WasteListItem[]>([]);
   const [date, setDate] = useState<Date>(new Date());
   const [weather, setWeather] = useState<WeatherType>('sunny');
+  const [isWeatherFixed, setIsWeatherFixed] = useState(false);
   const [isFetchingWeather, setIsFetchingWeather] = useState(false);
   const { toast } = useToast();
 
@@ -55,6 +56,21 @@ export default function PosClient() {
 
   const fetch2200Weather = useCallback(async (targetDate: Date) => {
     if (!userStore) return;
+
+    // Check if weather is already recorded for this day in other entries
+    const existingEntryWithWeather = wasteEntries.find(e => 
+      e.storeId === userStore.id && 
+      isSameDay(e.date, targetDate) && 
+      e.weather
+    );
+
+    if (existingEntryWithWeather && existingEntryWithWeather.weather) {
+      setWeather(existingEntryWithWeather.weather);
+      setIsWeatherFixed(true);
+      return;
+    }
+
+    setIsWeatherFixed(false);
     setIsFetchingWeather(true);
     try {
       const cityName = userStore.name?.replace(/(店|支店|営業所)$/, '') || '';
@@ -90,7 +106,7 @@ export default function PosClient() {
     } finally {
       setIsFetchingWeather(false);
     }
-  }, [userStore]);
+  }, [userStore, wasteEntries]);
 
   useEffect(() => {
     if (userStore) fetch2200Weather(date);
@@ -112,6 +128,12 @@ export default function PosClient() {
       })),
       totalWasteCost,
     };
+    
+    // If user changed the representative weather for the day, sync it across entries
+    if (!isWeatherFixed) {
+        await updateDailyWeather(userStore.id, date, weather);
+    }
+
     await addWasteEntry(newWasteEntry);
     setWasteList([]);
   };
@@ -172,7 +194,7 @@ export default function PosClient() {
                     </Popover>
                 </div>
                 <div className="space-y-2">
-                    <Label className="text-xs font-medium">天気選択:</Label>
+                    <Label className="text-xs font-medium">代表天気 (1日1天気):</Label>
                     <div className="grid grid-cols-4 gap-2">
                         {weatherOptions.map((option) => (
                             <Button key={option.value} variant={weather === option.value ? "default" : "outline"} className="flex flex-col h-14 p-1" onClick={() => setWeather(option.value)}>
@@ -180,6 +202,12 @@ export default function PosClient() {
                             </Button>
                         ))}
                     </div>
+                    {isWeatherFixed && (
+                      <p className="text-[10px] text-blue-600 font-bold flex items-center gap-1">
+                        <Info className="h-3 w-3" />
+                        この日の天気は既に他のデータで確定しています。
+                      </p>
+                    )}
                     <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                         <MapPin className="h-3 w-3" />
                         地域: {userStore?.name?.replace(/(店|支店|営業所)$/, '') || '-'}

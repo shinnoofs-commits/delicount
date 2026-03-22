@@ -6,8 +6,9 @@ import { useFirestore, errorEmitter, FirestorePermissionError, useUser } from '@
 import { useAdmin } from '@/hooks/use-admin';
 import { useStores } from './store-context';
 import { useStoreSelection } from './store-selection-context';
-import { collection, addDoc, doc, deleteDoc, writeBatch, updateDoc, onSnapshot, query, Unsubscribe } from 'firebase/firestore';
+import { collection, addDoc, doc, deleteDoc, writeBatch, updateDoc, onSnapshot, query, Unsubscribe, where, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { isSameDay } from 'date-fns';
 
 interface TransactionContextType {
   transactions: Transaction[];
@@ -16,6 +17,7 @@ interface TransactionContextType {
   addWasteEntry: (wasteEntry: Omit<WasteEntry, 'id' | 'userId'>) => void;
   deleteWasteEntries: (storeId: string, entryIds: string[]) => Promise<void>;
   updateWasteEntry: (storeId: string, entryId: string, items: WasteItem[], totalWasteCost: number, weather?: WeatherType) => Promise<void>;
+  updateDailyWeather: (storeId: string, date: Date, weather: WeatherType) => Promise<void>;
 }
 
 export const TransactionContext = createContext<TransactionContextType | undefined>(undefined);
@@ -124,8 +126,16 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
 
   const updateWasteEntry = useCallback(async (storeId: string, entryId: string, items: WasteItem[], totalWasteCost: number, weather?: WeatherType) => {
     if (!firestore) return;
-    const entryRef = doc(firestore, 'stores', storeId, 'waste', entryId);
     
+    // If weather is provided, update all entries for that day to keep it representative
+    if (weather) {
+      const entry = wasteEntries.find(e => e.id === entryId);
+      if (entry) {
+        await updateDailyWeather(storeId, entry.date, weather);
+      }
+    }
+
+    const entryRef = doc(firestore, 'stores', storeId, 'waste', entryId);
     const updateData: any = {
       items,
       totalWasteCost
@@ -144,7 +154,27 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         requestResourceData: updateData
       }));
     });
-  }, [firestore, toast]);
+  }, [firestore, toast, wasteEntries]);
+
+  const updateDailyWeather = useCallback(async (storeId: string, date: Date, weather: WeatherType) => {
+    if (!firestore) return;
+
+    // Find all entries for this store on this day
+    const dayEntries = wasteEntries.filter(e => e.storeId === storeId && isSameDay(e.date, date));
+    if (dayEntries.length === 0) return;
+
+    const batch = writeBatch(firestore);
+    dayEntries.forEach(entry => {
+      const entryRef = doc(firestore, 'stores', storeId, 'waste', entry.id);
+      batch.update(entryRef, { weather });
+    });
+
+    try {
+      await batch.commit();
+    } catch (e) {
+      console.error('Failed to sync daily weather', e);
+    }
+  }, [firestore, wasteEntries]);
 
 
   const value = useMemo(() => ({ 
@@ -154,7 +184,8 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     addWasteEntry,
     deleteWasteEntries,
     updateWasteEntry,
-  }), [wasteEntries, loading, addWasteEntry, deleteWasteEntries, updateWasteEntry]);
+    updateDailyWeather,
+  }), [wasteEntries, loading, addWasteEntry, deleteWasteEntries, updateWasteEntry, updateDailyWeather]);
 
   return (
     <TransactionContext.Provider value={value}>
