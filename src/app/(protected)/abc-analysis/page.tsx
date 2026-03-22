@@ -29,7 +29,7 @@ import {
   DialogTitle, 
   DialogDescription 
 } from "@/components/ui/dialog";
-import { Calendar as CalendarIcon, Loader2, CalendarDays, Sun, Filter, PieChart, Package, Cloud, CloudRain, Snowflake } from 'lucide-react';
+import { Calendar as CalendarIcon, Loader2, CalendarDays, Sun, Filter, PieChart, Package, Cloud, CloudRain, Snowflake, TrendingDown } from 'lucide-react';
 import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, getDay, addDays } from "date-fns"
 import { ja } from "date-fns/locale"
 import holiday_jp from '@holiday-jp/holiday_jp';
@@ -40,6 +40,7 @@ import { useProduction } from "@/contexts/production-context";
 import { useAdmin } from "@/hooks/use-admin";
 import { StoreSelector } from "@/components/ui/store-selector";
 import { cn } from "@/lib/utils";
+import { Separator } from "@/components/ui/separator";
 
 // 曜日ラベル（月曜開始）
 const dayLabels = ['月', '火', '水', '木', '金', '土', '日', '祝'];
@@ -282,7 +283,7 @@ export default function ABCAnalysisPage() {
             <Card className="lg:col-span-8 border-none shadow-none bg-background">
               <CardHeader className="p-1 pb-0">
                 <CardTitle className="text-[9px] text-muted-foreground font-black uppercase flex items-center">
-                  <CalendarDays className="h-2.5 w-2.5 mr-1 text-primary" />曜日別 廃棄率
+                  <CalendarDays className="h-2.5 w-2.5 mr-1 text-primary" />曜日別 廃棄率 (タップで詳細)
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-1">
@@ -499,39 +500,85 @@ export default function ABCAnalysisPage() {
 
           {/* 曜日詳細ダイアログ */}
           <Dialog open={selectedDayIdx !== null} onOpenChange={(open) => !open && setSelectedDayIdx(null)}>
-            <DialogContent className="max-w-[400px] p-4">
+            <DialogContent className="max-w-[500px] max-h-[90vh] flex flex-col p-4">
               <DialogHeader>
                 <DialogTitle className="text-lg font-black flex items-center">
                   <CalendarDays className="mr-2 h-5 w-5 text-blue-900" />
-                  {selectedDayIdx !== null && actualDowLabel(selectedDayIdx)}曜日の詳細
+                  {selectedDayIdx !== null && actualDowLabel(selectedDayIdx)}曜日の詳細分析
                 </DialogTitle>
-                <DialogDescription className="text-xs">条件ごとの廃棄実績です。</DialogDescription>
+                <DialogDescription className="text-xs">条件別の廃棄実績と、この曜日の主要廃棄商品一覧です。</DialogDescription>
               </DialogHeader>
-              <div className="space-y-2 mt-4">
-                {Object.entries(weatherLabels).map(([weatherKey, label]) => {
-                  const stats = (selectedDayIdx !== null && analysisData?.matrixStats[`${selectedDayIdx}-${weatherKey}`]) || { waste: 0, production: 0 };
-                  const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
-                  const Icon = weatherIcons[weatherKey];
-                  const isAlert = rate > 15;
-                  return (
-                    <div key={weatherKey} className="flex items-center justify-between p-3 rounded-full bg-muted/30 border border-muted shadow-sm">
-                      <div className="flex items-center gap-3">
-                        <div className={cn("p-1.5 rounded-full", isAlert ? "bg-destructive/10" : "bg-orange-100")}>
-                          <Icon className={cn("h-4 w-4", isAlert ? "text-destructive" : "text-orange-500")} />
+              
+              <div className="flex-1 overflow-auto mt-4 space-y-6">
+                {/* 天気別の内訳 */}
+                <div className="space-y-2">
+                  <h4 className="text-[11px] font-black text-muted-foreground uppercase flex items-center">
+                    <Sun className="h-3 w-3 mr-1" />天気別実績
+                  </h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    {Object.entries(weatherLabels).map(([weatherKey, label]) => {
+                      const stats = (selectedDayIdx !== null && analysisData?.matrixStats[`${selectedDayIdx}-${weatherKey}`]) || { waste: 0, production: 0 };
+                      const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
+                      const Icon = weatherIcons[weatherKey];
+                      const isAlert = rate > 15;
+                      return (
+                        <div key={weatherKey} className="flex items-center justify-between p-2 rounded-full bg-muted/30 border border-muted shadow-sm">
+                          <div className="flex items-center gap-2">
+                            <Icon className={cn("h-3.5 w-3.5", isAlert ? "text-destructive" : "text-orange-500")} />
+                            <span className="text-[10px] font-black text-muted-foreground">{label.charAt(0)}</span>
+                          </div>
+                          <div className={cn("text-[16px] font-black leading-none", isAlert ? "text-destructive" : "text-blue-900")}>
+                            {rate.toFixed(1)}<span className="text-[8px] font-normal">%</span>
+                          </div>
                         </div>
-                        <div className="flex flex-col">
-                          <span className="text-[11px] font-black text-muted-foreground">{label}</span>
-                          <span className="text-[9px] font-bold opacity-60">製造: {stats.production} / 廃棄: {stats.waste}</span>
-                        </div>
-                      </div>
-                      <div className="text-right pr-4">
-                        <div className={cn("text-xl font-black leading-none", isAlert ? "text-destructive" : "text-blue-900")}>
-                          {rate.toFixed(1)}<span className="text-[10px] font-normal">%</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* 曜日ごとの廃棄商品一覧 */}
+                <div className="space-y-2 pb-4">
+                  <h4 className="text-[11px] font-black text-muted-foreground uppercase flex items-center">
+                    <TrendingDown className="h-3 w-3 mr-1 text-destructive" />この曜日の廃棄商品一覧
+                  </h4>
+                  <div className="rounded-md border bg-background overflow-hidden">
+                    <Table>
+                      <TableHeader className="bg-muted/50">
+                        <TableRow>
+                          <TableHead className="h-8 text-[10px] font-bold">商品名</TableHead>
+                          <TableHead className="h-8 text-[10px] font-bold text-right">廃棄数</TableHead>
+                          <TableHead className="h-8 text-[10px] font-bold text-right">機会損失 (売価)</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedDayIdx !== null && analysisData?.products
+                          .filter(p => p.dow[selectedDayIdx] > 0)
+                          .sort((a, b) => b.dow[selectedDayIdx] - a.dow[selectedDayIdx])
+                          .map(p => (
+                            <TableRow key={p.id} className="h-10">
+                              <TableCell className="py-1 px-3 text-[14px] font-black">{p.name}</TableCell>
+                              <TableCell className="py-1 px-3 text-right text-destructive font-black text-[16px]">
+                                {p.dow[selectedDayIdx]}<span className="text-[10px] font-normal ml-0.5">個</span>
+                              </TableCell>
+                              <TableCell className="py-1 px-3 text-right font-black text-blue-900 text-[16px]">
+                                ¥{(p.dow[selectedDayIdx] * (p.price || 0)).toLocaleString()}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        }
+                        {selectedDayIdx !== null && (!analysisData?.products.some(p => p.dow[selectedDayIdx] > 0)) && (
+                          <TableRow>
+                            <TableCell colSpan={3} className="text-center py-4 text-muted-foreground text-xs">
+                              この曜日の廃棄データはありません
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
               </div>
             </DialogContent>
           </Dialog>
