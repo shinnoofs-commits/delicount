@@ -19,8 +19,8 @@ import { useTransactions } from "@/contexts/transaction-context"
 import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid, getDay, addDays, isSameDay } from "date-fns"
 import { ja } from "date-fns/locale"
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts"
-import { Calendar as CalendarIcon, Trash2, TrendingDown, Edit, MoreHorizontal, Plus, Minus, Loader2, Sun, Cloud, CloudRain, Snowflake, Package } from 'lucide-react'
-import { useMemo, useState } from "react"
+import { Calendar as CalendarIcon, Trash2, TrendingDown, Edit, MoreHorizontal, Plus, Minus, Loader2, Sun, Cloud, CloudRain, Snowflake, Package, Sparkles, AlertCircle, ArrowRight } from 'lucide-react'
+import { useMemo, useState, useEffect } from "react"
 import type { WasteEntry, WasteItem, WeatherType } from "@/lib/types"
 import { useProducts } from "@/contexts/product-context"
 import { DateRange } from "react-day-picker"
@@ -54,6 +54,9 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { Separator } from "@/components/ui/separator"
 import { useAdmin } from "@/hooks/use-admin"
+import { useStores } from "@/contexts/store-context"
+import { getWasteInsights, type WasteInsightsOutput } from "@/ai/flows/waste-insights-flow"
+import { Badge } from "@/components/ui/badge"
 
 const DateRangePicker = ({ date, setDate }: { date: DateRange | undefined, setDate: (date: DateRange | undefined) => void }) => {
   return (
@@ -149,6 +152,7 @@ export default function DashboardPage() {
   const { wasteEntries, deleteWasteEntries, updateWasteEntry, loading: wasteLoading } = useTransactions();
   const { products } = useProducts();
   const { isAdmin } = useAdmin();
+  const { userStore } = useStores();
   const { toast } = useToast();
   
   const [selectedFilters, setSelectedFilters] = useState<number[]>([0, 1, 2, 3, 4, 5, 6, 7]);
@@ -158,6 +162,10 @@ export default function DashboardPage() {
   const [editWeather, setEditWeather] = useState<WeatherType | undefined>(undefined);
   const [isSaving, setIsSaving] = useState(false);
   const [selectedDayWaste, setSelectedDayWaste] = useState<{ date: Date, entries: WasteEntry[] } | null>(null);
+
+  // AI Insights state
+  const [aiInsights, setAiInsights] = useState<WasteInsightsOutput | null>(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
 
   const [date, setDate] = useState<DateRange | undefined>({
     from: subDays(new Date(), 6),
@@ -190,6 +198,51 @@ export default function DashboardPage() {
         return isHoliday ? isHolidaySelected : isDaySelected;
     });
   }, [date, wasteEntries, selectedFilters]);
+
+  // AI Analysis trigger
+  useEffect(() => {
+    async function analyzeData() {
+      if (filteredWasteEntries.length === 0 || products.length === 0) {
+        setAiInsights(null);
+        return;
+      }
+
+      setIsAiLoading(true);
+      try {
+        const summary = {
+          entriesCount: filteredWasteEntries.length,
+          totalWasteCost: filteredWasteEntries.reduce((acc, e) => acc + e.totalWasteCost, 0),
+          weatherImpact: filteredWasteEntries.reduce((acc: any, e) => {
+            const w = e.weather || 'unknown';
+            acc[w] = (acc[w] || 0) + e.totalWasteCost;
+            return acc;
+          }, {}),
+          products: products.map(p => ({
+            name: p.name,
+            category: p.category,
+            displaySlots: p.displayTimeSlots,
+            waste: filteredWasteEntries.reduce((sum, entry) => {
+              const item = entry.items.find(i => i.productId === p.id);
+              return sum + (item?.quantity || 0);
+            }, 0)
+          })).sort((a, b) => b.waste - a.waste).slice(0, 10)
+        };
+
+        const result = await getWasteInsights({
+          summaryData: JSON.stringify(summary),
+          storeName: userStore?.name
+        });
+        setAiInsights(result);
+      } catch (e) {
+        console.error('AI Insight error:', e);
+      } finally {
+        setIsAiLoading(false);
+      }
+    }
+
+    const timer = setTimeout(analyzeData, 1000); // Debounce
+    return () => clearTimeout(timer);
+  }, [filteredWasteEntries, products, userStore]);
 
   const wasteAnalysisData: WasteData[] = useMemo(() => {
     const wasteDataMap = new Map<string, WasteData>();
@@ -400,6 +453,71 @@ export default function DashboardPage() {
             </div>
         </div>
       </div>
+
+      {/* AI Insights Section */}
+      <Card className="border-primary/20 bg-primary/5">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="bg-primary/20 p-2 rounded-full">
+                <Sparkles className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-base">AIからの改善提案（β）</CardTitle>
+                <CardDescription>直近の傾向からGeminiが分析したアドバイスです。</CardDescription>
+              </div>
+            </div>
+            {isAiLoading && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {!aiInsights && !isAiLoading ? (
+            <div className="flex flex-col items-center justify-center py-6 text-muted-foreground">
+              <AlertCircle className="h-8 w-8 mb-2 opacity-20" />
+              <p className="text-sm">分析するデータが不足しています。期間を広げてお試しください。</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {aiInsights?.summary && (
+                <div className="bg-background/50 p-3 rounded-md border text-sm font-medium italic">
+                  "{aiInsights.summary}"
+                </div>
+              )}
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {aiInsights?.insights.map((insight, idx) => {
+                  const typeColors = {
+                    waste_reduction: "bg-red-100 text-red-700 border-red-200",
+                    opportunity_loss: "bg-blue-100 text-blue-700 border-blue-200",
+                    weather_pattern: "bg-orange-100 text-orange-700 border-orange-200",
+                    time_slot_optimization: "bg-purple-100 text-purple-700 border-purple-200",
+                  };
+                  return (
+                    <Card key={idx} className="bg-background shadow-sm overflow-hidden flex flex-col">
+                      <div className={cn("px-3 py-1 text-[10px] font-bold border-b", typeColors[insight.type])}>
+                        {insight.type.toUpperCase().replace('_', ' ')}
+                      </div>
+                      <CardContent className="p-3 flex-1 flex flex-col">
+                        <p className="font-bold text-sm mb-1 leading-tight">{insight.title}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-3 mb-2 flex-1">{insight.description}</p>
+                        <div className="mt-auto space-y-2 pt-2 border-t">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] text-muted-foreground uppercase">推定影響</span>
+                            <span className="text-xs font-bold text-destructive">{insight.impact}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 p-1.5 bg-muted rounded text-[11px] font-bold">
+                            <ArrowRight className="h-3 w-3 shrink-0" />
+                            <span>{insight.action}</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
          <Card>
