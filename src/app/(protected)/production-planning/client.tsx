@@ -1,9 +1,8 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from "react"
 import { Loader2, Sun, CloudRain, Save, Info, Zap, LayoutGrid, Edit3, Clock } from "lucide-react"
-import type { Product, DailyProduction } from "@/lib/types"
+import type { Product, DailyProduction, DisplayTimeSlot } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -27,6 +26,7 @@ import { useStores } from "@/contexts/store-context"
 import { useAdmin } from "@/hooks/use-admin"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 
 const daysOfWeek: (keyof DailyProduction)[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun', 'holiday'];
 const dayLabels: Record<keyof DailyProduction, string> = {
@@ -40,6 +40,7 @@ const dayLabels: Record<keyof DailyProduction, string> = {
   holiday: '祝',
 };
 
+const timeSlotOptions: DisplayTimeSlot[] = ['10:00', '12:00', '15:00'];
 const TARGET_CATEGORIES = ['弁当', '丼ぶり', '温惣菜', '揚げ物', '冷惣菜', 'おこわ'];
 
 export default function ProductionPlanningClient() {
@@ -49,8 +50,9 @@ export default function ProductionPlanningClient() {
   
   const [managedStoreId, setManagedStoreId] = useState<string | undefined>(undefined);
   const [weatherPattern, setWeatherPattern] = useState<'sunny' | 'rainy'>('sunny');
-  const [viewMode, setViewMode] = useState<'edit' | 'summary'>('summary'); // Default to summary to see time slots
+  const [viewMode, setViewMode] = useState<'edit' | 'summary'>('summary');
   const [schedules, setSchedules] = useState<Record<string, Partial<DailyProduction>>>({});
+  const [timeSlotsState, setTimeSlotsState] = useState<Record<string, DisplayTimeSlot[]>>({});
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -79,11 +81,16 @@ export default function ProductionPlanningClient() {
 
   useEffect(() => {
     const initialSchedules: Record<string, Partial<DailyProduction>> = {};
+    const initialTimeSlots: Record<string, DisplayTimeSlot[]> = {};
+    
     products.forEach(product => {
       const patternData = weatherPattern === 'sunny' ? product.dailyProductionSunny : product.dailyProductionRainy;
       initialSchedules[product.id] = patternData || { sun: 0, mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, holiday: 0 };
+      initialTimeSlots[product.id] = product.displayTimeSlots || [];
     });
+    
     setSchedules(initialSchedules);
+    setTimeSlotsState(initialTimeSlots);
   }, [products, weatherPattern]);
 
   const handleScheduleChange = (productId: string, day: keyof DailyProduction, value: string) => {
@@ -115,11 +122,21 @@ export default function ProductionPlanningClient() {
     }));
   };
 
+  const handleTimeSlotToggle = (productId: string, slot: DisplayTimeSlot) => {
+    setTimeSlotsState(prev => {
+      const current = prev[productId] || [];
+      const next = current.includes(slot)
+        ? current.filter(s => s !== slot)
+        : [...current, slot];
+      return { ...prev, [productId]: next };
+    });
+  };
+
   const handleSave = async () => {
     if (!managedStoreId) return;
     setIsSaving(true);
     try {
-      await updateSchedules(managedStoreId, schedules, weatherPattern);
+      await updateSchedules(managedStoreId, schedules, weatherPattern, timeSlotsState);
     } finally {
       setIsSaving(false);
     }
@@ -135,7 +152,7 @@ export default function ProductionPlanningClient() {
         <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4">
           <div className="space-y-1">
             <CardTitle>製造計画</CardTitle>
-            <CardDescription>曜日・天気別の製造予定数を確認・設定します。</CardDescription>
+            <CardDescription>曜日・天気別の製造予定数と、陳列時間帯を確認・設定します。</CardDescription>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center p-1 bg-muted rounded-md mr-2">
@@ -221,8 +238,9 @@ export default function ProductionPlanningClient() {
                         <TableHeader>
                         <TableRow className="bg-muted/50">
                             <TableHead className="w-[200px] sticky left-0 bg-muted/50 z-10 border-r">商品名</TableHead>
+                            <TableHead className="w-[160px] text-center bg-muted/20">陳列時間</TableHead>
                             {daysOfWeek.map(day => (
-                            <TableHead key={day} className="text-center w-[80px]">{dayLabels[day]}</TableHead>
+                            <TableHead key={day} className="text-center w-[60px]">{dayLabels[day]}</TableHead>
                             ))}
                             <TableHead className="text-center w-[100px] bg-accent/10 border-l">
                             <div className="flex items-center justify-center gap-1">
@@ -236,6 +254,20 @@ export default function ProductionPlanningClient() {
                         {products.filter(p => p.category === cat).map(product => (
                             <TableRow key={product.id}>
                             <TableCell className="font-medium sticky left-0 bg-background z-10 border-r">{product.name}</TableCell>
+                            <TableCell className="bg-muted/5">
+                                <div className="flex gap-2 justify-center">
+                                    {timeSlotOptions.map(slot => (
+                                        <div key={slot} className="flex flex-col items-center gap-1">
+                                            <Checkbox 
+                                                checked={(timeSlotsState[product.id] || []).includes(slot)}
+                                                onCheckedChange={() => handleTimeSlotToggle(product.id, slot)}
+                                                className="h-4 w-4"
+                                            />
+                                            <span className="text-[10px] font-bold opacity-70">{slot}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </TableCell>
                             {daysOfWeek.map(day => (
                                 <TableCell key={day} className="p-1">
                                 <Input
@@ -303,7 +335,9 @@ export default function ProductionPlanningClient() {
                                                 </TableCell>
                                                 {daysOfWeek.map(day => (
                                                     <TableCell key={day} className="h-6 p-0.5 text-center tabular-nums">
-                                                        {schedules[product.id]?.[day] || 0}
+                                                        {weatherPattern === 'sunny' 
+                                                            ? product.dailyProductionSunny?.[day] || 0 
+                                                            : product.dailyProductionRainy?.[day] || 0}
                                                     </TableCell>
                                                 ))}
                                             </TableRow>
@@ -322,7 +356,7 @@ export default function ProductionPlanningClient() {
       {viewMode === 'edit' ? (
         <div className="flex items-center gap-2 p-4 bg-primary/10 border rounded-lg text-sm">
             <Info className="h-4 w-4 text-primary shrink-0" />
-            <p className="text-muted-foreground">「一括」列に数値を入力すると、その商品の月曜〜祝日までの全曜日に同じ数値が反映されます。「陳列時間帯」は商品詳細画面から設定してください。</p>
+            <p className="text-muted-foreground">製造予定数（個数）と陳列時間帯をこの画面で一括設定できます。変更後は右上の「計画を保存」をクリックしてください。</p>
         </div>
       ) : (
         <div className="flex items-center gap-2 p-4 bg-muted/20 border rounded-lg text-sm">

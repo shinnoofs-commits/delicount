@@ -1,6 +1,6 @@
 'use client';
 
-import type { Product, DailyProduction } from '@/lib/types';
+import type { Product, DailyProduction, DisplayTimeSlot } from '@/lib/types';
 import React, { createContext, useContext, useCallback, useMemo, useState, useEffect } from 'react';
 import { useFirestore, errorEmitter, FirestorePermissionError, useUser } from '@/firebase';
 import { collection, doc, addDoc, setDoc, writeBatch, query, where, getDocs, onSnapshot, Unsubscribe } from 'firebase/firestore';
@@ -17,7 +17,7 @@ interface ProductContextType {
   deleteProducts: (storeId: string, productIds: string[]) => void;
   importProductsFromCSV: (products: Omit<Product, 'id' | 'storeId'>[]) => void;
   syncAllProducts: (sourceStoreId: string) => Promise<void>;
-  updateSchedules: (storeId: string, schedules: Record<string, Partial<DailyProduction>>, weatherPattern: 'sunny' | 'rainy') => Promise<void>;
+  updateSchedules: (storeId: string, schedules: Record<string, Partial<DailyProduction>>, weatherPattern: 'sunny' | 'rainy', timeSlots?: Record<string, DisplayTimeSlot[]>) => Promise<void>;
   bulkUpdateProducts: (storeId: string, productsToUpdate: Pick<Product, 'id' | 'category' | 'pricePattern'>[]) => Promise<void>;
   refetchProducts: () => void;
 }
@@ -63,7 +63,6 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
         });
         setLoading(false);
       }, (error) => {
-        // Only log error if user is actually authenticated
         if (user) {
           errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `stores/${storeId}/products`, operation: 'list' }));
         }
@@ -156,14 +155,22 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
     batch.commit().then(() => toast({ title: "削除完了" }));
   }, [firestore, toast]);
 
-  const updateSchedules = useCallback(async (storeId: string, schedules: Record<string, Partial<DailyProduction>>, weatherPattern: 'sunny' | 'rainy') => {
+  const updateSchedules = useCallback(async (storeId: string, schedules: Record<string, Partial<DailyProduction>>, weatherPattern: 'sunny' | 'rainy', timeSlots?: Record<string, DisplayTimeSlot[]>) => {
     if (!firestore) return;
     const batch = writeBatch(firestore);
     const key = weatherPattern === 'rainy' ? 'dailyProductionRainy' : 'dailyProductionSunny';
     
+    // Update quantities
     Object.entries(schedules).forEach(([productId, dailyProduction]) => {
       const productRef = doc(firestore, 'stores', storeId, 'products', productId);
-      batch.update(productRef, { [key]: dailyProduction });
+      const updateData: any = { [key]: dailyProduction };
+      
+      // Also update time slots if provided for this product
+      if (timeSlots && timeSlots[productId]) {
+        updateData.displayTimeSlots = timeSlots[productId];
+      }
+      
+      batch.update(productRef, updateData);
     });
 
     try {
