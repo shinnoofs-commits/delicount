@@ -29,7 +29,7 @@ import {
   DialogTitle, 
   DialogDescription 
 } from "@/components/ui/dialog";
-import { Calendar as CalendarIcon, Loader2, CalendarDays, Sun, Filter, PieChart, Package, Cloud, CloudRain, Snowflake, TrendingDown, ClipboardList, Maximize2 } from 'lucide-react';
+import { Calendar as CalendarIcon, Loader2, CalendarDays, Sun, Filter, PieChart, Package, Cloud, CloudRain, Snowflake, TrendingDown, ClipboardList, Maximize2, SeparatorHorizontal } from 'lucide-react';
 import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, getDay, addDays } from "date-fns"
 import { ja } from "date-fns/locale"
 import holiday_jp from '@holiday-jp/holiday_jp';
@@ -212,7 +212,7 @@ export default function ABCAnalysisPage() {
       <div className={cn(
         "px-1",
         isFull 
-          ? "grid grid-cols-4 gap-2 pb-6 overflow-y-auto" 
+          ? "grid grid-cols-4 gap-2 pb-6" 
           : "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4"
       )}>
         {dayLabels.map((label, i) => {
@@ -231,25 +231,25 @@ export default function ABCAnalysisPage() {
           return (
             <Card key={label} onClick={() => !isFull && setSelectedDayIdx(actualDow)} className={cn(
               "border bg-background shadow-sm overflow-hidden flex flex-col transition-all",
-              !isFull && "hover:border-primary/50 cursor-pointer h-[400px]",
-              isFull && "h-[300px] border-2"
+              !isFull && "hover:border-primary/50 cursor-pointer h-[500px]",
+              isFull && "h-[420px] border-2 shadow-md"
             )}>
               <CardHeader className={cn(
-                "p-2 py-1.5 border-b shrink-0",
-                (actualDow === 0 || actualDow === 7) ? "bg-destructive/5" : (actualDow === 6 ? "bg-blue-50" : "bg-muted/30")
+                "p-3 py-2 border-b shrink-0",
+                (actualDow === 0 || actualDow === 7) ? "bg-destructive/10" : (actualDow === 6 ? "bg-blue-50" : "bg-muted/30")
               )}>
-                <div className="flex items-center justify-between mb-0.5">
-                  <div className="flex items-center gap-1.5">
-                    <Badge variant={(actualDow === 0 || actualDow === 7) ? "destructive" : (actualDow === 6 ? "default" : "outline")} className="h-6 w-6 rounded-full flex items-center justify-center p-0 font-black text-[12px]">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <Badge variant={(actualDow === 0 || actualDow === 7) ? "destructive" : (actualDow === 6 ? "default" : "outline")} className="h-8 w-8 rounded-full flex items-center justify-center p-0 font-black text-[14px]">
                       {label}
                     </Badge>
-                    <span className="text-[10px] font-bold text-muted-foreground">{actualDowLabel(actualDow)}</span>
+                    <span className="text-[12px] font-bold text-muted-foreground">{actualDowLabel(actualDow)}曜日</span>
                   </div>
-                  <div className={cn("text-[16px] font-black", rate > 15 ? "text-destructive" : "text-blue-900")}>
+                  <div className={cn("text-[20px] font-black", rate > 15 ? "text-destructive" : "text-blue-900")}>
                     {rate.toFixed(1)}%
                   </div>
                 </div>
-                <div className="flex justify-between items-center text-[9px] font-bold opacity-70">
+                <div className="flex justify-between items-center text-[10px] font-black opacity-80 border-t pt-1">
                    <span>製造計: {stats.production}</span>
                    <span className="text-destructive">廃棄計: {stats.waste}</span>
                 </div>
@@ -258,26 +258,28 @@ export default function ABCAnalysisPage() {
                 {dowProducts.length > 0 ? (
                   <Table>
                     <TableHeader className="bg-muted/20 sticky top-0 z-10">
-                      <TableRow className="h-7">
-                        <TableHead className="h-7 p-1 px-2 text-[9px] font-bold">品名</TableHead>
-                        <TableHead className="h-7 p-1 px-2 text-[9px] font-bold text-right">廃棄率</TableHead>
+                      <TableRow className="h-8">
+                        <TableHead className="h-8 p-1 px-3 text-[10px] font-black">商品実績</TableHead>
+                        <TableHead className="h-8 p-1 px-3 text-[10px] font-black text-right">廃棄率</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {dowProducts.map(p => {
+                      {dowProducts.map((p, idx) => {
                         const pWaste = p.wasteDow[actualDow] || 0;
                         const pProd = p.prodDow[actualDow] || 0;
                         const pRate = pProd > 0 ? (pWaste / pProd) * 100 : 0;
+                        // 全画面表示時は上位4件を目安に、それ以外は全件表示（高さ制限あり）
                         return (
-                          <TableRow key={p.id} className="h-10 hover:bg-muted/5">
-                            <TableCell className="p-1 px-2">
-                              <p className="text-[11px] font-black leading-tight truncate">{p.name}</p>
-                              <p className="text-[8px] font-bold">
-                                <span className="text-muted-foreground">製:{pProd}</span> <span className="text-destructive">廃:{pWaste}</span>
-                              </p>
+                          <TableRow key={p.id} className="h-16 hover:bg-muted/5 border-b last:border-0">
+                            <TableCell className="p-2 px-3">
+                              <p className="text-[16px] font-black leading-tight truncate">{p.name}</p>
+                              <div className="text-[16px] font-black mt-1 flex items-center gap-2">
+                                <span className="text-muted-foreground/80">製:{pProd}</span>
+                                <span className="text-destructive">廃:{pWaste}</span>
+                              </div>
                             </TableCell>
-                            <TableCell className="p-1 px-2 text-right">
-                              <p className={cn("text-[13px] font-black", pRate > 15 ? "text-destructive" : "text-blue-900")}>
+                            <TableCell className="p-2 px-3 text-right">
+                              <p className={cn("text-[22px] font-black leading-none", pRate > 15 ? "text-destructive" : "text-blue-900")}>
                                 {pRate.toFixed(1)}%
                               </p>
                             </TableCell>
@@ -287,9 +289,9 @@ export default function ABCAnalysisPage() {
                     </TableBody>
                   </Table>
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground opacity-30 py-4">
-                    <ClipboardList className="h-6 w-6 mb-1" />
-                    <p className="text-[9px] font-bold">データなし</p>
+                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground opacity-30 py-10">
+                    <ClipboardList className="h-10 w-10 mb-2" />
+                    <p className="text-[12px] font-black">データなし</p>
                   </div>
                 )}
               </CardContent>
@@ -355,19 +357,19 @@ export default function ABCAnalysisPage() {
             <Card className="bg-background border-l-[3px] border-l-blue-400 h-14">
               <CardContent className="p-2">
                 <p className="text-[10px] text-muted-foreground font-black uppercase">総製造数</p>
-                <div className="text-xl font-black">{analysisData.totalProduction.toLocaleString()} <span className="text-[10px] font-normal">個</span></div>
+                <div className="text-[22px] font-black">{analysisData.totalProduction.toLocaleString()} <span className="text-[12px] font-normal">個</span></div>
               </CardContent>
             </Card>
             <Card className="bg-background border-l-[3px] border-l-destructive h-14">
               <CardContent className="p-2">
                 <p className="text-[10px] text-muted-foreground font-black uppercase">総廃棄数</p>
-                <div className="text-xl font-black text-destructive">{analysisData.totalWaste.toLocaleString()} <span className="text-[10px] font-normal">個</span></div>
+                <div className="text-[22px] font-black text-destructive">{analysisData.totalWaste.toLocaleString()} <span className="text-[12px] font-normal">個</span></div>
               </CardContent>
             </Card>
-            <Card className="bg-primary/5 border-l-[3px] border-l-blue-900 h-14">
+            <Card className="bg-primary/5 border-l-[3px] border-l-blue-900 h-14 shadow-sm">
               <CardContent className="p-2">
                 <p className="text-[10px] text-blue-900 font-black uppercase">平均廃棄率</p>
-                <div className="text-2xl font-black text-blue-900">{overallWasteRate.toFixed(1)}<span className="text-[12px]">%</span></div>
+                <div className="text-[28px] font-black text-blue-900 leading-none">{overallWasteRate.toFixed(1)}<span className="text-[14px] font-normal">%</span></div>
               </CardContent>
             </Card>
           </div>
@@ -376,7 +378,7 @@ export default function ABCAnalysisPage() {
             <Card className="lg:col-span-8 border-none shadow-none bg-background">
               <CardHeader className="p-1 pb-0">
                 <CardTitle className="text-[9px] text-muted-foreground font-black uppercase flex items-center">
-                  <CalendarDays className="h-2.5 w-2.5 mr-1 text-primary" />曜日別 廃棄率
+                  <CalendarDays className="h-2.5 w-2.5 mr-1 text-primary" />曜日別 廃棄率 (条件内製造数ベース)
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-1">
@@ -386,19 +388,19 @@ export default function ABCAnalysisPage() {
                     const stats = analysisData.dayStats[actualDow];
                     const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
                     const isAlert = rate > 15;
-                    let labelColor = "text-muted-foreground";
                     let borderColor = "border-slate-200";
-                    if (actualDow === 6) { labelColor = "text-blue-500"; borderColor = "border-blue-400/60"; }
-                    if (actualDow === 0 || actualDow === 7) { labelColor = "text-destructive"; borderColor = "border-destructive/60"; }
+                    let labelColor = "text-muted-foreground";
+                    if (actualDow === 6) { borderColor = "border-blue-400"; labelColor = "text-blue-500"; }
+                    if (actualDow === 0 || actualDow === 7) { borderColor = "border-destructive/60"; labelColor = "text-destructive"; }
                     return (
                       <div key={label} onClick={() => setSelectedDayIdx(actualDow)} className={cn(
-                        "flex items-center justify-between px-2 h-9 lg:h-8 rounded-full transition-all cursor-pointer hover:opacity-80 bg-muted/50 border shadow-sm",
+                        "flex items-center justify-between px-2 h-9 lg:h-10 rounded-full transition-all cursor-pointer hover:bg-muted/80 bg-background border shadow-sm",
                         borderColor,
-                        isAlert && "bg-destructive/10 border-destructive"
+                        isAlert && "bg-destructive/5 border-destructive border-2"
                       )}>
-                        <span className={cn("text-[11px] font-black shrink-0", labelColor)}>{label}</span>
-                        <div className={cn("text-[13px] font-black tabular-nums leading-none flex items-baseline gap-0.5", isAlert ? "text-destructive" : "text-blue-900")}>
-                          {rate.toFixed(1)}<span className="text-[8px] font-normal">%</span>
+                        <span className={cn("text-[12px] font-black shrink-0", labelColor)}>{label}</span>
+                        <div className={cn("text-[16px] font-black tabular-nums leading-none flex items-baseline gap-0.5", isAlert ? "text-destructive" : "text-blue-900")}>
+                          {rate.toFixed(1)}<span className="text-[9px] font-normal">%</span>
                         </div>
                       </div>
                     );
@@ -410,7 +412,7 @@ export default function ABCAnalysisPage() {
             <Card className="lg:col-span-4 border-none shadow-none bg-background">
               <CardHeader className="p-1 pb-0">
                 <CardTitle className="text-[9px] text-muted-foreground font-black uppercase flex items-center">
-                  <Sun className="h-2.5 w-2.5 mr-1 text-orange-500" />天気別 廃棄率
+                  <Sun className="h-2.5 w-2.5 mr-1 text-orange-500" />天気別 廃棄率 (条件内製造数ベース)
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-1">
@@ -422,15 +424,15 @@ export default function ABCAnalysisPage() {
                     const isAlert = rate > 15;
                     return (
                       <div key={key} className={cn(
-                        "flex items-center justify-between px-2 h-9 lg:h-8 rounded-full bg-muted/50 border border-orange-400/50 shadow-sm",
-                        isAlert && "bg-destructive/10 border-destructive"
+                        "flex items-center justify-between px-2 h-9 lg:h-10 rounded-full bg-background border border-orange-400/50 shadow-sm",
+                        isAlert && "bg-destructive/5 border-destructive border-2"
                       )}>
                         <div className="flex items-center gap-0.5 shrink-0">
-                          <Icon className={cn("h-3 w-3", isAlert ? "text-destructive" : "text-orange-500")} />
-                          <span className="text-[11px] font-black text-muted-foreground">{label.charAt(0)}</span>
+                          <Icon className={cn("h-3.5 w-3.5", isAlert ? "text-destructive" : "text-orange-500")} />
+                          <span className="text-[12px] font-black text-muted-foreground">{label.charAt(0)}</span>
                         </div>
-                        <div className={cn("text-[13px] font-black tabular-nums leading-none flex items-baseline gap-0.5", isAlert ? "text-destructive" : "text-orange-600")}>
-                          {rate.toFixed(1)}<span className="text-[8px] font-normal">%</span>
+                        <div className={cn("text-[16px] font-black tabular-nums leading-none flex items-baseline gap-0.5", isAlert ? "text-destructive" : "text-orange-600")}>
+                          {rate.toFixed(1)}<span className="text-[9px] font-normal">%</span>
                         </div>
                       </div>
                     );
@@ -441,20 +443,20 @@ export default function ABCAnalysisPage() {
           </div>
 
           <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0">
-            <TabsList className="grid grid-cols-4 h-8 p-1 bg-muted/60 mx-1">
-              <TabsTrigger value="overview" className="text-[10px] font-bold">カテゴリー別</TabsTrigger>
-              <TabsTrigger value="product" className="text-[10px] font-bold">商品別</TabsTrigger>
-              <TabsTrigger value="daily" className="text-[10px] font-bold">曜日別一覧</TabsTrigger>
-              <TabsTrigger value="cross" className="text-[10px] font-bold">クロス分析</TabsTrigger>
+            <TabsList className="grid grid-cols-4 h-9 p-1 bg-muted/60 mx-1">
+              <TabsTrigger value="overview" className="text-[11px] font-black uppercase">カテゴリー別</TabsTrigger>
+              <TabsTrigger value="product" className="text-[11px] font-black uppercase">商品別実績</TabsTrigger>
+              <TabsTrigger value="daily" className="text-[11px] font-black uppercase">曜日別一覧</TabsTrigger>
+              <TabsTrigger value="cross" className="text-[11px] font-black uppercase">クロス分析</TabsTrigger>
             </TabsList>
 
             <div className="flex-1 overflow-auto mt-1 px-1">
               <TabsContent value="overview" className="m-0 space-y-1 pb-4">
                 <Card className="border-none shadow-none overflow-hidden bg-background">
-                  <CardHeader className="p-2 bg-primary/5 pb-1">
+                  <CardHeader className="p-2 bg-primary/5 pb-1 border-b">
                     <CardTitle className="text-[12px] font-black flex items-center">
-                      <Filter className="h-3 w-3 mr-2 text-primary" />
-                      カテゴリー別サマリー
+                      <Filter className="h-3.5 w-3.5 mr-2 text-primary" />
+                      カテゴリー別サマリー (行タップで詳細表示)
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-0">
@@ -471,14 +473,14 @@ export default function ABCAnalysisPage() {
                         {sortedCategoryStats.map((item) => (
                           <TableRow 
                             key={item.cat} 
-                            className="h-14 hover:bg-primary/5 transition-colors cursor-pointer"
+                            className="h-16 hover:bg-primary/5 transition-colors cursor-pointer"
                             onClick={() => setSelectedCategoryForDetail(item.cat)}
                           >
                             <TableCell className="px-4 py-2 text-[22px] font-black">{item.cat}</TableCell>
-                            <TableCell className="px-4 py-2 text-[20px] text-right">{item.production.toLocaleString()}</TableCell>
-                            <TableCell className="px-4 py-2 text-[20px] text-right text-destructive font-black">{item.waste.toLocaleString()}</TableCell>
+                            <TableCell className="px-4 py-2 text-[20px] text-right font-bold tabular-nums">{item.production.toLocaleString()}</TableCell>
+                            <TableCell className="px-4 py-2 text-[20px] text-right text-destructive font-black tabular-nums">{item.waste.toLocaleString()}</TableCell>
                             <TableCell className="px-4 py-2 text-right">
-                              <span className={cn("text-[26px] font-black", item.rate > 15 ? "text-destructive" : "text-blue-900")}>{item.rate.toFixed(1)}%</span>
+                              <span className={cn("text-[28px] font-black tabular-nums", item.rate > 15 ? "text-destructive" : "text-blue-900")}>{item.rate.toFixed(1)}%</span>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -494,8 +496,8 @@ export default function ABCAnalysisPage() {
                     <Table>
                       <TableHeader className="bg-muted/30 sticky top-0 z-20">
                         <TableRow className="h-10">
-                          <TableHead className="h-10 text-[18px] font-black px-4 text-center">商品名</TableHead>
-                          <TableHead className="h-10 text-[18px] font-black px-4 text-right">廃棄/製造</TableHead>
+                          <TableHead className="h-10 text-[18px] font-black px-4 text-center">商品名 / 分類</TableHead>
+                          <TableHead className="h-10 text-[18px] font-black px-4 text-right">廃棄 / 製造</TableHead>
                           <TableHead className="h-10 text-[18px] font-black px-4 text-right">廃棄率</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -507,18 +509,18 @@ export default function ABCAnalysisPage() {
                         }).map((p) => {
                           const wasteRate = p.production > 0 ? (p.waste / p.production) * 100 : 0;
                           return (
-                            <TableRow key={p.id} className="h-16 hover:bg-muted/10">
+                            <TableRow key={p.id} className="h-20 hover:bg-muted/10 border-b">
                               <TableCell className="px-4 py-2">
                                 <div className="flex flex-col">
-                                  <span className="text-[22px] font-black truncate max-w-[250px]">{p.name}</span>
-                                  <span className="text-[12px] text-muted-foreground uppercase font-bold">{p.category}</span>
+                                  <span className="text-[22px] font-black truncate max-w-[300px] leading-tight">{p.name}</span>
+                                  <span className="text-[12px] text-muted-foreground uppercase font-black">{p.category}</span>
                                 </div>
                               </TableCell>
                               <TableCell className="px-4 py-2 text-right">
-                                <div className="text-[20px] font-black text-destructive">{p.waste} <span className="text-[16px] font-normal opacity-50 text-foreground">/ {p.production}</span></div>
+                                <div className="text-[20px] font-black text-destructive tabular-nums">{p.waste} <span className="text-[16px] font-normal opacity-50 text-foreground">/ {p.production}</span></div>
                               </TableCell>
                               <TableCell className="px-4 py-2 text-right">
-                                <span className={cn("text-[24px] font-black", wasteRate > 15 ? "text-destructive" : "text-blue-900")}>{wasteRate.toFixed(1)}%</span>
+                                <span className={cn("text-[26px] font-black tabular-nums", wasteRate > 15 ? "text-destructive" : "text-blue-900")}>{wasteRate.toFixed(1)}%</span>
                               </TableCell>
                             </TableRow>
                           );
@@ -530,10 +532,10 @@ export default function ABCAnalysisPage() {
               </TabsContent>
 
               <TabsContent value="daily" className="m-0 space-y-4 pb-4">
-                <div className="flex justify-end mb-2">
-                  <Button variant="outline" size="sm" onClick={() => setIsFullScreenDaily(true)} className="h-8 font-black text-[10px]">
-                    <Maximize2 className="h-3.5 w-3.5 mr-2" />
-                    全画面比較
+                <div className="flex justify-end px-1">
+                  <Button variant="outline" size="lg" onClick={() => setIsFullScreenDaily(true)} className="h-12 border-2 font-black text-primary hover:bg-primary hover:text-white transition-all shadow-md">
+                    <Maximize2 className="h-5 w-5 mr-2" />
+                    全画面・全曜日一括比較 (4×2グリッド)
                   </Button>
                 </div>
                 {renderDailyGrid(false)}
@@ -545,7 +547,7 @@ export default function ABCAnalysisPage() {
                     <Table>
                       <TableHeader className="bg-muted/60">
                         <TableRow className="h-12">
-                          <TableHead className="h-12 p-2 text-[18px] font-black border-r text-center w-20">曜\天</TableHead>
+                          <TableHead className="h-12 p-2 text-[18px] font-black border-r text-center w-24">曜\天</TableHead>
                           {Object.entries(weatherLabels).map(([_, label]) => <TableHead key={label} className="h-12 text-[18px] text-center font-black p-2">{label}</TableHead>)}
                         </TableRow>
                       </TableHeader>
@@ -553,8 +555,8 @@ export default function ABCAnalysisPage() {
                         {dayLabels.map((label, i) => {
                           const actualDow = dayOrder[i];
                           return (
-                            <TableRow key={label} className="h-16">
-                              <TableHead className={cn("h-16 p-2 text-[20px] font-black border-r text-center", (actualDow === 0 || actualDow === 7) ? "text-destructive" : (actualDow === 6 ? "text-blue-500" : ""))}>
+                            <TableRow key={label} className="h-24">
+                              <TableHead className={cn("h-24 p-2 text-[22px] font-black border-r text-center", (actualDow === 0 || actualDow === 7) ? "text-destructive" : (actualDow === 6 ? "text-blue-500" : ""))}>
                                 {label}
                               </TableHead>
                               {Object.keys(weatherLabels).map(weatherKey => {
@@ -563,11 +565,11 @@ export default function ABCAnalysisPage() {
                                 return (
                                   <TableCell key={weatherKey} className={cn("text-center p-2 border-r last:border-r-0", rate > 20 ? "bg-destructive/5" : (rate > 10 ? "bg-orange-50/50" : ""))}>
                                     {stats.production > 0 ? (
-                                      <div className="flex flex-col items-center leading-tight">
-                                        <span className={cn("text-[24px] font-black", rate > 15 ? "text-destructive" : "text-blue-900")}>{rate.toFixed(1)}%</span>
-                                        <span className="text-[14px] text-muted-foreground font-bold opacity-70">{stats.waste} / {stats.production}</span>
+                                      <div className="flex flex-col items-center leading-none">
+                                        <span className={cn("text-[26px] font-black tabular-nums", rate > 15 ? "text-destructive" : "text-blue-900")}>{rate.toFixed(1)}%</span>
+                                        <span className="text-[14px] text-muted-foreground font-black opacity-70 mt-1">{stats.waste} / {stats.production}</span>
                                       </div>
-                                    ) : <span className="text-muted-foreground text-[16px]">-</span>}
+                                    ) : <span className="text-muted-foreground text-[18px] opacity-20">-</span>}
                                   </TableCell>
                                 );
                               })}
@@ -584,100 +586,120 @@ export default function ABCAnalysisPage() {
 
           <Dialog open={isFullScreenDaily} onOpenChange={setIsFullScreenDaily}>
             <DialogContent className="max-w-[98vw] h-[95vh] flex flex-col p-4 bg-muted/5">
-              <DialogHeader>
-                <DialogTitle className="text-xl font-black">全曜日比較（4×2グリッド俯瞰）</DialogTitle>
-                <DialogDescription className="text-sm font-bold">全曜日を一画面に表示。各カードは廃棄率の高い順にソートされ、4行まで表示されます。</DialogDescription>
+              <DialogHeader className="mb-2">
+                <DialogTitle className="text-2xl font-black">全曜日実績比較（4×2グリッド俯瞰）</DialogTitle>
+                <DialogDescription className="text-sm font-bold text-muted-foreground">
+                  全8曜日のデータを1画面に集約。各カードは「廃棄率が高い順」に並び、上位4件までが固定表示されます。
+                </DialogDescription>
               </DialogHeader>
-              <div className="flex-1 overflow-hidden mt-2">
+              <div className="flex-1 overflow-y-auto mt-2">
                 {renderDailyGrid(true)}
               </div>
             </DialogContent>
           </Dialog>
 
           <Dialog open={selectedDayIdx !== null} onOpenChange={(open) => !open && setSelectedDayIdx(null)}>
-            <DialogContent className="max-w-[500px] max-h-[90vh] flex flex-col p-4">
+            <DialogContent className="max-w-[550px] max-h-[90vh] flex flex-col p-4">
               <DialogHeader>
-                <DialogTitle className="text-lg font-black flex items-center">
-                  <CalendarDays className="mr-2 h-5 w-5 text-blue-900" />
+                <DialogTitle className="text-2xl font-black flex items-center">
+                  <CalendarDays className="mr-3 h-7 w-7 text-blue-900" />
                   {selectedDayIdx !== null && actualDowLabel(selectedDayIdx)}曜日の詳細分析
                 </DialogTitle>
+                <DialogDescription className="text-sm font-bold">
+                  この曜日の天候別廃棄率と、具体的な廃棄商品（廃棄率順）です。
+                </DialogDescription>
               </DialogHeader>
-              <div className="flex-1 overflow-auto mt-4 space-y-4">
-                <div className="grid grid-cols-2 gap-2">
+              <div className="flex-1 overflow-auto mt-6 space-y-6">
+                <div className="grid grid-cols-2 gap-3">
                   {Object.entries(weatherLabels).map(([weatherKey, label]) => {
                     const stats = (selectedDayIdx !== null && analysisData?.matrixStats[`${selectedDayIdx}-${weatherKey}`]) || { waste: 0, production: 0 };
                     const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
                     const isAlert = rate > 15;
                     return (
-                      <div key={weatherKey} className="flex items-center justify-between p-2 rounded-full bg-muted/30 border shadow-sm">
-                        <span className="text-[10px] font-black text-muted-foreground">{label} 廃棄率:</span>
-                        <div className={cn("text-[16px] font-black", isAlert ? "text-destructive" : "text-blue-900")}>
+                      <div key={weatherKey} className={cn(
+                        "flex items-center justify-between p-3 rounded-xl border-2 shadow-sm transition-all bg-background",
+                        isAlert ? "border-destructive/40" : "border-orange-400/30"
+                      )}>
+                        <span className="text-[12px] font-black text-muted-foreground">{label} 廃棄率</span>
+                        <div className={cn("text-[22px] font-black tabular-nums", isAlert ? "text-destructive" : "text-blue-900")}>
                           {rate.toFixed(1)}%
                         </div>
                       </div>
                     );
                   })}
                 </div>
-                <Separator />
-                <Table>
-                  <TableHeader className="bg-muted/50">
-                    <TableRow>
-                      <TableHead className="h-8 text-[10px] font-bold">商品名</TableHead>
-                      <TableHead className="h-8 text-[10px] font-bold text-right">廃棄率 (個数)</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {selectedDayIdx !== null && analysisData?.products
-                      .filter(p => (p.wasteDow[selectedDayIdx] || 0) > 0 || (p.prodDow[selectedDayIdx] || 0) > 0)
-                      .sort((a, b) => {
-                        const rA = a.prodDow[selectedDayIdx] > 0 ? a.wasteDow[selectedDayIdx] / a.prodDow[selectedDayIdx] : 0;
-                        const rB = b.prodDow[selectedDayIdx] > 0 ? b.wasteDow[selectedDayIdx] / b.prodDow[selectedDayIdx] : 0;
-                        return rB - rA;
-                      })
-                      .map(p => {
-                        const pWaste = p.wasteDow[selectedDayIdx] || 0;
-                        const pProd = p.prodDow[selectedDayIdx] || 0;
-                        const pRate = pProd > 0 ? (pWaste / pProd) * 100 : 0;
-                        return (
-                          <TableRow key={p.id} className="h-10">
-                            <TableCell className="py-1 px-3 text-[14px] font-black">{p.name}</TableCell>
-                            <TableCell className="py-1 px-3 text-right font-bold text-[13px]">
-                              <span className={cn("font-black text-[15px]", pRate > 15 ? "text-destructive" : "text-blue-900")}>{pRate.toFixed(1)}%</span>
-                              <span className="text-[10px] text-muted-foreground ml-1">({pWaste}/{pProd})</span>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    }
-                  </TableBody>
-                </Table>
+                <Separator className="h-0.5" />
+                <div className="space-y-2">
+                  <Label className="text-[14px] font-black text-muted-foreground uppercase flex items-center gap-2">
+                    <Package className="h-4 w-4" /> 廃棄商品リスト (廃棄率順)
+                  </Label>
+                  <div className="border rounded-xl overflow-hidden shadow-sm">
+                    <Table>
+                      <TableHeader className="bg-muted/50">
+                        <TableRow>
+                          <TableHead className="h-10 text-[12px] font-black">商品名</TableHead>
+                          <TableHead className="h-10 text-[12px] font-black text-right">廃棄率 (個数)</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedDayIdx !== null && analysisData?.products
+                          .filter(p => (p.wasteDow[selectedDayIdx] || 0) > 0 || (p.prodDow[selectedDayIdx] || 0) > 0)
+                          .sort((a, b) => {
+                            const rA = a.prodDow[selectedDayIdx] > 0 ? a.wasteDow[selectedDayIdx] / a.prodDow[selectedDayIdx] : 0;
+                            const rB = b.prodDow[selectedDayIdx] > 0 ? b.wasteDow[selectedDayIdx] / b.prodDow[selectedDayIdx] : 0;
+                            return rB - rA;
+                          })
+                          .map(p => {
+                            const pWaste = p.wasteDow[selectedDayIdx] || 0;
+                            const pProd = p.prodDow[selectedDayIdx] || 0;
+                            const pRate = pProd > 0 ? (pWaste / pProd) * 100 : 0;
+                            return (
+                              <TableRow key={p.id} className="h-14">
+                                <TableCell className="py-2 px-4 text-[18px] font-black leading-tight">{p.name}</TableCell>
+                                <TableCell className="py-2 px-4 text-right">
+                                  <div className={cn("font-black text-[22px] tabular-nums leading-none", pRate > 15 ? "text-destructive" : "text-blue-900")}>
+                                    {pRate.toFixed(1)}%
+                                  </div>
+                                  <div className="text-[11px] text-muted-foreground font-bold mt-1">({pWaste} / {pProd})</div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })
+                        }
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
               </div>
             </DialogContent>
           </Dialog>
 
           <Dialog open={!!selectedCategoryForDetail} onOpenChange={(open) => !open && setSelectedCategoryForDetail(null)}>
-            <DialogContent className="max-w-[500px] max-h-[80vh] flex flex-col p-4">
+            <DialogContent className="max-w-[550px] max-h-[85vh] flex flex-col p-4">
               <DialogHeader>
-                <DialogTitle className="text-xl font-black">{selectedCategoryForDetail} 詳細</DialogTitle>
-                <DialogDescription className="text-sm font-bold">廃棄数と機会損失（売価合計）です。</DialogDescription>
+                <DialogTitle className="text-2xl font-black">{selectedCategoryForDetail} カテゴリー詳細</DialogTitle>
+                <DialogDescription className="text-sm font-bold">
+                  廃棄数と**機会損失（売価合計）**です。これだけの売上チャンスを逃しています。
+                </DialogDescription>
               </DialogHeader>
-              <div className="flex-1 overflow-auto mt-4">
+              <div className="flex-1 overflow-auto mt-6">
                 <Table>
                   <TableHeader className="bg-muted/50">
-                    <TableRow>
-                      <TableHead className="font-bold">商品名</TableHead>
-                      <TableHead className="text-right font-bold">廃棄数</TableHead>
-                      <TableHead className="text-right font-bold">機会損失</TableHead>
+                    <TableRow className="h-10">
+                      <TableHead className="font-black text-[14px]">商品名</TableHead>
+                      <TableHead className="text-right font-black text-[14px]">廃棄数</TableHead>
+                      <TableHead className="text-right font-black text-[14px]">機会損失 (売価計)</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {analysisData.products
                       .filter(p => p.category === selectedCategoryForDetail)
+                      .sort((a,b) => b.waste - a.waste)
                       .map(p => (
-                        <TableRow key={p.id} className="h-12">
-                          <TableCell className="font-bold py-2 text-[18px]">{p.name}</TableCell>
-                          <TableCell className="text-right text-destructive font-black py-2 text-[22px]">{p.waste} <span className="text-xs font-normal">個</span></TableCell>
-                          <TableCell className="text-right font-black text-blue-900 py-2 text-[22px]">
+                        <TableRow key={p.id} className="h-16 border-b">
+                          <TableCell className="font-black py-2 text-[20px] leading-tight">{p.name}</TableCell>
+                          <TableCell className="text-right text-destructive font-black py-2 text-[24px] tabular-nums">{p.waste}<span className="text-xs font-normal">個</span></TableCell>
+                          <TableCell className="text-right font-black text-blue-900 py-2 text-[24px] tabular-nums">
                             ¥{(p.waste * (p.price || 0)).toLocaleString()}
                           </TableCell>
                         </TableRow>
