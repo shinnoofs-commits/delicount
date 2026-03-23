@@ -38,30 +38,32 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
   const fetchProducts = useCallback(() => {
     if (!firestore || !user || isUserLoading || isAdminLoading || storesLoading) return;
 
-    // 店舗選択が変更されたタイミングで、一旦リストを空にして二重計上を防ぐ
+    // 店舗選択が変更されたタイミングでリセットし、重複を防ぐ
     setProducts([]);
     setLoading(true);
     
-    const storeIdsToFetch = isAdmin ? selectedStoreIds : (userStore ? [userStore.id] : []);
+    // 重複を排除した店舗IDリスト
+    const uniqueStoreIds = Array.from(new Set(isAdmin ? selectedStoreIds : (userStore ? [userStore.id] : [])));
 
-    if (storeIdsToFetch.length === 0) {
+    if (uniqueStoreIds.length === 0) {
       setLoading(false);
       return;
     }
     
     const unsubscribers: Unsubscribe[] = [];
 
-    storeIdsToFetch.forEach(storeId => {
+    uniqueStoreIds.forEach(storeId => {
       const q = query(collection(firestore, 'stores', storeId, 'products'));
       const unsub = onSnapshot(q, (snapshot) => {
         setProducts(prev => {
-          const otherProducts = prev.filter(p => p.storeId !== storeId);
+          // 同じ店舗のデータを古いリストからフィルタリングして除去してから新しいデータを追加
+          const filtered = prev.filter(p => p.storeId !== storeId);
           const currentStoreProducts = snapshot.docs.map(doc => ({ 
             id: doc.id, 
             ...doc.data(), 
             storeId 
           } as Product));
-          return [...otherProducts, ...currentStoreProducts];
+          return [...filtered, ...currentStoreProducts];
         });
         setLoading(false);
       }, (error) => {

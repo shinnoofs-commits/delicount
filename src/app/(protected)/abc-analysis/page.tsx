@@ -116,21 +116,16 @@ export default function ABCAnalysisPage() {
       }
     });
 
-    // 2. 製造実績（0ベース集計の核：1日・1店舗につき1つの確定データを特定）
+    // 2. 製造実績（1日1件の確定データを特定）
     // key: "yyyy-MM-dd|storeId" -> Map<productId, quantity>
     const dailyActualMap = new Map<string, Map<string, number>>();
     productionEntries.forEach(entry => {
       const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
       if (!dateSet.has(dateKey)) return;
-      
       const storeDateKey = `${dateKey}|${entry.storeId}`;
-      // 同日のデータが複数ある場合は最新（または最初に見つかったもの）をその日の「正解」とする
-      // ※contexts/production-context.tsxでsetDoc(dateId)にしているため、本来は1つしかないはず
       if (!dailyActualMap.has(storeDateKey)) {
         const prodMap = new Map<string, number>();
-        entry.items.forEach(item => {
-          prodMap.set(item.productId, item.quantity);
-        });
+        entry.items.forEach(item => prodMap.set(item.productId, item.quantity));
         dailyActualMap.set(storeDateKey, prodMap);
       }
     });
@@ -140,7 +135,6 @@ export default function ABCAnalysisPage() {
     wasteEntries.forEach(entry => {
       const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
       if (!dateSet.has(dateKey)) return;
-      
       if (!wasteMap.has(dateKey)) wasteMap.set(dateKey, new Map());
       const pWasteMap = wasteMap.get(dateKey)!;
       entry.items.forEach(item => {
@@ -157,13 +151,15 @@ export default function ABCAnalysisPage() {
     for (let i = 0; i < 8; i++) dayStats[i] = { waste: 0, production: 0 };
     Object.keys(weatherLabels).forEach(w => weatherStats[w] = { waste: 0, production: 0 });
 
-    // 4. 精精密集計
-    products.forEach(product => {
-      // カテゴリーフィルター
+    // 4. 重複排除した商品リストで集計
+    const uniqueProducts = Array.from(new Map(products.map(p => [`${p.storeId}|${p.id}`, p])).values());
+
+    uniqueProducts.forEach(product => {
       if (selectedCategory !== 'all' && product.category !== selectedCategory) return;
 
       const stats = {
         id: product.id,
+        storeId: product.storeId,
         name: product.name,
         category: product.category,
         price: product.price,
@@ -182,11 +178,8 @@ export default function ABCAnalysisPage() {
         const matrixKey = `${dow}-${weather}`;
         const storeDateKey = `${dateKey}|${product.storeId}`;
 
-        // 0ベース集計ロジック
-        // A. 実績（追加登録）があるか確認
+        // 0ベース集計ロジック: 実績優先、なければ計画
         const recordedCount = dailyActualMap.get(storeDateKey)?.get(product.id);
-        
-        // B. 実績があればそれを、なければ計画を採用（二重計上を防止）
         let finalProduction = 0;
         if (recordedCount !== undefined) {
           finalProduction = recordedCount;
@@ -225,10 +218,8 @@ export default function ABCAnalysisPage() {
     });
 
     const productsArray = Array.from(productStats.values());
-    
-    // 総計の再計算（カテゴリーフィルターがかかっている場合はその範囲で）
-    const totalProduction = productsArray.reduce((sum, p) => sum + p.production, 0);
-    const totalWaste = productsArray.reduce((sum, p) => sum + p.waste, 0);
+    const totalProduction = Object.values(dayStats).reduce((sum, s) => sum + s.production, 0);
+    const totalWaste = Object.values(dayStats).reduce((sum, s) => sum + s.waste, 0);
 
     return {
       products: productsArray,
@@ -485,7 +476,7 @@ export default function ABCAnalysisPage() {
                           <Icon className={cn("h-3.5 w-3.5", isAlert ? "text-destructive" : "text-orange-500")} />
                           <span className="text-[12px] font-black text-muted-foreground">{label.charAt(0)}</span>
                         </div>
-                        <div className={cn("text-[16px] font-black tabular-nums Bird leading-none flex items-baseline gap-0.5", isAlert ? "text-destructive" : "text-orange-600")}>
+                        <div className={cn("text-[16px] font-black tabular-nums leading-none flex items-baseline gap-0.5", isAlert ? "text-destructive" : "text-orange-600")}>
                           {rate.toFixed(1)}<span className="text-[9px] font-normal">%</span>
                         </div>
                       </div>
@@ -671,7 +662,8 @@ export default function ABCAnalysisPage() {
               <div className="flex-1 overflow-auto mt-6 space-y-6">
                 <div className="grid grid-cols-2 gap-3">
                   {Object.entries(weatherLabels).map(([weatherKey, label]) => {
-                    const stats = (selectedDayIdx !== null && analysisData?.matrixStats[`${selectedDayIdx}-${weatherKey}`]) || { waste: 0, production: 0 };
+                    const matrixKey = `${selectedDayIdx}-${weatherKey}`;
+                    const stats = (selectedDayIdx !== null && analysisData?.matrixStats[matrixKey]) || { waste: 0, production: 0 };
                     const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
                     const isAlert = rate > 15;
                     return (
@@ -712,8 +704,8 @@ export default function ABCAnalysisPage() {
                             return rB - rA;
                           })
                           .map(p => {
-                            const pWaste = p.wasteDow[selectedDayIdx] || 0;
-                            const pProd = p.prodDow[selectedDayIdx] || 0;
+                            const pWaste = p.wasteDow[selectedDayIdx!] || 0;
+                            const pProd = p.prodDow[selectedDayIdx!] || 0;
                             const pRate = pProd > 0 ? (pWaste / pProd) * 100 : 0;
                             return (
                               <TableRow key={`${p.storeId}|${p.id}`} className="h-14">

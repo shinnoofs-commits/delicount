@@ -77,7 +77,7 @@ export function ProductionProvider({ children }: { children: React.ReactNode }) 
   const addProductionEntry = useCallback(async (productionEntryData: Omit<ProductionEntry, 'id' | 'userId'>) => {
     if (!firestore || !user) return;
 
-    // 日付に基づいた固定IDを使用することで、1日1件の確定データとして上書き保存する（二重計上防止）
+    // 日付に基づいた固定IDを使用することで、1日1件の確定データとして保存する
     const dateId = format(productionEntryData.date, 'yyyy-MM-dd');
     const entryRef = doc(firestore, 'stores', productionEntryData.storeId, 'production', dateId);
     

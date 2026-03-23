@@ -43,16 +43,16 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     setWasteEntries([]);
     setLoading(true);
     
-    const storeIdsToFetch = isAdmin ? selectedStoreIds : (userStore ? [userStore.id] : []);
+    const uniqueStoreIds = Array.from(new Set(isAdmin ? selectedStoreIds : (userStore ? [userStore.id] : [])));
     
-    if (storeIdsToFetch.length === 0) {
+    if (uniqueStoreIds.length === 0) {
       setLoading(false);
       return;
     }
 
     const unsubscribers: Unsubscribe[] = [];
 
-    storeIdsToFetch.forEach(storeId => {
+    uniqueStoreIds.forEach(storeId => {
       const q = query(collection(firestore, 'stores', storeId, 'waste'));
       const unsub = onSnapshot(q, (snapshot) => {
         setWasteEntries(prev => {
@@ -66,8 +66,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
               date: data.date.toDate(),
             } as WasteEntry;
           });
-          const combined = [...otherEntries, ...currentStoreEntries];
-          return combined;
+          return [...otherEntries, ...currentStoreEntries];
         });
         setLoading(false);
       }, (error) => {
