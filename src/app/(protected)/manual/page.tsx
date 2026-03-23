@@ -32,16 +32,16 @@ const manualSlides = [
         outcome: "営業利益率の向上、属人化からの脱却"
     },
     {
-        title: "現場入力：0ベース実績管理",
-        description: "実績優先の集計ロジックで正確なデータを構築。",
+        title: "現場入力：実績優先ロジック",
+        description: "入力負担を最小化しつつ正確なデータを構築。",
         icon: ClipboardCheck,
         points: [
             "【実績登録】: 計画をベースに「今日の最終製造数」を確定記録。",
-            "【0ベース集計】: 実績登録がある日はそれを採用。ない日は計画を自動補完。",
+            "【0ベース集計】: 実績登録がある日はそれを採用。ない日は計画を補完。",
             "【代表天気】: 1日1天気を自動同期。分析のブレをシステムで防止。",
             "【陳列管理】: 10:00/12:00/15:00枠を管理。ピークに合わせた品揃えを。"
         ],
-        important: "実績を登録した時点で計画値は実績値に上書きされ、二重計上を防ぎます。",
+        important: "実績を登録した時点で計画値は実績値に置き換わり、二重計上を防ぎます。",
         outcome: "入力負担の軽減、分析データの完全な整合性"
     },
     {
@@ -118,8 +118,8 @@ export default function ManualPage() {
                     </div>
                     <CardDescription className="text-slate-300 text-[12px] font-medium leading-none mt-1.5">{slide.description}</CardDescription>
                   </CardHeader>
-                  <CardContent className="flex-1 p-4 flex flex-col justify-between space-y-3 overflow-hidden">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
+                  <CardContent className="flex-1 p-4 flex flex-col justify-between space-y-2 overflow-hidden">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1.5">
                         {slide.points.map((point, pIndex) => (
                             <div key={pIndex} className="flex gap-2 group items-start">
                                 <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
@@ -128,14 +128,14 @@ export default function ManualPage() {
                         ))}
                     </div>
 
-                    <div className="space-y-2 mt-auto pt-2 border-t">
-                        <div className="p-2.5 rounded-md bg-primary/5 border border-primary/20 relative">
+                    <div className="space-y-1.5 mt-auto pt-2 border-t">
+                        <div className="p-2 rounded-md bg-primary/5 border border-primary/20 relative">
                             <Badge variant="default" className="mb-1 bg-primary text-primary-foreground font-black px-1.5 py-0 text-[10px] leading-none">運用成功の鍵</Badge>
                             <p className="font-black text-slate-800 text-[14px] leading-tight">{slide.important}</p>
                         </div>
 
-                        <div className="flex items-center gap-2 text-[11px] font-black text-slate-500 bg-muted/50 p-2 rounded-md">
-                            <ArrowRight className="h-4 w-4 text-primary" />
+                        <div className="flex items-center gap-2 text-[11px] font-black text-slate-500 bg-muted/50 p-1.5 rounded-md">
+                            <ArrowRight className="h-3.5 w-3.5 text-primary" />
                             <span>期待される成果:</span>
                             <span className="text-slate-900 text-[13px]">{slide.outcome}</span>
                         </div>

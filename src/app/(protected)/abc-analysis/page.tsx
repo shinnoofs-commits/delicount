@@ -107,12 +107,12 @@ export default function ABCAnalysisPage() {
 
     const dateSet = new Set(datesToProcess);
     
-    // 1. 日別の代表天気をマッピング
-    const dateToWeather = new Map<string, string>();
+    // 1. 日別・店舗別の代表天気をマッピング
+    const dateStoreToWeather = new Map<string, string>();
     wasteEntries.forEach(entry => {
       const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
       if (entry.weather && dateSet.has(dateKey)) {
-        dateToWeather.set(dateKey, entry.weather);
+        dateStoreToWeather.set(`${dateKey}|${entry.storeId}`, entry.weather);
       }
     });
 
@@ -125,18 +125,19 @@ export default function ABCAnalysisPage() {
       const storeDateKey = `${dateKey}|${entry.storeId}`;
       if (!dailyActualMap.has(storeDateKey)) {
         const prodMap = new Map<string, number>();
-        entry.items.forEach(item => prodMap.set(item.productId, item.quantity));
+        entry.items.forEach(item => prodMap.set(item.productId, (prodMap.get(item.productId) || 0) + item.quantity));
         dailyActualMap.set(storeDateKey, prodMap);
       }
     });
 
-    // 3. 廃棄実績をマッピング
+    // 3. 廃棄実績をマッピング (日付|店舗ID をキーにする)
     const wasteMap = new Map<string, Map<string, number>>();
     wasteEntries.forEach(entry => {
       const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
       if (!dateSet.has(dateKey)) return;
-      if (!wasteMap.has(dateKey)) wasteMap.set(dateKey, new Map());
-      const pWasteMap = wasteMap.get(dateKey)!;
+      const storeDateKey = `${dateKey}|${entry.storeId}`;
+      if (!wasteMap.has(storeDateKey)) wasteMap.set(storeDateKey, new Map());
+      const pWasteMap = wasteMap.get(storeDateKey)!;
       entry.items.forEach(item => {
         pWasteMap.set(item.productId, (pWasteMap.get(item.productId) || 0) + item.quantity);
       });
@@ -151,7 +152,7 @@ export default function ABCAnalysisPage() {
     for (let i = 0; i < 8; i++) dayStats[i] = { waste: 0, production: 0 };
     Object.keys(weatherLabels).forEach(w => weatherStats[w] = { waste: 0, production: 0 });
 
-    // 4. 重複排除した商品リストで集計
+    // 4. 重複排除した店舗・商品リストで集計
     const uniqueProducts = Array.from(new Map(products.map(p => [`${p.storeId}|${p.id}`, p])).values());
 
     uniqueProducts.forEach(product => {
@@ -173,10 +174,10 @@ export default function ABCAnalysisPage() {
         const entryDate = new Date(dateKey);
         const isHoliday = holiday_jp.isHoliday(entryDate);
         const dow = isHoliday ? 7 : getDay(entryDate);
-        const weather = dateToWeather.get(dateKey) || 'sunny';
+        const storeDateKey = `${dateKey}|${product.storeId}`;
+        const weather = dateStoreToWeather.get(storeDateKey) || 'sunny';
         const dowKey = isHoliday ? 'holiday' : dayMap[dow];
         const matrixKey = `${dow}-${weather}`;
-        const storeDateKey = `${dateKey}|${product.storeId}`;
 
         // 0ベース集計ロジック: 実績優先、なければ計画
         const recordedCount = dailyActualMap.get(storeDateKey)?.get(product.id);
@@ -190,7 +191,7 @@ export default function ABCAnalysisPage() {
               : (dailyProduction as any)?.[dowKey] || 0;
         }
         
-        const finalWaste = wasteMap.get(dateKey)?.get(product.id) || 0;
+        const finalWaste = wasteMap.get(storeDateKey)?.get(product.id) || 0;
 
         if (finalProduction > 0 || finalWaste > 0) {
           stats.production += finalProduction;

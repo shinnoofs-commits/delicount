@@ -38,25 +38,22 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
   const fetchProducts = useCallback(() => {
     if (!firestore || !user || isUserLoading || isAdminLoading || storesLoading) return;
 
-    // 店舗選択が変更されたタイミングでリセットし、重複を防ぐ
-    setProducts([]);
-    setLoading(true);
-    
-    // 重複を排除した店舗IDリスト
+    // 店舗IDの重複を排除
     const uniqueStoreIds = Array.from(new Set(isAdmin ? selectedStoreIds : (userStore ? [userStore.id] : [])));
 
     if (uniqueStoreIds.length === 0) {
+      setProducts([]);
       setLoading(false);
       return;
     }
     
+    setLoading(true);
     const unsubscribers: Unsubscribe[] = [];
 
     uniqueStoreIds.forEach(storeId => {
       const q = query(collection(firestore, 'stores', storeId, 'products'));
       const unsub = onSnapshot(q, (snapshot) => {
         setProducts(prev => {
-          // 同じ店舗のデータを古いリストからフィルタリングして除去してから新しいデータを追加
           const filtered = prev.filter(p => p.storeId !== storeId);
           const currentStoreProducts = snapshot.docs.map(doc => ({ 
             id: doc.id, 
