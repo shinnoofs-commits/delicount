@@ -13,7 +13,7 @@ import {
   PanelLeft,
   BookText,
   Building,
-  Sigma,
+  Calculator,
   Factory,
   CalendarDays,
 } from 'lucide-react';
@@ -44,7 +44,7 @@ const navItems = [
   { href: '/production', icon: Factory, label: '追加商品登録', adminOnly: false },
   { href: '/production-planning', icon: CalendarDays, label: '製造計画', adminOnly: false },
   { href: '/dashboard', icon: LineChart, label: 'ダッシュボード', adminOnly: false },
-  { href: '/abc-analysis', icon: Sigma, label: '廃棄クロス分析', adminOnly: false },
+  { href: '/abc-analysis', icon: Calculator, label: '廃棄クロス分析', adminOnly: false },
   { href: '/products', icon: Package, label: '商品', adminOnly: false },
   { href: '/stores', icon: Building, label: '店舗一覧', adminOnly: true },
   { href: '/manual', icon: BookText, label: '操作説明', adminOnly: false },

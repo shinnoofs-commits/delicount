@@ -55,7 +55,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { useAdmin } from "@/hooks/use-admin";
 import { useStores } from "@/contexts/store-context";
-import { getWasteInsights, type WasteInsightsOutput } from "@/ai/flows/waste-insights-flow";
+import { getWasteInsights } from "@/ai/flows/waste-insights-flow";
+import type { WasteInsightsOutput } from "@/ai/flows/waste-insights-flow";
 
 const DateRangePicker = ({ date, setDate }: { date: DateRange | undefined, setDate: (date: DateRange | undefined) => void }) => {
   return (
@@ -169,7 +170,6 @@ export default function DashboardPage() {
   const [date, setDate] = useState<DateRange | undefined>(undefined);
 
   useEffect(() => {
-    // クライアントサイドでのみ実行してハイドレーションエラーを防止
     setDate({
       from: subDays(new Date(), 6),
       to: new Date(),
@@ -543,7 +543,7 @@ export default function DashboardPage() {
                   };
                   return (
                     <Card key={idx} className="bg-background shadow-sm overflow-hidden flex flex-col">
-                      <div className={cn("px-3 py-1 text-[10px] font-bold border-b", typeColors[insight.type])}>
+                      <div className={cn("px-3 py-1 text-[10px] font-bold border-b", typeColors[insight.type as keyof typeof typeColors])}>
                         {insight.type.toUpperCase().replace('_', ' ')}
                       </div>
                       <CardContent className="p-3 flex-1 flex flex-col">
@@ -749,119 +749,127 @@ export default function DashboardPage() {
 
       <Dialog open={!!editEntry} onOpenChange={(open) => !open && !isSaving && setEditEntry(null)}>
           <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col p-0 overflow-hidden">
-              <DialogHeader className="p-6 pb-2">
-                  <DialogTitle>廃棄データの編集</DialogTitle>
-                  <DialogDescription>
-                      数量や天気を調整してください。
-                  </DialogDescription>
-              </DialogHeader>
-              <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
-                  <div className="space-y-6">
-                      <div className="space-y-2">
-                          <Label className="text-sm font-semibold">天気を修正</Label>
-                          <div className="grid grid-cols-4 gap-2">
-                              {weatherOptions.map((option) => (
-                                  <Button
-                                      key={option.value}
-                                      variant={editWeather === option.value ? "default" : "outline"}
-                                      className="flex flex-col h-14 gap-1 p-1"
-                                      onClick={() => setEditWeather(option.value)}
-                                      disabled={isSaving}
-                                  >
-                                      <option.icon className="h-4 w-4" />
-                                      <span className="text-[10px]">{option.label}</span>
-                                  </Button>
+              {!!editEntry && (
+                <>
+                  <DialogHeader className="p-6 pb-2">
+                      <DialogTitle>廃棄データの編集</DialogTitle>
+                      <DialogDescription>
+                          数量や天気を調整してください。
+                      </DialogDescription>
+                  </DialogHeader>
+                  <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
+                      <div className="space-y-6">
+                          <div className="space-y-2">
+                              <Label className="text-sm font-semibold">天気を修正</Label>
+                              <div className="grid grid-cols-4 gap-2">
+                                  {weatherOptions.map((option) => (
+                                      <Button
+                                          key={option.value}
+                                          variant={editWeather === option.value ? "default" : "outline"}
+                                          className="flex flex-col h-14 gap-1 p-1"
+                                          onClick={() => setEditWeather(option.value)}
+                                          disabled={isSaving}
+                                      >
+                                          <option.icon className="h-4 w-4" />
+                                          <span className="text-[10px]">{option.label}</span>
+                                      </Button>
+                                  ))}
+                              </div>
+                          </div>
+                          <Separator />
+                          <div className="space-y-4">
+                              <Label className="text-sm font-semibold">数量を修正</Label>
+                              {editItems.map(item => (
+                                  <div key={item.productId} className="flex items-center justify-between gap-4 border-b pb-2 last:border-0">
+                                      <span className="text-sm font-medium flex-1 truncate">{item.name}</span>
+                                      <div className="flex items-center gap-2">
+                                          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleUpdateQuantity(item.productId, -1)} disabled={isSaving}>
+                                              <Minus className="h-4 w-4" />
+                                          </Button>
+                                          <span className="w-8 text-center tabular-nums font-semibold">{item.quantity}</span>
+                                          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleUpdateQuantity(item.productId, 1)} disabled={isSaving}>
+                                              <Plus className="h-4 w-4" />
+                                          </Button>
+                                      </div>
+                                  </div>
                               ))}
                           </div>
                       </div>
-                      <Separator />
-                      <div className="space-y-4">
-                          <Label className="text-sm font-semibold">数量を修正</Label>
-                          {editItems.map(item => (
-                              <div key={item.productId} className="flex items-center justify-between gap-4 border-b pb-2 last:border-0">
-                                  <span className="text-sm font-medium flex-1 truncate">{item.name}</span>
-                                  <div className="flex items-center gap-2">
-                                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleUpdateQuantity(item.productId, -1)} disabled={isSaving}>
-                                          <Minus className="h-4 w-4" />
-                                      </Button>
-                                      <span className="w-8 text-center tabular-nums font-semibold">{item.quantity}</span>
-                                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleUpdateQuantity(item.productId, 1)} disabled={isSaving}>
-                                          <Plus className="h-4 w-4" />
-                                      </Button>
-                                  </div>
-                              </div>
-                          ))}
-                      </div>
                   </div>
-              </div>
-              <DialogFooter className="p-6 pt-2 border-t mt-auto flex-row justify-end gap-2">
-                  <Button variant="outline" onClick={() => setEditEntry(null)} disabled={isSaving}>キャンセル</Button>
-                  <Button onClick={handleSaveEdit} disabled={isSaving}>
-                      {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      変更を保存
-                  </Button>
-              </DialogFooter>
+                  <DialogFooter className="p-6 pt-2 border-t mt-auto flex-row justify-end gap-2">
+                      <Button variant="outline" onClick={() => setEditEntry(null)} disabled={isSaving}>キャンセル</Button>
+                      <Button onClick={handleSaveEdit} disabled={isSaving}>
+                          {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          変更を保存
+                      </Button>
+                  </DialogFooter>
+                </>
+              )}
           </DialogContent>
       </Dialog>
 
       <Dialog open={!!selectedDayWaste} onOpenChange={(open) => !open && setSelectedDayWaste(null)}>
           <DialogContent className="max-w-md max-h-[80vh] flex flex-col">
-              <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                      <Package className="h-5 w-5 text-primary" />
-                      {selectedDayWaste && format(selectedDayWaste.date, 'M月d日', { locale: ja })}の廃棄詳細分析
-                  </DialogTitle>
-                  <DialogDescription>
-                      この日の廃棄実績と、それに伴う機会損失額の一覧です。
-                  </DialogDescription>
-              </DialogHeader>
-              <div className="flex-1 overflow-auto py-4">
-                  {!selectedDayWaste || selectedDayWaste.entries.length === 0 ? (
-                      <p className="text-center text-muted-foreground py-8">廃棄データはありません。</p>
-                  ) : (
-                      <div className="space-y-4">
-                          {selectedDayWaste.entries.map((entry, idx) => {
-                              const entryTotalSellPrice = entry.items.reduce((sum, item) => {
-                                  const product = products.find(p => p.id === item.productId);
-                                  return sum + (product?.price || 0) * item.quantity;
-                              }, 0);
+              {!!selectedDayWaste && (
+                <>
+                  <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                          <Package className="h-5 w-5 text-primary" />
+                          {format(selectedDayWaste.date, 'M月d日', { locale: ja })}の廃棄詳細分析
+                      </DialogTitle>
+                      <DialogDescription>
+                          この日の廃棄実績と、それに伴う機会損失額の一覧です。
+                      </DialogDescription>
+                  </DialogHeader>
+                  <div className="flex-1 overflow-auto py-4">
+                      {selectedDayWaste.entries.length === 0 ? (
+                          <p className="text-center text-muted-foreground py-8">廃棄データはありません。</p>
+                      ) : (
+                          <div className="space-y-4">
+                              {selectedDayWaste.entries.map((entry, idx) => {
+                                  const entryTotalSellPrice = entry.items.reduce((sum, item) => {
+                                      const product = products.find(p => p.id === item.productId);
+                                      return sum + (product?.price || 0) * item.quantity;
+                                  }, 0);
 
-                              return (
-                                <div key={idx} className="border-b pb-4 last:border-0">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <span className="text-xs font-bold text-muted-foreground flex items-center gap-1">
-                                            <WeatherIcon type={entry.weather} />
-                                            {format(entry.date, 'HH:mm')} 登録分
-                                        </span>
-                                        <div className="text-right">
-                                            <div className="text-[10px] text-muted-foreground">原価合計: ¥{entry.totalWasteCost.toLocaleString()}</div>
-                                            <div className="text-xs font-black text-destructive">機会損失 (売価計): ¥{entryTotalSellPrice.toLocaleString()}</div>
+                                  return (
+                                    <div key={idx} className="border-b pb-4 last:border-0">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-xs font-bold text-muted-foreground flex items-center gap-1">
+                                                <WeatherIcon type={entry.weather} />
+                                                {format(entry.date, 'HH:mm')} 登録分
+                                            </span>
+                                            <div className="text-right">
+                                                <div className="text-[10px] text-muted-foreground">原価合計: ¥{entry.totalWasteCost.toLocaleString()}</div>
+                                                <div className="text-xs font-black text-destructive">機会損失 (売価計): ¥{entryTotalSellPrice.toLocaleString()}</div>
+                                            </div>
+                                        </div>
+                                        <div className="grid gap-1 bg-muted/30 p-2 rounded-md">
+                                            {entry.items.map((item, i) => {
+                                                const prod = products.find(p => p.id === item.productId);
+                                                const itemLoss = (prod?.price || 0) * item.quantity;
+                                                return (
+                                                    <div key={i} className="flex justify-between items-center text-sm border-b border-white last:border-0 py-1">
+                                                        <div className="flex flex-col">
+                                                            <span className="font-bold">{item.name}</span>
+                                                            <span className="text-[10px] text-destructive font-bold">損失額: ¥{itemLoss.toLocaleString()}</span>
+                                                        </div>
+                                                        <span className="font-black text-lg">x{item.quantity}</span>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
-                                    <div className="grid gap-1 bg-muted/30 p-2 rounded-md">
-                                        {entry.items.map((item, i) => {
-                                            const prod = products.find(p => p.id === item.productId);
-                                            const itemLoss = (prod?.price || 0) * item.quantity;
-                                            return (
-                                                <div key={i} className="flex justify-between items-center text-sm border-b border-white last:border-0 py-1">
-                                                    <div className="flex flex-col">
-                                                        <span className="font-bold">{item.name}</span>
-                                                        <span className="text-[10px] text-destructive font-bold">損失額: ¥{itemLoss.toLocaleString()}</span>
-                                                    </div>
-                                                    <span className="font-black text-lg">x{item.quantity}</span>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                              );
-                          })}
-                      </div>
-                  )}
-              </div>
-              <DialogFooter>
-                  <Button variant="outline" className="w-full" onClick={() => setSelectedDayWaste(null)}>閉じる</Button>
-              </DialogFooter>
+                                  );
+                              })}
+                          </div>
+                      )}
+                  </div>
+                  <DialogFooter>
+                      <Button variant="outline" className="w-full" onClick={() => setSelectedDayWaste(null)}>閉じる</Button>
+                  </DialogFooter>
+                </>
+              )}
           </DialogContent>
       </Dialog>
     </div>

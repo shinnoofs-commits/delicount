@@ -79,7 +79,6 @@ export default function ABCAnalysisPage() {
   const [yesterdayStr, setYesterdayStr] = useState<string>('');
 
   useEffect(() => {
-    // クライアントサイドでのみ実行してハイドレーションエラーを防止
     setDate({
       from: startOfMonth(new Date()),
       to: endOfMonth(new Date()),
@@ -111,8 +110,6 @@ export default function ABCAnalysisPage() {
     if (wasteLoading || productsLoading || productionLoading || !date || !date.from || validDates.length === 0) return null;
 
     const dateSet = new Set(validDates);
-    
-    // 1. 日別・店舗別の代表天気をマッピング
     const dateStoreToWeather = new Map<string, string>();
     wasteEntries.forEach(entry => {
       const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
@@ -121,7 +118,6 @@ export default function ABCAnalysisPage() {
       }
     });
 
-    // 2. 製造実績（1日1店舗の確定データをマッピング）
     const dailyActualMap = new Map<string, Map<string, number>>();
     productionEntries.forEach(entry => {
       const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
@@ -134,7 +130,6 @@ export default function ABCAnalysisPage() {
       }
     });
 
-    // 3. 廃棄実績をマッピング
     const wasteMap = new Map<string, Map<string, number>>();
     wasteEntries.forEach(entry => {
       const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
@@ -182,7 +177,6 @@ export default function ABCAnalysisPage() {
         const dowKey = isHoliday ? 'holiday' : dayMap[dow];
         const matrixKey = `${dow}-${weather}`;
 
-        // 実績優先ロジック（実績があれば実績、なければ計画）
         const recordedCount = dailyActualMap.get(storeDateKey)?.get(product.id);
         let finalProduction = 0;
         if (recordedCount !== undefined) {
@@ -640,85 +634,145 @@ export default function ABCAnalysisPage() {
 
           <Dialog open={isFullScreenDaily} onOpenChange={setIsFullScreenDaily}>
             <DialogContent className="max-w-[98vw] h-[95vh] flex flex-col p-4 bg-muted/5 overflow-hidden">
-              <DialogHeader className="mb-2 shrink-0">
-                <DialogTitle className="text-2xl font-black">全曜日実績比較（4×2グリッド俯瞰）</DialogTitle>
-                <DialogDescription className="text-sm font-bold text-muted-foreground">
-                  全8曜日のデータを1画面に集約。各カードは廃棄率が高い順に並びます。
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex-1 overflow-y-auto mt-2 overflow-x-hidden">
-                {renderDailyGrid(true)}
-              </div>
+              {isFullScreenDaily && (
+                <>
+                  <DialogHeader className="mb-2 shrink-0">
+                    <DialogTitle className="text-2xl font-black">全曜日実績比較（4×2グリッド俯瞰）</DialogTitle>
+                    <DialogDescription className="text-sm font-bold text-muted-foreground">
+                      全8曜日のデータを1画面に集約。各カードは廃棄率が高い順に並びます。
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="flex-1 overflow-y-auto mt-2 overflow-x-hidden">
+                    {renderDailyGrid(true)}
+                  </div>
+                </>
+              )}
             </DialogContent>
           </Dialog>
 
           <Dialog open={selectedDayIdx !== null} onOpenChange={(open) => !open && setSelectedDayIdx(null)}>
             <DialogContent className="max-w-[550px] max-h-[90vh] flex flex-col p-4">
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-black flex items-center">
-                  <CalendarDays className="mr-3 h-7 w-7 text-blue-900" />
-                  {selectedDayIdx !== null && actualDowLabel(selectedDayIdx)}曜日の詳細分析
-                </DialogTitle>
-                <DialogDescription className="text-sm font-bold">
-                  この曜日の天候別廃棄率と、具体的な廃棄商品（廃棄率順）です。
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex-1 overflow-auto mt-6 space-y-6">
-                <div className="grid grid-cols-2 gap-3">
-                  {Object.entries(weatherLabels).map(([weatherKey, label]) => {
-                    const matrixKey = `${selectedDayIdx}-${weatherKey}`;
-                    const stats = (selectedDayIdx !== null && analysisData?.matrixStats[matrixKey]) || { waste: 0, production: 0 };
-                    const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
-                    const isAlert = rate > 15;
-                    return (
-                      <div key={weatherKey} className={cn(
-                        "flex items-center justify-between p-3 rounded-xl border-2 shadow-sm transition-all bg-background",
-                        isAlert ? "border-destructive/40" : "border-orange-400/30"
-                      )}>
-                        <div className="flex flex-col">
-                           <span className="text-[12px] font-black text-muted-foreground">{label}</span>
-                           <span className="text-[10px] text-muted-foreground font-bold">廃棄率</span>
-                        </div>
-                        <div className={cn("text-[22px] font-black tabular-nums", isAlert ? "text-destructive" : "text-blue-900")}>
-                          {rate.toFixed(1)}%
-                        </div>
+              {selectedDayIdx !== null && (
+                <>
+                  <DialogHeader>
+                    <DialogTitle className="text-2xl font-black flex items-center">
+                      <CalendarDays className="mr-3 h-7 w-7 text-blue-900" />
+                      {actualDowLabel(selectedDayIdx)}曜日の詳細分析
+                    </DialogTitle>
+                    <DialogDescription className="text-sm font-bold">
+                      この曜日の天候別廃棄率と、具体的な廃棄商品（廃棄率順）です。
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="flex-1 overflow-auto mt-6 space-y-6">
+                    <div className="grid grid-cols-2 gap-3">
+                      {Object.entries(weatherLabels).map(([weatherKey, label]) => {
+                        const matrixKey = `${selectedDayIdx}-${weatherKey}`;
+                        const stats = (analysisData?.matrixStats[matrixKey]) || { waste: 0, production: 0 };
+                        const rate = stats.production > 0 ? (stats.waste / stats.production) * 100 : 0;
+                        const isAlert = rate > 15;
+                        return (
+                          <div key={weatherKey} className={cn(
+                            "flex items-center justify-between p-3 rounded-xl border-2 shadow-sm transition-all bg-background",
+                            isAlert ? "border-destructive/40" : "border-orange-400/30"
+                          )}>
+                            <div className="flex flex-col">
+                               <span className="text-[12px] font-black text-muted-foreground">{label}</span>
+                               <span className="text-[10px] text-muted-foreground font-bold">廃棄率</span>
+                            </div>
+                            <div className={cn("text-[22px] font-black tabular-nums", isAlert ? "text-destructive" : "text-blue-900")}>
+                              {rate.toFixed(1)}%
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <Separator className="h-0.5" />
+                    <div className="space-y-2">
+                      <Label className="text-[14px] font-black text-muted-foreground uppercase flex items-center gap-2">
+                        <Package className="h-4 w-4" /> 廃棄商品リスト (廃棄率順)
+                      </Label>
+                      <div className="border rounded-xl overflow-hidden shadow-sm">
+                        <Table>
+                          <TableHeader className="bg-muted/50">
+                            <TableRow>
+                              <TableHead className="h-10 text-[12px] font-black">商品名</TableHead>
+                              <TableHead className="h-10 text-[12px] font-black text-right">廃棄率 (個数)</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {(analysisData?.products || [])
+                              .filter(p => (p.wasteDow[selectedDayIdx!] || 0) > 0 || (p.prodDow[selectedDayIdx!] || 0) > 0)
+                              .sort((a, b) => {
+                                const rA = a.prodDow[selectedDayIdx!] > 0 ? a.wasteDow[selectedDayIdx!] / a.prodDow[selectedDayIdx!] : 0;
+                                const rB = b.prodDow[selectedDayIdx!] > 0 ? b.wasteDow[selectedDayIdx!] / b.prodDow[selectedDayIdx!] : 0;
+                                return rB - rA;
+                              })
+                              .map(p => {
+                                const pWaste = p.wasteDow[selectedDayIdx!] || 0;
+                                const pProd = p.prodDow[selectedDayIdx!] || 0;
+                                const pRate = pProd > 0 ? (pWaste / pProd) * 100 : 0;
+                                return (
+                                  <TableRow key={`${p.storeId}|${p.id}`} className="h-14">
+                                    <TableCell className="py-2 px-4 text-[18px] font-black leading-tight">{p.name}</TableCell>
+                                    <TableCell className="py-2 px-4 text-right">
+                                      <div className={cn("font-black text-[22px] tabular-nums leading-none", pRate > 15 ? "text-destructive" : "text-blue-900")}>
+                                        {pRate.toFixed(1)}%
+                                      </div>
+                                      <div className="text-[11px] text-muted-foreground font-bold mt-1">({pWaste} / {pProd})</div>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })
+                            }
+                          </TableBody>
+                        </Table>
                       </div>
-                    );
-                  })}
-                </div>
-                <Separator className="h-0.5" />
-                <div className="space-y-2">
-                  <Label className="text-[14px] font-black text-muted-foreground uppercase flex items-center gap-2">
-                    <Package className="h-4 w-4" /> 廃棄商品リスト (廃棄率順)
-                  </Label>
-                  <div className="border rounded-xl overflow-hidden shadow-sm">
+                    </div>
+                  </div>
+                </>
+              )}
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={!!selectedCategoryForDetail} onOpenChange={(open) => !open && setSelectedCategoryForDetail(null)}>
+            <DialogContent className="max-w-[550px] max-h-[85vh] flex flex-col p-4">
+              {selectedCategoryForDetail && (
+                <>
+                  <DialogHeader>
+                    <DialogTitle className="text-2xl font-black">{selectedCategoryForDetail} カテゴリー詳細</DialogTitle>
+                    <DialogDescription className="text-sm font-bold">
+                      廃棄数と機会損失（売価合計）です。
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="flex-1 overflow-auto mt-6">
                     <Table>
                       <TableHeader className="bg-muted/50">
-                        <TableRow>
-                          <TableHead className="h-10 text-[12px] font-black">商品名</TableHead>
-                          <TableHead className="h-10 text-[12px] font-black text-right">廃棄率 (個数)</TableHead>
+                        <TableRow className="h-10">
+                          <TableHead className="font-black text-[13px]">商品名</TableHead>
+                          <TableHead className="text-right font-black text-[13px]">廃棄数</TableHead>
+                          <TableHead className="text-right font-black text-[13px]">製造数</TableHead>
+                          <TableHead className="text-right font-black text-[13px]">廃棄率</TableHead>
+                          <TableHead className="text-right font-black text-[13px]">機会損失</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {selectedDayIdx !== null && (analysisData?.products || [])
-                          .filter(p => (p.wasteDow[selectedDayIdx!] || 0) > 0 || (p.prodDow[selectedDayIdx!] || 0) > 0)
-                          .sort((a, b) => {
-                            const rA = a.prodDow[selectedDayIdx!] > 0 ? a.wasteDow[selectedDayIdx!] / a.prodDow[selectedDayIdx!] : 0;
-                            const rB = b.prodDow[selectedDayIdx!] > 0 ? b.wasteDow[selectedDayIdx!] / b.prodDow[selectedDayIdx!] : 0;
-                            return rB - rA;
-                          })
+                        {analysisData.products
+                          .filter(p => p.category === selectedCategoryForDetail)
+                          .sort((a,b) => b.waste - a.waste)
                           .map(p => {
-                            const pWaste = p.wasteDow[selectedDayIdx!] || 0;
-                            const pProd = p.prodDow[selectedDayIdx!] || 0;
-                            const pRate = pProd > 0 ? (pWaste / pProd) * 100 : 0;
+                            const rate = p.production > 0 ? (p.waste / p.production) * 100 : 0;
                             return (
-                              <TableRow key={`${p.storeId}|${p.id}`} className="h-14">
-                                <TableCell className="py-2 px-4 text-[18px] font-black leading-tight">{p.name}</TableCell>
-                                <TableCell className="py-2 px-4 text-right">
-                                  <div className={cn("font-black text-[22px] tabular-nums leading-none", pRate > 15 ? "text-destructive" : "text-blue-900")}>
-                                    {pRate.toFixed(1)}%
-                                  </div>
-                                  <div className="text-[11px] text-muted-foreground font-bold mt-1">({pWaste} / {pProd})</div>
+                              <TableRow key={`${p.storeId}|${p.id}`} className="h-16 border-b">
+                                <TableCell className="font-black py-2 text-[18px] leading-tight">{p.name}</TableCell>
+                                <TableCell className="text-right text-destructive font-black py-2 text-[20px] tabular-nums">{p.waste}</TableCell>
+                                <TableCell className="text-right font-bold py-2 text-[20px] tabular-nums">{p.production}</TableCell>
+                                <TableCell className="text-right py-2">
+                                  <span className={cn("text-[20px] font-black tabular-nums", rate > 15 ? "text-destructive" : "text-blue-900")}>
+                                    {rate.toFixed(1)}%
+                                  </span>
+                                </TableCell>
+                                <TableCell className="text-right font-black text-blue-900 py-2 text-[20px] tabular-nums">
+                                  ¥{(p.waste * (p.price || 0)).toLocaleString()}
                                 </TableCell>
                               </TableRow>
                             );
@@ -727,56 +781,8 @@ export default function ABCAnalysisPage() {
                       </TableBody>
                     </Table>
                   </div>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-
-          <Dialog open={!!selectedCategoryForDetail} onOpenChange={(open) => !open && setSelectedCategoryForDetail(null)}>
-            <DialogContent className="max-w-[550px] max-h-[85vh] flex flex-col p-4">
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-black">{selectedCategoryForDetail} カテゴリー詳細</DialogTitle>
-                <DialogDescription className="text-sm font-bold">
-                  廃棄数と機会損失（売価合計）です。
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex-1 overflow-auto mt-6">
-                <Table>
-                  <TableHeader className="bg-muted/50">
-                    <TableRow className="h-10">
-                      <TableHead className="font-black text-[13px]">商品名</TableHead>
-                      <TableHead className="text-right font-black text-[13px]">廃棄数</TableHead>
-                      <TableHead className="text-right font-black text-[13px]">製造数</TableHead>
-                      <TableHead className="text-right font-black text-[13px]">廃棄率</TableHead>
-                      <TableHead className="text-right font-black text-[13px]">機会損失</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {analysisData.products
-                      .filter(p => p.category === selectedCategoryForDetail)
-                      .sort((a,b) => b.waste - a.waste)
-                      .map(p => {
-                        const rate = p.production > 0 ? (p.waste / p.production) * 100 : 0;
-                        return (
-                          <TableRow key={`${p.storeId}|${p.id}`} className="h-16 border-b">
-                            <TableCell className="font-black py-2 text-[18px] leading-tight">{p.name}</TableCell>
-                            <TableCell className="text-right text-destructive font-black py-2 text-[20px] tabular-nums">{p.waste}</TableCell>
-                            <TableCell className="text-right font-bold py-2 text-[20px] tabular-nums">{p.production}</TableCell>
-                            <TableCell className="text-right py-2">
-                              <span className={cn("text-[20px] font-black tabular-nums", rate > 15 ? "text-destructive" : "text-blue-900")}>
-                                {rate.toFixed(1)}%
-                              </span>
-                            </TableCell>
-                            <TableCell className="text-right font-black text-blue-900 py-2 text-[20px] tabular-nums">
-                              ¥{(p.waste * (p.price || 0)).toLocaleString()}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    }
-                  </TableBody>
-                </Table>
-              </div>
+                </>
+              )}
             </DialogContent>
           </Dialog>
         </div>
