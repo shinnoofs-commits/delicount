@@ -32,12 +32,12 @@ const manualSlides = [
         outcome: "営業利益率の向上、属人化からの脱却"
     },
     {
-        title: "現場入力：実績優先ロジック",
+        title: "実績優先・計画補完ロジック",
         description: "入力負担を最小化しつつ正確なデータを構築。",
         icon: ClipboardCheck,
         points: [
-            "【実績登録】: 計画をベースに「今日の最終製造数」を確定記録。",
-            "【0ベース集計】: 実績登録がある日はそれを採用。ない日は計画を補完。",
+            "【実績優先】: 実績登録がある日はそれを採用。ない日は計画を補完。",
+            "【上書き保存】: 登録された最新の「総数」1件のみを確定データとして保持。",
             "【代表天気】: 1日1天気を自動同期。分析のブレをシステムで防止。",
             "【陳列管理】: 10:00/12:00/15:00枠を管理。ピークに合わせた品揃えを。"
         ],
@@ -152,7 +152,7 @@ export default function ManualPage() {
 
       <div className="flex flex-col items-center gap-1 mt-2 shrink-0 pb-4">
         <p className="text-[10px] text-muted-foreground font-bold tracking-widest uppercase opacity-60">
-            v2.8 Professional | Presentation Ready
+            v3.0 Stability | Final Version
         </p>
         <div className="flex gap-1.5">
             {[0,1,2,3,4].map(i => (

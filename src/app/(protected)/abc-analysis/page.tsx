@@ -30,7 +30,7 @@ import {
   DialogDescription 
 } from "@/components/ui/dialog";
 import { Calendar as CalendarIcon, Loader2, CalendarDays, Sun, Filter, PieChart, Package, Cloud, CloudRain, Snowflake, Maximize2, ClipboardList, Info } from 'lucide-react';
-import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, getDay, addDays, subDays } from "date-fns"
+import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, getDay, addDays, subDays, isSameDay } from "date-fns"
 import { ja } from "date-fns/locale"
 import holiday_jp from '@holiday-jp/holiday_jp';
 import { DateRange } from "react-day-picker"
@@ -76,12 +76,15 @@ export default function ABCAnalysisPage() {
   const [selectedDayIdx, setSelectedDayIdx] = useState<number | null>(null);
   const [selectedCategoryForDetail, setSelectedCategoryForDetail] = useState<string | null>(null);
   const [isFullScreenDaily, setIsFullScreenDaily] = useState(false);
+  const [yesterdayStr, setYesterdayStr] = useState<string>('');
 
   useEffect(() => {
+    // クライアントサイドでのみ実行してハイドレーションエラーを防止
     setDate({
       from: startOfMonth(new Date()),
       to: endOfMonth(new Date()),
     });
+    setYesterdayStr(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
   }, []);
 
   const categories = useMemo(() => {
@@ -89,27 +92,25 @@ export default function ABCAnalysisPage() {
   }, [products]);
 
   const validDates = useMemo(() => {
-    if (!date || !date.from) return [];
+    if (!date || !date.from || !yesterdayStr) return [];
     const fromDate = startOfDay(date.from);
     const toDate = date.to ? endOfDay(date.to) : endOfDay(date.from);
     const dates: string[] = [];
     let current = fromDate;
     while (current <= toDate) {
-      dates.push(format(current, 'yyyy-MM-dd'));
+      const dStr = format(current, 'yyyy-MM-dd');
+      if (dStr <= yesterdayStr) {
+        dates.push(dStr);
+      }
       current = addDays(current, 1);
     }
     return dates;
-  }, [date]);
+  }, [date, yesterdayStr]);
 
   const analysisData = useMemo(() => {
     if (wasteLoading || productsLoading || productionLoading || !date || !date.from || validDates.length === 0) return null;
 
-    // 前日分までの確定データを対象とする
-    const yesterdayStr = format(subDays(new Date(), 1), 'yyyy-MM-dd');
-    const datesToProcess = validDates.filter(d => d <= yesterdayStr);
-    if (datesToProcess.length === 0) return null;
-
-    const dateSet = new Set(datesToProcess);
+    const dateSet = new Set(validDates);
     
     // 1. 日別・店舗別の代表天気をマッピング
     const dateStoreToWeather = new Map<string, string>();
@@ -120,7 +121,7 @@ export default function ABCAnalysisPage() {
       }
     });
 
-    // 2. 製造実績（1日1店舗1件の確定データを特定）
+    // 2. 製造実績（1日1店舗の確定データをマッピング）
     const dailyActualMap = new Map<string, Map<string, number>>();
     productionEntries.forEach(entry => {
       const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
@@ -172,7 +173,7 @@ export default function ABCAnalysisPage() {
         prodDow: { 0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 } as Record<number, number>
       };
 
-      datesToProcess.forEach(dateKey => {
+      validDates.forEach(dateKey => {
         const entryDate = new Date(dateKey);
         const isHoliday = holiday_jp.isHoliday(entryDate);
         const dow = isHoliday ? 7 : getDay(entryDate);
@@ -181,7 +182,7 @@ export default function ABCAnalysisPage() {
         const dowKey = isHoliday ? 'holiday' : dayMap[dow];
         const matrixKey = `${dow}-${weather}`;
 
-        // 実績優先ロジック（0ベース）
+        // 実績優先ロジック（実績があれば実績、なければ計画）
         const recordedCount = dailyActualMap.get(storeDateKey)?.get(product.id);
         let finalProduction = 0;
         if (recordedCount !== undefined) {
@@ -262,7 +263,7 @@ export default function ABCAnalysisPage() {
       )}>
         {dayOrder.map((actualDow, i) => {
           const label = dayLabels[i];
-          const dowProducts = analysisData.products
+          const dowProducts = (analysisData.products || [])
             .filter(p => (p.prodDow[actualDow] || 0) > 0 || (p.wasteDow[actualDow] || 0) > 0)
             .sort((a, b) => {
               const rateA = (a.prodDow[actualDow] || 0) > 0 ? (a.wasteDow[actualDow] / a.prodDow[actualDow]) : 0;
@@ -699,7 +700,7 @@ export default function ABCAnalysisPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {selectedDayIdx !== null && analysisData?.products
+                        {selectedDayIdx !== null && (analysisData?.products || [])
                           .filter(p => (p.wasteDow[selectedDayIdx!] || 0) > 0 || (p.prodDow[selectedDayIdx!] || 0) > 0)
                           .sort((a, b) => {
                             const rA = a.prodDow[selectedDayIdx!] > 0 ? a.wasteDow[selectedDayIdx!] / a.prodDow[selectedDayIdx!] : 0;

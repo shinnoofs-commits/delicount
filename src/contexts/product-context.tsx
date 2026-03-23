@@ -40,6 +40,7 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
 
     const uniqueStoreIds = Array.from(new Set(isAdmin ? selectedStoreIds : (userStore ? [userStore.id] : [])));
 
+    // 重複読み込みを防ぐためにリセット
     setProducts([]);
     
     if (uniqueStoreIds.length === 0) {
@@ -64,7 +65,9 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
         });
         setLoading(false);
       }, (error) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `stores/${storeId}/products`, operation: 'list' }));
+        if (user) {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `stores/${storeId}/products`, operation: 'list' }));
+        }
         setLoading(false);
       });
       unsubscribers.push(unsub);
