@@ -77,7 +77,6 @@ export default function ABCAnalysisPage() {
   const [selectedCategoryForDetail, setSelectedCategoryForDetail] = useState<string | null>(null);
   const [isFullScreenDaily, setIsFullScreenDaily] = useState(false);
 
-  // ハイドレーションエラー防止のため、クライアントサイドでのみ日付を初期化
   useEffect(() => {
     setDate({
       from: startOfMonth(new Date()),
@@ -122,7 +121,6 @@ export default function ABCAnalysisPage() {
     });
 
     // 2. 製造実績（1日1店舗1件の確定データを特定）
-    // key: "yyyy-MM-dd|storeId" -> Map<productId, quantity>
     const dailyActualMap = new Map<string, Map<string, number>>();
     productionEntries.forEach(entry => {
       const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
@@ -157,7 +155,6 @@ export default function ABCAnalysisPage() {
     for (let i = 0; i < 8; i++) dayStats[i] = { waste: 0, production: 0 };
     Object.keys(weatherLabels).forEach(w => weatherStats[w] = { waste: 0, production: 0 });
 
-    // 重複を排除した店舗×商品リスト
     const uniqueProducts = Array.from(new Map(products.map(p => [`${p.storeId}|${p.id}`, p])).values());
 
     uniqueProducts.forEach(product => {
@@ -184,7 +181,7 @@ export default function ABCAnalysisPage() {
         const dowKey = isHoliday ? 'holiday' : dayMap[dow];
         const matrixKey = `${dow}-${weather}`;
 
-        // 実績優先ロジック
+        // 実績優先ロジック（0ベース）
         const recordedCount = dailyActualMap.get(storeDateKey)?.get(product.id);
         let finalProduction = 0;
         if (recordedCount !== undefined) {
@@ -220,7 +217,6 @@ export default function ABCAnalysisPage() {
         }
       });
 
-      // 商品IDだけで集約せず、店舗ID+商品IDで一意に管理
       productStats.set(`${product.storeId}|${product.id}`, stats);
     });
 
@@ -646,7 +642,7 @@ export default function ABCAnalysisPage() {
               <DialogHeader className="mb-2 shrink-0">
                 <DialogTitle className="text-2xl font-black">全曜日実績比較（4×2グリッド俯瞰）</DialogTitle>
                 <DialogDescription className="text-sm font-bold text-muted-foreground">
-                  全8曜日のデータを1画面に集約。各カードは廃棄率が高い順に並び、上位4件までが固定表示されます。
+                  全8曜日のデータを1画面に集約。各カードは廃棄率が高い順に並びます。
                 </DialogDescription>
               </DialogHeader>
               <div className="flex-1 overflow-y-auto mt-2 overflow-x-hidden">
@@ -704,7 +700,7 @@ export default function ABCAnalysisPage() {
                       </TableHeader>
                       <TableBody>
                         {selectedDayIdx !== null && analysisData?.products
-                          .filter(p => (p.wasteDow[selectedDayIdx] || 0) > 0 || (p.prodDow[selectedDayIdx] || 0) > 0)
+                          .filter(p => (p.wasteDow[selectedDayIdx!] || 0) > 0 || (p.prodDow[selectedDayIdx!] || 0) > 0)
                           .sort((a, b) => {
                             const rA = a.prodDow[selectedDayIdx!] > 0 ? a.wasteDow[selectedDayIdx!] / a.prodDow[selectedDayIdx!] : 0;
                             const rB = b.prodDow[selectedDayIdx!] > 0 ? b.wasteDow[selectedDayIdx!] / b.prodDow[selectedDayIdx!] : 0;
@@ -740,7 +736,7 @@ export default function ABCAnalysisPage() {
               <DialogHeader>
                 <DialogTitle className="text-2xl font-black">{selectedCategoryForDetail} カテゴリー詳細</DialogTitle>
                 <DialogDescription className="text-sm font-bold">
-                  廃棄数と機会損失（売価合計）です。これだけの売上チャンスを逃しています。
+                  廃棄数と機会損失（売価合計）です。
                 </DialogDescription>
               </DialogHeader>
               <div className="flex-1 overflow-auto mt-6">
