@@ -125,6 +125,7 @@ export default function ABCAnalysisPage() {
         if (!actualProductionMap.has(dateKey)) actualProductionMap.set(dateKey, new Map());
         const prodMap = actualProductionMap.get(dateKey)!;
         entry.items.forEach(item => {
+          // 同じ日に複数回登録があっても、ここでは製品ごとの合計として集計する
           prodMap.set(item.productId, (prodMap.get(item.productId) || 0) + item.quantity);
         });
       });
@@ -183,7 +184,7 @@ export default function ABCAnalysisPage() {
             ? dailyProduction.holiday
             : (dailyProduction as any)?.[dowKey] || 0;
 
-        // B. 実績登録数（あればそれを採用、なければ計画を採用）
+        // B. 実績登録数（実績があればそれを100%採用、なければ計画を採用）
         const recordedCount = actualProductionMap.get(dateKey)?.get(product.id);
         const finalProduction = (recordedCount !== undefined) ? recordedCount : planned;
         
