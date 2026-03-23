@@ -6,7 +6,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -14,35 +14,35 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { useTransactions } from "@/contexts/transaction-context"
-import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid, getDay, addDays, isSameDay, subMonths } from "date-fns"
-import { ja } from "date-fns/locale"
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts"
-import { Calendar as CalendarIcon, Trash2, TrendingDown, Edit, MoreHorizontal, Plus, Minus, Loader2, Sun, Cloud, CloudRain, Snowflake, Package, Sparkles, AlertCircle, ArrowRight, PlayCircle } from 'lucide-react'
-import { useMemo, useState, useCallback } from "react"
-import type { WasteEntry, WasteItem, WeatherType } from "@/lib/types"
-import { useProducts } from "@/contexts/product-context"
-import { DateRange } from "react-day-picker"
-import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
+} from "@/components/ui/table";
+import { useTransactions } from "@/contexts/transaction-context";
+import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid, getDay, addDays, isSameDay, subMonths } from "date-fns";
+import { ja } from "date-fns/locale";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
+import { Calendar as CalendarIcon, Trash2, TrendingDown, Edit, MoreHorizontal, Plus, Minus, Loader2, Sun, Cloud, CloudRain, Snowflake, Package, Sparkles, AlertCircle, ArrowRight, PlayCircle } from 'lucide-react';
+import { useMemo, useState, useCallback, useEffect } from "react";
+import type { WasteEntry, WasteItem, WeatherType } from "@/lib/types";
+import { useProducts } from "@/contexts/product-context";
+import type { DateRange } from "react-day-picker";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover"
-import { cn } from "@/lib/utils"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
-import holiday_jp from '@holiday-jp/holiday_jp'
-import { StoreSelector } from "@/components/ui/store-selector"
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import holiday_jp from '@holiday-jp/holiday_jp';
+import { StoreSelector } from "@/components/ui/store-selector";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -50,12 +50,12 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { useToast } from "@/hooks/use-toast"
-import { Separator } from "@/components/ui/separator"
-import { useAdmin } from "@/hooks/use-admin"
-import { useStores } from "@/contexts/store-context"
-import { getWasteInsights, type WasteInsightsOutput } from "@/ai/flows/waste-insights-flow"
+} from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { Separator } from "@/components/ui/separator";
+import { useAdmin } from "@/hooks/use-admin";
+import { useStores } from "@/contexts/store-context";
+import { getWasteInsights, type WasteInsightsOutput } from "@/ai/flows/waste-insights-flow";
 
 const DateRangePicker = ({ date, setDate }: { date: DateRange | undefined, setDate: (date: DateRange | undefined) => void }) => {
   return (
@@ -97,7 +97,7 @@ const DateRangePicker = ({ date, setDate }: { date: DateRange | undefined, setDa
       </PopoverContent>
     </Popover>
   );
-}
+};
 
 const filterOptions = [
   { id: 1, label: '月' },
@@ -166,10 +166,15 @@ export default function DashboardPage() {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [analyzedLabel, setAnalyzedLabel] = useState<string>('');
 
-  const [date, setDate] = useState<DateRange | undefined>({
-    from: subDays(new Date(), 6),
-    to: new Date(),
-  });
+  const [date, setDate] = useState<DateRange | undefined>(undefined);
+
+  useEffect(() => {
+    // クライアントサイドでのみ実行してハイドレーションエラーを防止
+    setDate({
+      from: subDays(new Date(), 6),
+      to: new Date(),
+    });
+  }, []);
 
   const handleFilterToggle = (filterId: number) => {
     setSelectedFilters(prev => 
@@ -364,7 +369,7 @@ export default function DashboardPage() {
     } else if (preset === 'last_7_days') {
       setDate({ from: subDays(today, 6), to: today });
     }
-  }
+  };
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -734,7 +739,7 @@ export default function DashboardPage() {
                                         </DropdownMenu>
                                     </TableCell>
                                 </TableRow>
-                              )
+                              );
                           })
                       )}
                   </TableBody>
@@ -860,5 +865,5 @@ export default function DashboardPage() {
           </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }

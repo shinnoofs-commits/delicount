@@ -6,7 +6,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -14,11 +14,11 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
+} from "@/components/ui/table";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -30,10 +30,10 @@ import {
   DialogDescription 
 } from "@/components/ui/dialog";
 import { Calendar as CalendarIcon, Loader2, CalendarDays, Sun, Filter, PieChart, Package, Cloud, CloudRain, Snowflake, Maximize2, ClipboardList, Info } from 'lucide-react';
-import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, getDay, addDays, subDays, isSameDay } from "date-fns"
-import { ja } from "date-fns/locale"
+import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, getDay, addDays, subDays } from "date-fns";
+import { ja } from "date-fns/locale";
 import holiday_jp from '@holiday-jp/holiday_jp';
-import { DateRange } from "react-day-picker"
+import type { DateRange } from "react-day-picker";
 import { useTransactions } from "@/contexts/transaction-context";
 import { useProducts } from "@/contexts/product-context";
 import { useProduction } from "@/contexts/production-context";
