@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { Loader2, CalendarIcon, Plus, Minus, RefreshCw, Info, Calculator, Save, MapPin } from 'lucide-react';
+import { Loader2, CalendarIcon, Plus, Minus, RefreshCw, Save, MapPin } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -16,7 +16,7 @@ import { ja } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useProduction } from '@/contexts/production-context';
 import { useTransactions } from '@/contexts/transaction-context';
-import type { ProductionEntry, DailyProduction, WeatherType } from '@/lib/types';
+import type { DailyProduction, WeatherType, ProductionEntry } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import holiday_jp from '@holiday-jp/holiday_jp';
@@ -32,11 +32,15 @@ export default function ProductionClient() {
   
   const [selectedCategory, setSelectedCategory] = useState('すべて');
   const [resultQuantities, setResultQuantities] = useState<Record<string, string>>({});
-  const [date, setDate] = useState<Date>(new Date());
+  const [date, setDate] = useState<Date | undefined>(undefined);
   const [weather, setWeather] = useState<WeatherType>('sunny');
   const [isWeatherRepresentative, setIsWeatherRepresentative] = useState(false);
   const [isFetchingWeather, setIsFetchingWeather] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    setDate(new Date());
+  }, []);
 
   const categories = useMemo(() => ['すべて', ...Array.from(new Set(allProducts.map(p => p.category)))], [allProducts]);
 
@@ -70,17 +74,20 @@ export default function ProductionClient() {
       if (geoData.results && geoData.results.length > 0) {
         lat = geoData.results[0].latitude;
         lon = geoData.results[0].longitude;
-      } else {
+      } else if (typeof navigator !== 'undefined' && navigator.geolocation) {
         const pos = await new Promise<GeolocationPosition>((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject));
         lat = pos.coords.latitude;
         lon = pos.coords.longitude;
       }
-      const dateStr = format(targetDate, 'yyyy-MM-dd');
-      const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=weather_code&start_date=${dateStr}&end_date=${dateStr}&timezone=Asia%2FTokyo`);
-      const weatherData = await weatherRes.json();
-      if (weatherData.hourly && weatherData.hourly.weather_code) {
-        const codeAt10 = weatherData.hourly.weather_code[10];
-        setWeather(interpretWeatherCode(codeAt10));
+
+      if (lat && lon) {
+        const dateStr = format(targetDate, 'yyyy-MM-dd');
+        const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=weather_code&start_date=${dateStr}&end_date=${dateStr}&timezone=Asia%2FTokyo`);
+        const weatherData = await weatherRes.json();
+        if (weatherData.hourly && weatherData.hourly.weather_code) {
+          const codeAt10 = weatherData.hourly.weather_code[10];
+          setWeather(interpretWeatherCode(codeAt10));
+        }
       }
     } catch (error) {
       console.warn('Weather fetch failed', error);
@@ -90,12 +97,11 @@ export default function ProductionClient() {
   }, [userStore, wasteEntries]);
 
   useEffect(() => {
-    if (userStore) fetchWeather(date);
+    if (userStore && date) fetchWeather(date);
   }, [fetchWeather, date, userStore]);
 
-  // 日付や天気が変わった際、入力値をその日の計画数で初期化
   useEffect(() => {
-    if (allProducts.length === 0) return;
+    if (allProducts.length === 0 || !date) return;
     const isHoliday = holiday_jp.isHoliday(date);
     const dayKey = dayMap[getDay(date)];
     
@@ -122,6 +128,7 @@ export default function ProductionClient() {
   };
 
   const handleRecordProduction = async () => {
+    if (!date || !userStore) return;
     const itemsToRecord = Object.entries(resultQuantities)
       .map(([productId, quantityStr]) => {
         const product = allProducts.find(p => p.id === productId);
@@ -140,8 +147,6 @@ export default function ProductionClient() {
       toast({ variant: "destructive", title: "入力エラー", description: "製造数を入力してください。" });
       return;
     }
-    
-    if (!userStore) return;
 
     const newProductionEntry: Omit<ProductionEntry, 'id' | 'userId'> = {
       storeId: userStore.id,
@@ -151,7 +156,6 @@ export default function ProductionClient() {
     };
 
     await addProductionEntry(newProductionEntry);
-    toast({ title: "製造実績を記録しました" });
   };
 
   if (isAdmin) {
@@ -165,7 +169,7 @@ export default function ProductionClient() {
     )
   }
 
-  if (productsLoading || storesLoading) return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  if (productsLoading || storesLoading || !date) return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
 
   return (
     <div className="flex flex-col gap-4">

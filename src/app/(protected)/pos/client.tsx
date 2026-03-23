@@ -38,11 +38,15 @@ export default function PosClient() {
   
   const [selectedCategory, setSelectedCategory] = useState('すべて');
   const [wasteList, setWasteList] = useState<WasteListItem[]>([]);
-  const [date, setDate] = useState<Date>(new Date());
+  const [date, setDate] = useState<Date | undefined>(undefined);
   const [weather, setWeather] = useState<WeatherType>('sunny');
   const [isWeatherFixed, setIsWeatherFixed] = useState(false);
   const [isFetchingWeather, setIsFetchingWeather] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    setDate(new Date());
+  }, []);
 
   const categories = useMemo(() => ['すべて', ...Array.from(new Set(allProducts.map(p => p.category)))], [allProducts]);
 
@@ -57,7 +61,6 @@ export default function PosClient() {
   const fetch2200Weather = useCallback(async (targetDate: Date) => {
     if (!userStore) return;
 
-    // Check if weather is already recorded for this day in other entries
     const existingEntryWithWeather = wasteEntries.find(e => 
       e.storeId === userStore.id && 
       isSameDay(e.date, targetDate) && 
@@ -83,7 +86,7 @@ export default function PosClient() {
       if (geoData.results && geoData.results.length > 0) {
         lat = geoData.results[0].latitude;
         lon = geoData.results[0].longitude;
-      } else {
+      } else if (typeof navigator !== 'undefined' && navigator.geolocation) {
         const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
           navigator.geolocation.getCurrentPosition(resolve, reject);
         });
@@ -91,15 +94,17 @@ export default function PosClient() {
         lon = pos.coords.longitude;
       }
 
-      const dateStr = format(targetDate, 'yyyy-MM-dd');
-      const weatherRes = await fetch(
-        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=weather_code&start_date=${dateStr}&end_date=${dateStr}&timezone=Asia%2FTokyo`
-      );
-      const weatherData = await weatherRes.json();
+      if (lat && lon) {
+        const dateStr = format(targetDate, 'yyyy-MM-dd');
+        const weatherRes = await fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=weather_code&start_date=${dateStr}&end_date=${dateStr}&timezone=Asia%2FTokyo`
+        );
+        const weatherData = await weatherRes.json();
 
-      if (weatherData.hourly && weatherData.hourly.weather_code) {
-        const codeAt22 = weatherData.hourly.weather_code[22];
-        setWeather(interpretWeatherCode(codeAt22));
+        if (weatherData.hourly && weatherData.hourly.weather_code) {
+          const codeAt22 = weatherData.hourly.weather_code[22];
+          setWeather(interpretWeatherCode(codeAt22));
+        }
       }
     } catch (error) {
       console.warn('Weather fetch failed', error);
@@ -109,11 +114,11 @@ export default function PosClient() {
   }, [userStore, wasteEntries]);
 
   useEffect(() => {
-    if (userStore) fetch2200Weather(date);
+    if (userStore && date) fetch2200Weather(date);
   }, [fetch2200Weather, date, userStore]);
 
   const handleRecordWaste = async () => {
-    if (wasteList.length === 0 || !userStore) return;
+    if (wasteList.length === 0 || !userStore || !date) return;
     const totalWasteCost = wasteList.reduce((acc, item) => acc + item.product.costPrice * item.quantity, 0);
     const newWasteEntry: Omit<WasteEntry, 'id' | 'userId'> = {
       storeId: userStore.id,
@@ -129,7 +134,6 @@ export default function PosClient() {
       totalWasteCost,
     };
     
-    // If user changed the representative weather for the day, sync it across entries
     if (!isWeatherFixed) {
         await updateDailyWeather(userStore.id, date, weather);
     }
@@ -149,7 +153,7 @@ export default function PosClient() {
     )
   }
 
-  if (productsLoading || storesLoading) return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  if (productsLoading || storesLoading || !date) return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   if (!userStore) return <div className="flex items-center justify-center h-full"><Card className="w-full max-w-md text-center"><CardHeader><CardTitle>店舗が設定されていません</CardTitle></CardHeader></Card></div>;
 
   return (

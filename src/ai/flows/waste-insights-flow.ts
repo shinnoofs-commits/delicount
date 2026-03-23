@@ -49,19 +49,19 @@ const wasteInsightsPrompt = ai.definePrompt({
 日本語で、現場の店長がすぐに実行できるようなアドバイスを出力してください。`,
 });
 
-export async function getWasteInsights(input: WasteInsightsInput): Promise<WasteInsightsOutput> {
-  const wasteInsightsFlow = ai.defineFlow(
-    {
-      name: 'wasteInsightsFlow',
-      inputSchema: WasteInsightsInputSchema,
-      outputSchema: WasteInsightsOutputSchema,
-    },
-    async (input) => {
-      const { output } = await wasteInsightsPrompt(input);
-      if (!output) throw new Error('AI failed to generate insights');
-      return output;
-    }
-  );
+const wasteInsightsFlow = ai.defineFlow(
+  {
+    name: 'wasteInsightsFlow',
+    inputSchema: WasteInsightsInputSchema,
+    outputSchema: WasteInsightsOutputSchema,
+  },
+  async (input) => {
+    const { output } = await wasteInsightsPrompt(input);
+    if (!output) throw new Error('AI failed to generate insights');
+    return output;
+  }
+);
 
+export async function getWasteInsights(input: WasteInsightsInput): Promise<WasteInsightsOutput> {
   return wasteInsightsFlow(input);
 }
