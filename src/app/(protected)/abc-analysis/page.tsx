@@ -116,32 +116,37 @@ export default function ABCAnalysisPage() {
       }
     });
 
-    // 2. 製造実績（実績データがある場合のみマッピング）
-    const actualProductionMap = new Map<string, Map<string, number>>();
-    productionEntries
-      .filter(entry => dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd')))
-      .forEach(entry => {
-        const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
-        if (!actualProductionMap.has(dateKey)) actualProductionMap.set(dateKey, new Map());
-        const prodMap = actualProductionMap.get(dateKey)!;
+    // 2. 製造実績（0ベース集計の核：1日・1店舗につき1つの確定データを特定）
+    // key: "yyyy-MM-dd|storeId" -> Map<productId, quantity>
+    const dailyActualMap = new Map<string, Map<string, number>>();
+    productionEntries.forEach(entry => {
+      const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
+      if (!dateSet.has(dateKey)) return;
+      
+      const storeDateKey = `${dateKey}|${entry.storeId}`;
+      // 同日のデータが複数ある場合は最新（または最初に見つかったもの）をその日の「正解」とする
+      // ※contexts/production-context.tsxでsetDoc(dateId)にしているため、本来は1つしかないはず
+      if (!dailyActualMap.has(storeDateKey)) {
+        const prodMap = new Map<string, number>();
         entry.items.forEach(item => {
-          // 同じ日に複数回登録があっても、ここでは製品ごとの合計として集計する
-          prodMap.set(item.productId, (prodMap.get(item.productId) || 0) + item.quantity);
+          prodMap.set(item.productId, item.quantity);
         });
-      });
+        dailyActualMap.set(storeDateKey, prodMap);
+      }
+    });
 
     // 3. 廃棄実績をマッピング
     const wasteMap = new Map<string, Map<string, number>>();
-    wasteEntries
-      .filter(entry => dateSet.has(format(startOfDay(entry.date), 'yyyy-MM-dd')))
-      .forEach(entry => {
-        const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
-        if (!wasteMap.has(dateKey)) wasteMap.set(dateKey, new Map());
-        const prodMap = wasteMap.get(dateKey)!;
-        entry.items.forEach(item => {
-          prodMap.set(item.productId, (prodMap.get(item.productId) || 0) + item.quantity);
-        });
+    wasteEntries.forEach(entry => {
+      const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
+      if (!dateSet.has(dateKey)) return;
+      
+      if (!wasteMap.has(dateKey)) wasteMap.set(dateKey, new Map());
+      const pWasteMap = wasteMap.get(dateKey)!;
+      entry.items.forEach(item => {
+        pWasteMap.set(item.productId, (pWasteMap.get(item.productId) || 0) + item.quantity);
       });
+    });
 
     const productStats = new Map<string, any>();
     const dayStats: Record<number, { waste: number; production: number }> = {};
@@ -152,11 +157,9 @@ export default function ABCAnalysisPage() {
     for (let i = 0; i < 8; i++) dayStats[i] = { waste: 0, production: 0 };
     Object.keys(weatherLabels).forEach(w => weatherStats[w] = { waste: 0, production: 0 });
 
-    // 重複を完全に排除した商品リストを作成
-    const uniqueProducts = Array.from(new Map(products.map(p => [p.id, p])).values());
-
-    // 4. 精密集計（0ベース: 実績があればそれを、なければ計画を採用）
-    uniqueProducts.forEach(product => {
+    // 4. 精精密集計
+    products.forEach(product => {
+      // カテゴリーフィルター
       if (selectedCategory !== 'all' && product.category !== selectedCategory) return;
 
       const stats = {
@@ -177,16 +180,22 @@ export default function ABCAnalysisPage() {
         const weather = dateToWeather.get(dateKey) || 'sunny';
         const dowKey = isHoliday ? 'holiday' : dayMap[dow];
         const matrixKey = `${dow}-${weather}`;
+        const storeDateKey = `${dateKey}|${product.storeId}`;
 
-        // A. 計画数
-        const dailyProduction = weather === 'rainy' ? product.dailyProductionRainy : product.dailyProductionSunny;
-        const planned = (isHoliday && dailyProduction?.holiday !== undefined)
-            ? dailyProduction.holiday
-            : (dailyProduction as any)?.[dowKey] || 0;
-
-        // B. 実績登録数（実績があればそれを100%採用、なければ計画を採用）
-        const recordedCount = actualProductionMap.get(dateKey)?.get(product.id);
-        const finalProduction = (recordedCount !== undefined) ? recordedCount : planned;
+        // 0ベース集計ロジック
+        // A. 実績（追加登録）があるか確認
+        const recordedCount = dailyActualMap.get(storeDateKey)?.get(product.id);
+        
+        // B. 実績があればそれを、なければ計画を採用（二重計上を防止）
+        let finalProduction = 0;
+        if (recordedCount !== undefined) {
+          finalProduction = recordedCount;
+        } else {
+          const dailyProduction = weather === 'rainy' ? product.dailyProductionRainy : product.dailyProductionSunny;
+          finalProduction = (isHoliday && dailyProduction?.holiday !== undefined)
+              ? dailyProduction.holiday
+              : (dailyProduction as any)?.[dowKey] || 0;
+        }
         
         const finalWaste = wasteMap.get(dateKey)?.get(product.id) || 0;
 
@@ -212,18 +221,23 @@ export default function ABCAnalysisPage() {
         }
       });
 
-      productStats.set(product.id, stats);
+      productStats.set(`${product.storeId}|${product.id}`, stats);
     });
 
     const productsArray = Array.from(productStats.values());
+    
+    // 総計の再計算（カテゴリーフィルターがかかっている場合はその範囲で）
+    const totalProduction = productsArray.reduce((sum, p) => sum + p.production, 0);
+    const totalWaste = productsArray.reduce((sum, p) => sum + p.waste, 0);
+
     return {
       products: productsArray,
       dayStats,
       weatherStats,
       matrixStats,
       categoryStats,
-      totalWaste: productsArray.reduce((sum, p) => sum + p.waste, 0),
-      totalProduction: productsArray.reduce((sum, p) => sum + p.production, 0)
+      totalWaste,
+      totalProduction
     };
   }, [wasteEntries, productionEntries, products, validDates, wasteLoading, productionLoading, productsLoading, selectedCategory]);
 
@@ -252,8 +266,8 @@ export default function ABCAnalysisPage() {
           ? "grid grid-cols-4 gap-2 pb-6 w-full" 
           : "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4"
       )}>
-        {dayLabels.map((label, i) => {
-          const actualDow = dayOrder[i];
+        {dayOrder.map((actualDow, i) => {
+          const label = dayLabels[i];
           const dowProducts = analysisData.products
             .filter(p => (p.prodDow[actualDow] || 0) > 0 || (p.wasteDow[actualDow] || 0) > 0)
             .sort((a, b) => {
@@ -306,7 +320,7 @@ export default function ABCAnalysisPage() {
                         const pProd = p.prodDow[actualDow] || 0;
                         const pRate = pProd > 0 ? (pWaste / pProd) * 100 : 0;
                         return (
-                          <TableRow key={p.id} className="h-16 hover:bg-muted/5 border-b last:border-0">
+                          <TableRow key={`${p.storeId}|${p.id}`} className="h-16 hover:bg-muted/5 border-b last:border-0">
                             <TableCell className="p-2 px-2">
                               <p className="text-[16px] font-black leading-tight truncate w-full">{p.name}</p>
                               <div className="text-[16px] font-black mt-1 flex items-center gap-2 tabular-nums">
@@ -471,7 +485,7 @@ export default function ABCAnalysisPage() {
                           <Icon className={cn("h-3.5 w-3.5", isAlert ? "text-destructive" : "text-orange-500")} />
                           <span className="text-[12px] font-black text-muted-foreground">{label.charAt(0)}</span>
                         </div>
-                        <div className={cn("text-[16px] font-black tabular-nums leading-none flex items-baseline gap-0.5", isAlert ? "text-destructive" : "text-orange-600")}>
+                        <div className={cn("text-[16px] font-black tabular-nums Bird leading-none flex items-baseline gap-0.5", isAlert ? "text-destructive" : "text-orange-600")}>
                           {rate.toFixed(1)}<span className="text-[9px] font-normal">%</span>
                         </div>
                       </div>
@@ -516,7 +530,7 @@ export default function ABCAnalysisPage() {
                             className="h-16 hover:bg-primary/5 transition-colors cursor-pointer"
                             onClick={() => setSelectedCategoryForDetail(item.cat)}
                           >
-                            <TableCell className="px-4 py-2 text-[22px] font-black">{item.cat}</TableCell>
+                            <TableCell className="px-4 py-2 text-[22px] font-black">{item.cat || '未設定'}</TableCell>
                             <TableCell className="px-4 py-2 text-[20px] text-right font-bold tabular-nums">{item.production.toLocaleString()}</TableCell>
                             <TableCell className="px-4 py-2 text-[20px] text-right text-destructive font-black tabular-nums">{item.waste.toLocaleString()}</TableCell>
                             <TableCell className="px-4 py-2 text-right">
@@ -549,7 +563,7 @@ export default function ABCAnalysisPage() {
                         }).map((p) => {
                           const wasteRate = p.production > 0 ? (p.waste / p.production) * 100 : 0;
                           return (
-                            <TableRow key={p.id} className="h-20 hover:bg-muted/10 border-b">
+                            <TableRow key={`${p.storeId}|${p.id}`} className="h-20 hover:bg-muted/10 border-b">
                               <TableCell className="px-4 py-2">
                                 <div className="flex flex-col">
                                   <span className="text-[22px] font-black truncate max-w-[300px] leading-tight">{p.name}</span>
@@ -597,8 +611,8 @@ export default function ABCAnalysisPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {dayLabels.map((label, i) => {
-                          const actualDow = dayOrder[i];
+                        {dayOrder.map((actualDow, i) => {
+                          const label = dayLabels[i];
                           return (
                             <TableRow key={label} className="h-24">
                               <TableHead className={cn("h-24 p-2 text-[22px] font-black border-r text-center", (actualDow === 0 || actualDow === 7) ? "text-destructive" : (actualDow === 6 ? "text-blue-500" : ""))}>
@@ -702,7 +716,7 @@ export default function ABCAnalysisPage() {
                             const pProd = p.prodDow[selectedDayIdx] || 0;
                             const pRate = pProd > 0 ? (pWaste / pProd) * 100 : 0;
                             return (
-                              <TableRow key={p.id} className="h-14">
+                              <TableRow key={`${p.storeId}|${p.id}`} className="h-14">
                                 <TableCell className="py-2 px-4 text-[18px] font-black leading-tight">{p.name}</TableCell>
                                 <TableCell className="py-2 px-4 text-right">
                                   <div className={cn("font-black text-[22px] tabular-nums leading-none", pRate > 15 ? "text-destructive" : "text-blue-900")}>
@@ -748,7 +762,7 @@ export default function ABCAnalysisPage() {
                       .map(p => {
                         const rate = p.production > 0 ? (p.waste / p.production) * 100 : 0;
                         return (
-                          <TableRow key={p.id} className="h-16 border-b">
+                          <TableRow key={`${p.storeId}|${p.id}`} className="h-16 border-b">
                             <TableCell className="font-black py-2 text-[18px] leading-tight">{p.name}</TableCell>
                             <TableCell className="text-right text-destructive font-black py-2 text-[20px] tabular-nums">{p.waste}</TableCell>
                             <TableCell className="text-right font-bold py-2 text-[20px] tabular-nums">{p.production}</TableCell>
