@@ -38,11 +38,12 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
   const fetchProducts = useCallback(() => {
     if (!firestore || !user || isUserLoading || isAdminLoading || storesLoading) return;
 
-    // 店舗IDの重複を排除
     const uniqueStoreIds = Array.from(new Set(isAdmin ? selectedStoreIds : (userStore ? [userStore.id] : [])));
 
+    // 重要：新しいデータを取得する前に既存のリストをクリアして二重計上を防ぐ
+    setProducts([]);
+    
     if (uniqueStoreIds.length === 0) {
-      setProducts([]);
       setLoading(false);
       return;
     }
@@ -54,6 +55,7 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
       const q = query(collection(firestore, 'stores', storeId, 'products'));
       const unsub = onSnapshot(q, (snapshot) => {
         setProducts(prev => {
+          // 同じ店舗の古いデータをフィルタリングしてから追加
           const filtered = prev.filter(p => p.storeId !== storeId);
           const currentStoreProducts = snapshot.docs.map(doc => ({ 
             id: doc.id, 
@@ -64,9 +66,7 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
         });
         setLoading(false);
       }, (error) => {
-        if (user) {
-          errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `stores/${storeId}/products`, operation: 'list' }));
-        }
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `stores/${storeId}/products`, operation: 'list' }));
         setLoading(false);
       });
       unsubscribers.push(unsub);

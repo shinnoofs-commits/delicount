@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -71,14 +71,19 @@ export default function ABCAnalysisPage() {
   const { products, loading: productsLoading } = useProducts();
   const { isAdmin } = useAdmin();
 
-  const [date, setDate] = useState<DateRange | undefined>({
-    from: startOfMonth(new Date()),
-    to: endOfMonth(new Date()),
-  });
+  const [date, setDate] = useState<DateRange | undefined>(undefined);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedDayIdx, setSelectedDayIdx] = useState<number | null>(null);
   const [selectedCategoryForDetail, setSelectedCategoryForDetail] = useState<string | null>(null);
   const [isFullScreenDaily, setIsFullScreenDaily] = useState(false);
+
+  // ハイドレーションエラー防止のため、クライアントサイドでのみ日付を初期化
+  useEffect(() => {
+    setDate({
+      from: startOfMonth(new Date()),
+      to: endOfMonth(new Date()),
+    });
+  }, []);
 
   const categories = useMemo(() => {
     return ['all', ...Array.from(new Set(products.map(p => p.category)))];
@@ -98,7 +103,7 @@ export default function ABCAnalysisPage() {
   }, [date]);
 
   const analysisData = useMemo(() => {
-    if (wasteLoading || productsLoading || productionLoading || validDates.length === 0) return null;
+    if (wasteLoading || productsLoading || productionLoading || !date || !date.from || validDates.length === 0) return null;
 
     // 前日分までの確定データを対象とする
     const yesterdayStr = format(subDays(new Date(), 1), 'yyyy-MM-dd');
@@ -116,7 +121,7 @@ export default function ABCAnalysisPage() {
       }
     });
 
-    // 2. 製造実績（1日1件の確定データを特定）
+    // 2. 製造実績（1日1店舗1件の確定データを特定）
     // key: "yyyy-MM-dd|storeId" -> Map<productId, quantity>
     const dailyActualMap = new Map<string, Map<string, number>>();
     productionEntries.forEach(entry => {
@@ -130,7 +135,7 @@ export default function ABCAnalysisPage() {
       }
     });
 
-    // 3. 廃棄実績をマッピング (日付|店舗ID をキーにする)
+    // 3. 廃棄実績をマッピング
     const wasteMap = new Map<string, Map<string, number>>();
     wasteEntries.forEach(entry => {
       const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
@@ -152,7 +157,7 @@ export default function ABCAnalysisPage() {
     for (let i = 0; i < 8; i++) dayStats[i] = { waste: 0, production: 0 };
     Object.keys(weatherLabels).forEach(w => weatherStats[w] = { waste: 0, production: 0 });
 
-    // 4. 重複排除した店舗・商品リストで集計
+    // 重複を排除した店舗×商品リスト
     const uniqueProducts = Array.from(new Map(products.map(p => [`${p.storeId}|${p.id}`, p])).values());
 
     uniqueProducts.forEach(product => {
@@ -179,16 +184,16 @@ export default function ABCAnalysisPage() {
         const dowKey = isHoliday ? 'holiday' : dayMap[dow];
         const matrixKey = `${dow}-${weather}`;
 
-        // 0ベース集計ロジック: 実績優先、なければ計画
+        // 実績優先ロジック
         const recordedCount = dailyActualMap.get(storeDateKey)?.get(product.id);
         let finalProduction = 0;
         if (recordedCount !== undefined) {
           finalProduction = recordedCount;
         } else {
-          const dailyProduction = weather === 'rainy' ? product.dailyProductionRainy : product.dailyProductionSunny;
-          finalProduction = (isHoliday && dailyProduction?.holiday !== undefined)
-              ? dailyProduction.holiday
-              : (dailyProduction as any)?.[dowKey] || 0;
+          const plan = weather === 'rainy' ? product.dailyProductionRainy : product.dailyProductionSunny;
+          finalProduction = (isHoliday && plan?.holiday !== undefined)
+              ? plan.holiday
+              : (plan as any)?.[dowKey] || 0;
         }
         
         const finalWaste = wasteMap.get(storeDateKey)?.get(product.id) || 0;
@@ -215,6 +220,7 @@ export default function ABCAnalysisPage() {
         }
       });
 
+      // 商品IDだけで集約せず、店舗ID+商品IDで一意に管理
       productStats.set(`${product.storeId}|${product.id}`, stats);
     });
 
@@ -231,7 +237,7 @@ export default function ABCAnalysisPage() {
       totalWaste,
       totalProduction
     };
-  }, [wasteEntries, productionEntries, products, validDates, wasteLoading, productionLoading, productsLoading, selectedCategory]);
+  }, [wasteEntries, productionEntries, products, validDates, wasteLoading, productionLoading, productsLoading, selectedCategory, date]);
 
   const sortedCategoryStats = useMemo(() => {
     if (!analysisData) return [];
@@ -700,8 +706,8 @@ export default function ABCAnalysisPage() {
                         {selectedDayIdx !== null && analysisData?.products
                           .filter(p => (p.wasteDow[selectedDayIdx] || 0) > 0 || (p.prodDow[selectedDayIdx] || 0) > 0)
                           .sort((a, b) => {
-                            const rA = a.prodDow[selectedDayIdx] > 0 ? a.wasteDow[selectedDayIdx] / a.prodDow[selectedDayIdx] : 0;
-                            const rB = b.prodDow[selectedDayIdx] > 0 ? b.wasteDow[selectedDayIdx] / b.prodDow[selectedDayIdx] : 0;
+                            const rA = a.prodDow[selectedDayIdx!] > 0 ? a.wasteDow[selectedDayIdx!] / a.prodDow[selectedDayIdx!] : 0;
+                            const rB = b.prodDow[selectedDayIdx!] > 0 ? b.wasteDow[selectedDayIdx!] / b.prodDow[selectedDayIdx!] : 0;
                             return rB - rA;
                           })
                           .map(p => {
