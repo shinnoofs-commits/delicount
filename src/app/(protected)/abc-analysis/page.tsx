@@ -119,15 +119,15 @@ export default function ABCAnalysisPage() {
       }
     });
 
-    const dailyActualMap = new Map<string, Map<string, number>>();
+    const dailyAdditionalProductionMap = new Map<string, Map<string, number>>();
     productionEntries.forEach(entry => {
       const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
       if (!dateSet.has(dateKey)) return;
       const storeDateKey = `${dateKey}|${entry.storeId}`;
-      if (!dailyActualMap.has(storeDateKey)) {
-        dailyActualMap.set(storeDateKey, new Map<string, number>());
+      if (!dailyAdditionalProductionMap.has(storeDateKey)) {
+        dailyAdditionalProductionMap.set(storeDateKey, new Map<string, number>());
       }
-      const prodMap = dailyActualMap.get(storeDateKey)!;
+      const prodMap = dailyAdditionalProductionMap.get(storeDateKey)!;
       entry.items.forEach(item => prodMap.set(item.productId, (prodMap.get(item.productId) || 0) + item.quantity));
     });
 
@@ -187,16 +187,13 @@ export default function ABCAnalysisPage() {
         const dowKey = isHoliday ? 'holiday' : dayMap[dow];
         const matrixKey = `${dow}-${weather}`;
 
-        const recordedCount = dailyActualMap.get(storeDateKey)?.get(product.id);
-        let finalProduction = 0;
-        if (recordedCount !== undefined) {
-          finalProduction = recordedCount;
-        } else {
-          const plan = weather === 'rainy' ? product.dailyProductionRainy : product.dailyProductionSunny;
-          finalProduction = (plan && isHoliday && plan.holiday !== undefined)
-              ? plan.holiday
-              : (plan as any)?.[dowKey] || 0;
-        }
+        const plan = weather === 'rainy' ? product.dailyProductionRainy : product.dailyProductionSunny;
+        const plannedProduction = (plan && isHoliday && plan.holiday !== undefined)
+            ? plan.holiday
+            : (plan as any)?.[dowKey] || 0;
+            
+        const additionalProduction = dailyAdditionalProductionMap.get(storeDateKey)?.get(product.id) || 0;
+        const finalProduction = plannedProduction + additionalProduction;
         
         const finalWaste = wasteMap.get(storeDateKey)?.get(product.id) || 0;
 

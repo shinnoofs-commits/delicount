@@ -6,7 +6,7 @@ import { useFirestore, errorEmitter, FirestorePermissionError, useUser } from '@
 import { useAdmin } from '@/hooks/use-admin';
 import { useStores } from './store-context';
 import { useStoreSelection } from './store-selection-context';
-import { collection, doc, setDoc, onSnapshot, query, Unsubscribe } from 'firebase/firestore';
+import { collection, doc, setDoc, onSnapshot, query, Unsubscribe, addDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
@@ -79,26 +79,24 @@ export function ProductionProvider({ children }: { children: React.ReactNode }) 
   const addProductionEntry = useCallback(async (productionEntryData: Omit<ProductionEntry, 'id' | 'userId'>) => {
     if (!firestore || !user) return;
 
-    // 日付に基づいた固定IDを使用することで、1日1件の確定データとして保存する
-    const dateId = format(productionEntryData.date, 'yyyy-MM-dd');
-    const entryRef = doc(firestore, 'stores', productionEntryData.storeId, 'production', dateId);
+    const productionCollection = collection(firestore, 'stores', productionEntryData.storeId, 'production');
     
     const newEntry = {
       ...productionEntryData,
       userId: user.uid,
     };
     
-    setDoc(entryRef, newEntry)
+    addDoc(productionCollection, newEntry)
       .then(() => {
         toast({ 
-          title: '製造実績を記録しました', 
-          description: `計 ${productionEntryData.totalProductionCount.toLocaleString()} 個を確定しました。` 
+          title: '追加製造を記録しました', 
+          description: `計 ${productionEntryData.totalProductionCount.toLocaleString()} 個の追加を記録しました。` 
         });
       })
       .catch((e) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: entryRef.path, 
-          operation: 'write', 
+          path: productionCollection.path, 
+          operation: 'create', 
           requestResourceData: newEntry,
         }));
       });
