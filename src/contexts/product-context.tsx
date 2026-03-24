@@ -121,9 +121,17 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
     } else {
         if (!firestore) return;
         const productsCollection = collection(firestore, 'stores', storeId, 'products');
-        addDoc(productsCollection, dataWithSchedules).then(() => {
-            toast({ title: "商品を追加しました" });
-        });
+        addDoc(productsCollection, dataWithSchedules)
+          .then(() => {
+              toast({ title: "商品を追加しました" });
+          })
+          .catch(() => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+              path: productsCollection.path,
+              operation: 'create',
+              requestResourceData: dataWithSchedules,
+            }));
+          });
     }
   }, [firestore, toast, isAdmin, saveAdminProduct]);
 
@@ -135,9 +143,17 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
         if (!firestore) return;
         const { id, ...data } = productData;
         const productRef = doc(firestore, 'stores', storeId, 'products', id);
-        setDoc(productRef, data, { merge: true }).then(() => {
+        setDoc(productRef, data, { merge: true })
+          .then(() => {
             toast({ title: "更新完了" });
-        });
+          })
+          .catch(() => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+              path: productRef.path,
+              operation: 'update',
+              requestResourceData: data,
+            }));
+          });
     }
   }, [firestore, toast, isAdmin, saveAdminProduct]);
 
@@ -147,7 +163,14 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
     productIds.forEach(productId => {
       batch.delete(doc(firestore, 'stores', storeId, 'products', productId));
     });
-    batch.commit().then(() => toast({ title: "削除完了" }));
+    batch.commit()
+      .then(() => toast({ title: "削除完了" }))
+      .catch(() => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: `stores/${storeId}/products`,
+          operation: 'delete',
+        }));
+      });
   }, [firestore, toast]);
 
   const updateSchedules = useCallback(async (storeId: string, schedules: Record<string, Partial<DailyProduction>>, weatherPattern: 'sunny' | 'rainy', timeSlots?: Record<string, DisplayTimeSlot[]>) => {
@@ -162,12 +185,17 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
       }
       batch.update(productRef, updateData);
     });
-    try {
-      await batch.commit();
-      toast({ title: "製造計画を保存しました。" });
-    } catch (e) {
-      toast({ variant: 'destructive', title: '保存エラー' });
-    }
+    batch.commit()
+      .then(() => {
+        toast({ title: "製造計画を保存しました。" });
+      })
+      .catch((e) => {
+        toast({ variant: 'destructive', title: '保存エラー' });
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: `stores/${storeId}/products`,
+          operation: 'update',
+        }));
+      });
   }, [firestore, toast]);
 
   const bulkUpdateProducts = useCallback(async (storeId: string, productsToUpdate: Pick<Product, 'id' | 'category' | 'pricePattern'>[]) => {
@@ -176,8 +204,16 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
     productsToUpdate.forEach(p => {
       batch.update(doc(firestore, 'stores', storeId, 'products', p.id), { category: p.category, pricePattern: p.pricePattern });
     });
-    await batch.commit();
-    toast({ title: "一括更新完了" });
+    batch.commit()
+      .then(() => {
+        toast({ title: "一括更新完了" });
+      })
+      .catch(() => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: `stores/${storeId}/products`,
+          operation: 'update',
+        }));
+      });
   }, [firestore, toast]);
 
   const importProductsFromCSV = useCallback(async (newProducts: Omit<Product, 'id' | 'storeId'>[]) => {
@@ -191,8 +227,18 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
             dailyProductionRainy: { sun: 0, mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, holiday: 0 }
         });
     });
-    await batch.commit();
-    toast({ title: "CSVインポート完了" });
+    batch.commit()
+      .then(() => {
+        toast({ title: "CSVインポート完了" });
+      })
+      .catch(() => {
+        if(userStore) {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: `stores/${userStore.id}/products`,
+            operation: 'create',
+          }));
+        }
+      });
   }, [firestore, userStore, toast]);
 
   const syncAllProducts = useCallback(async (sourceStoreId: string) => {

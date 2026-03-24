@@ -86,19 +86,20 @@ export function ProductionProvider({ children }: { children: React.ReactNode }) 
       userId: user.uid,
     };
     
-    try {
-      await setDoc(entryRef, newEntry);
-      toast({ 
-        title: '製造実績を記録しました', 
-        description: `計 ${productionEntryData.totalProductionCount.toLocaleString()} 個を確定しました。` 
+    setDoc(entryRef, newEntry)
+      .then(() => {
+        toast({ 
+          title: '製造実績を記録しました', 
+          description: `計 ${productionEntryData.totalProductionCount.toLocaleString()} 個を確定しました。` 
+        });
+      })
+      .catch((e) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: entryRef.path, 
+          operation: 'write', 
+          requestResourceData: newEntry,
+        }));
       });
-    } catch (e) {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: entryRef.path, 
-        operation: 'write', 
-        requestResourceData: newEntry,
-      }));
-    }
   }, [firestore, user, toast]);
 
 
