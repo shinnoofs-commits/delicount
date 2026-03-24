@@ -36,7 +36,6 @@ export function ProductionProvider({ children }: { children: React.ReactNode }) 
     setProductionEntries([]);
     setLoading(true);
     
-    // 重複を排除した店舗IDリスト
     const uniqueStoreIds = Array.from(new Set(isAdmin ? selectedStoreIds : (userStore ? [userStore.id] : [])));
     
     if (uniqueStoreIds.length === 0) {

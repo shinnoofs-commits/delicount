@@ -39,16 +39,15 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
     if (!firestore || !user || isUserLoading || isAdminLoading || storesLoading) return;
 
     const uniqueStoreIds = Array.from(new Set(isAdmin ? selectedStoreIds : (userStore ? [userStore.id] : [])));
-
-    // 重複読み込みを防ぐためにリセット
+    
     setProducts([]);
+    setLoading(true);
     
     if (uniqueStoreIds.length === 0) {
       setLoading(false);
       return;
     }
     
-    setLoading(true);
     const unsubscribers: Unsubscribe[] = [];
 
     uniqueStoreIds.forEach(storeId => {
