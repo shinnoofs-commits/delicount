@@ -128,6 +128,32 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     }
   }, [firestore, toast, user]);
 
+  const updateDailyWeather = useCallback(async (storeId: string, date: Date, weather: WeatherType) => {
+    if (!firestore || !user) return;
+
+    const dayEntries = wasteEntries.filter(e => e.storeId === storeId && isSameDay(e.date, date));
+    if (dayEntries.length === 0) return;
+
+    const batch = writeBatch(firestore);
+    dayEntries.forEach(entry => {
+      const entryRef = doc(firestore, 'stores', storeId, 'waste', entry.id);
+      batch.update(entryRef, { weather });
+    });
+
+    try {
+      await batch.commit();
+    } catch (e) {
+      console.error('Failed to sync daily weather', e);
+      if (user) {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: `stores/${storeId}/waste`,
+            operation: 'update',
+            requestResourceData: { weather }
+        }));
+      }
+    }
+  }, [firestore, wasteEntries, user]);
+
   const updateWasteEntry = useCallback(async (storeId: string, entryId: string, items: WasteItem[], totalWasteCost: number, weather?: WeatherType) => {
     if (!firestore || !user) return;
     
@@ -160,33 +186,6 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
       }
     });
   }, [firestore, toast, wasteEntries, user, updateDailyWeather]);
-
-  const updateDailyWeather = useCallback(async (storeId: string, date: Date, weather: WeatherType) => {
-    if (!firestore || !user) return;
-
-    const dayEntries = wasteEntries.filter(e => e.storeId === storeId && isSameDay(e.date, date));
-    if (dayEntries.length === 0) return;
-
-    const batch = writeBatch(firestore);
-    dayEntries.forEach(entry => {
-      const entryRef = doc(firestore, 'stores', storeId, 'waste', entry.id);
-      batch.update(entryRef, { weather });
-    });
-
-    try {
-      await batch.commit();
-    } catch (e) {
-      console.error('Failed to sync daily weather', e);
-      if (user) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: `stores/${storeId}/waste`,
-            operation: 'update',
-            requestResourceData: { weather }
-        }));
-      }
-    }
-  }, [firestore, wasteEntries, user]);
-
 
   const value = useMemo(() => ({ 
     transactions: [],
