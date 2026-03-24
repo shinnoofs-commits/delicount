@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { ProductionEntry } from '@/lib/types';
@@ -84,6 +85,7 @@ export function ProductionProvider({ children }: { children: React.ReactNode }) 
     const newEntry = {
       ...productionEntryData,
       userId: user.uid,
+      entryType: 'ADDITIONAL' as const,
     };
     
     addDoc(productionCollection, newEntry)

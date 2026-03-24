@@ -1,7 +1,16 @@
+
 'use client';
 
 import { useMemo, useState, useEffect } from "react";
-import {
+import type { DateRange } from "react-day-picker";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription 
+} from "@/components/ui/dialog";
+import { 
   Card,
   CardContent,
   CardHeader,
@@ -22,18 +31,10 @@ import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogDescription 
-} from "@/components/ui/dialog";
 import { Calendar as CalendarIcon, Loader2, CalendarDays, Sun, Filter, PieChart, Package, Cloud, CloudRain, Snowflake, Maximize2, ClipboardList, Info } from 'lucide-react';
 import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, getDay, addDays, subDays } from "date-fns";
 import { ja } from "date-fns/locale";
 import holiday_jp from '@holiday-jp/holiday_jp';
-import type { DateRange } from "react-day-picker";
 import { useTransactions } from "@/contexts/transaction-context";
 import { useProducts } from "@/contexts/product-context";
 import { useProduction } from "@/contexts/production-context";
@@ -118,9 +119,13 @@ export default function ABCAnalysisPage() {
         dateStoreToWeather.set(`${dateKey}|${entry.storeId}`, entry.weather);
       }
     });
+    
+    const additionalProductionEntries = productionEntries.filter(
+      (entry) => entry.entryType === 'ADDITIONAL'
+    );
 
     const dailyAdditionalProductionMap = new Map<string, Map<string, number>>();
-    productionEntries.forEach(entry => {
+    additionalProductionEntries.forEach(entry => {
       const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
       if (!dateSet.has(dateKey)) return;
       const storeDateKey = `${dateKey}|${entry.storeId}`;

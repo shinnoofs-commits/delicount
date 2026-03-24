@@ -123,4 +123,5 @@ export type ProductionEntry = {
   date: Date;
   items: ProductionItem[];
   totalProductionCount: number;
+  entryType?: 'ADDITIONAL';
 };
