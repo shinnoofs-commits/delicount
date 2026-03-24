@@ -63,7 +63,9 @@ export function ProductionProvider({ children }: { children: React.ReactNode }) 
         });
         setLoading(false);
       }, (error) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `stores/${storeId}/production`, operation: 'list' }));
+        if(user) {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `stores/${storeId}/production`, operation: 'list' }));
+        }
         setLoading(false);
       });
       unsubscribers.push(unsub);

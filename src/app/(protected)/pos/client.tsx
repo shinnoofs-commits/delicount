@@ -60,6 +60,7 @@ export default function PosClient() {
 
   const fetch2200Weather = useCallback(async (targetDate: Date) => {
     if (!userStore) return;
+    if (typeof window === 'undefined') return;
 
     const existingEntryWithWeather = wasteEntries.find(e => 
       e.storeId === userStore.id && 
@@ -86,7 +87,7 @@ export default function PosClient() {
       if (geoData.results && geoData.results.length > 0) {
         lat = geoData.results[0].latitude;
         lon = geoData.results[0].longitude;
-      } else if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      } else if (navigator.geolocation) {
         const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
           navigator.geolocation.getCurrentPosition(resolve, reject);
         });
@@ -193,7 +194,7 @@ export default function PosClient() {
                 <div className="flex items-center gap-2 text-sm">
                     <Label className="font-medium">廃棄日:</Label>
                     <Popover>
-                        <PopoverTrigger asChild><Button variant="outline" className="w-full justify-start">{format(date, "PPP", { locale: ja })}</Button></PopoverTrigger>
+                        <PopoverTrigger asChild><Button variant="outline" className="w-full justify-start">{date ? format(date, "PPP", { locale: ja }) : <span>日付を選択</span>}</Button></PopoverTrigger>
                         <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} locale={ja} /></PopoverContent>
                     </Popover>
                 </div>

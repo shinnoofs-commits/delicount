@@ -54,6 +54,7 @@ export default function ProductionClient() {
 
   const fetchWeather = useCallback(async (targetDate: Date) => {
     if (!userStore) return;
+    if (typeof window === 'undefined') return;
 
     const dailyWasteEntry = wasteEntries.find(e => e.storeId === userStore.id && isSameDay(e.date, targetDate) && e.weather);
     if (dailyWasteEntry && dailyWasteEntry.weather) {
@@ -74,7 +75,7 @@ export default function ProductionClient() {
       if (geoData.results && geoData.results.length > 0) {
         lat = geoData.results[0].latitude;
         lon = geoData.results[0].longitude;
-      } else if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      } else if (navigator.geolocation) {
         const pos = await new Promise<GeolocationPosition>((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject));
         lat = pos.coords.latitude;
         lon = pos.coords.longitude;
@@ -108,7 +109,7 @@ export default function ProductionClient() {
     const initialQuantities: Record<string, string> = {};
     allProducts.forEach(product => {
       const dailyProduction = weather === 'rainy' ? product.dailyProductionRainy : product.dailyProductionSunny;
-      const plannedQuantity = (isHoliday && dailyProduction?.holiday !== undefined)
+      const plannedQuantity = (dailyProduction && isHoliday && dailyProduction.holiday !== undefined)
           ? dailyProduction.holiday
           : (dailyProduction as any)?.[dayKey] ?? 0;
       initialQuantities[product.id] = plannedQuantity.toString();
@@ -188,7 +189,7 @@ export default function ProductionClient() {
                 <PopoverTrigger asChild>
                   <Button variant={"outline"} className="w-[180px] justify-start text-left font-normal">
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {format(date, "PPP", { locale: ja })}
+                    {date ? format(date, "PPP", { locale: ja }) : <span>日付を選択</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
@@ -237,7 +238,7 @@ export default function ProductionClient() {
                                         const isHoliday = holiday_jp.isHoliday(date);
                                         const dayKey = dayMap[getDay(date)];
                                         const dailyProduction = weather === 'rainy' ? product.dailyProductionRainy : product.dailyProductionSunny;
-                                        const plannedQuantity = (isHoliday && dailyProduction?.holiday !== undefined)
+                                        const plannedQuantity = (dailyProduction && isHoliday && dailyProduction.holiday !== undefined)
                                             ? dailyProduction.holiday
                                             : (dailyProduction as any)?.[dayKey] ?? 0;
                                         

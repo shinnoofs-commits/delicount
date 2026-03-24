@@ -39,7 +39,6 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         return;
     }
     
-    // リセットして二重計上を防ぐ
     setWasteEntries([]);
     setLoading(true);
     
@@ -97,16 +96,18 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         toast({ title: '廃棄を記録しました', description: `合計廃棄額 ¥${wasteEntryData.totalWasteCost.toLocaleString()} が記録されました` });
       })
       .catch((e) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: wasteCollection.path, 
-          operation: 'create', 
-          requestResourceData: newEntry,
-        }));
+        if (user) {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: wasteCollection.path, 
+                operation: 'create', 
+                requestResourceData: newEntry,
+            }));
+        }
       });
   }, [firestore, user, toast]);
 
   const deleteWasteEntries = useCallback(async (storeId: string, entryIds: string[]) => {
-    if (!firestore) return;
+    if (!firestore || !user) return;
     
     const batch = writeBatch(firestore);
     entryIds.forEach(id => {
@@ -118,15 +119,17 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
       await batch.commit();
       toast({ title: `${entryIds.length}件のデータを削除しました` });
     } catch (error) {
-       errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: `stores/${storeId}/waste`,
-          operation: 'delete',
-        }));
+       if (user) {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: `stores/${storeId}/waste`,
+            operation: 'delete',
+          }));
+       }
     }
-  }, [firestore, toast]);
+  }, [firestore, toast, user]);
 
   const updateWasteEntry = useCallback(async (storeId: string, entryId: string, items: WasteItem[], totalWasteCost: number, weather?: WeatherType) => {
-    if (!firestore) return;
+    if (!firestore || !user) return;
     
     if (weather) {
       const entry = wasteEntries.find(e => e.id === entryId);
@@ -148,16 +151,18 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     updateDoc(entryRef, updateData).then(() => {
       toast({ title: 'データを更新しました' });
     }).catch(error => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: entryRef.path,
-        operation: 'update',
-        requestResourceData: updateData
-      }));
+      if (user) {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: entryRef.path,
+            operation: 'update',
+            requestResourceData: updateData
+          }));
+      }
     });
-  }, [firestore, toast, wasteEntries]);
+  }, [firestore, toast, wasteEntries, user, updateDailyWeather]);
 
   const updateDailyWeather = useCallback(async (storeId: string, date: Date, weather: WeatherType) => {
-    if (!firestore) return;
+    if (!firestore || !user) return;
 
     const dayEntries = wasteEntries.filter(e => e.storeId === storeId && isSameDay(e.date, date));
     if (dayEntries.length === 0) return;
@@ -172,8 +177,15 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
       await batch.commit();
     } catch (e) {
       console.error('Failed to sync daily weather', e);
+      if (user) {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: `stores/${storeId}/waste`,
+            operation: 'update',
+            requestResourceData: { weather }
+        }));
+      }
     }
-  }, [firestore, wasteEntries]);
+  }, [firestore, wasteEntries, user]);
 
 
   const value = useMemo(() => ({ 

@@ -55,8 +55,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { useAdmin } from "@/hooks/use-admin";
 import { useStores } from "@/contexts/store-context";
-import { getWasteInsights } from "@/ai/flows/waste-insights-flow";
-import type { WasteInsightsOutput } from "@/ai/flows/waste-insights-flow";
+import { getWasteInsights, type WasteInsightsOutput } from "@/ai/flows/waste-insights-flow";
+
 
 const DateRangePicker = ({ date, setDate }: { date: DateRange | undefined, setDate: (date: DateRange | undefined) => void }) => {
   return (

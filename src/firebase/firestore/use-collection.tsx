@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { useUser } from '../provider';
 
 /** Utility type to add an 'id' field to a given type T. */
 export type WithId<T> = T & { id: string };
@@ -50,6 +51,7 @@ export function useCollection<T = any>(
   const [data, setData] = useState<StateDataType>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
+  const { user } = useUser();
 
   useEffect(() => {
     if (!memoizedTargetRefOrQuery) {
@@ -74,26 +76,30 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (error: FirestoreError) => {
-        const path: string =
-          memoizedTargetRefOrQuery.type === 'collection'
-            ? (memoizedTargetRefOrQuery as CollectionReference).path
-            : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString()
+        if(user) { // Only emit contextual error if a user is logged in
+            const path: string =
+            memoizedTargetRefOrQuery.type === 'collection'
+                ? (memoizedTargetRefOrQuery as CollectionReference).path
+                : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString()
 
-        const contextualError = new FirestorePermissionError({
-          operation: 'list',
-          path,
-        })
+            const contextualError = new FirestorePermissionError({
+            operation: 'list',
+            path,
+            })
 
-        setError(contextualError)
+            setError(contextualError)
+            errorEmitter.emit('permission-error', contextualError);
+        } else {
+            console.warn("useCollection snapshot error, but no user is authenticated. This might be expected during logout or initial load.");
+            setError(error);
+        }
         setData(null)
         setIsLoading(false)
-
-        errorEmitter.emit('permission-error', contextualError);
       }
     );
 
     return () => unsubscribe();
-  }, [memoizedTargetRefOrQuery]);
+  }, [memoizedTargetRefOrQuery, user]);
 
   return { data, isLoading, error };
 }

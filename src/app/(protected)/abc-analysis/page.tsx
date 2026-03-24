@@ -79,11 +79,12 @@ export default function ABCAnalysisPage() {
   const [yesterdayStr, setYesterdayStr] = useState<string>('');
 
   useEffect(() => {
+    const today = new Date();
     setDate({
-      from: startOfMonth(new Date()),
-      to: endOfMonth(new Date()),
+      from: startOfMonth(today),
+      to: endOfMonth(today),
     });
-    setYesterdayStr(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
+    setYesterdayStr(format(subDays(today, 1), 'yyyy-MM-dd'));
   }, []);
 
   const categories = useMemo(() => {
@@ -124,10 +125,10 @@ export default function ABCAnalysisPage() {
       if (!dateSet.has(dateKey)) return;
       const storeDateKey = `${dateKey}|${entry.storeId}`;
       if (!dailyActualMap.has(storeDateKey)) {
-        const prodMap = new Map<string, number>();
-        entry.items.forEach(item => prodMap.set(item.productId, (prodMap.get(item.productId) || 0) + item.quantity));
-        dailyActualMap.set(storeDateKey, prodMap);
+        dailyActualMap.set(storeDateKey, new Map<string, number>());
       }
+      const prodMap = dailyActualMap.get(storeDateKey)!;
+      entry.items.forEach(item => prodMap.set(item.productId, (prodMap.get(item.productId) || 0) + item.quantity));
     });
 
     const wasteMap = new Map<string, Map<string, number>>();
@@ -169,7 +170,7 @@ export default function ABCAnalysisPage() {
       };
 
       validDates.forEach(dateKey => {
-        const entryDate = new Date(dateKey);
+        const entryDate = new Date(`${dateKey}T00:00:00`);
         const isHoliday = holiday_jp.isHoliday(entryDate);
         const dow = isHoliday ? 7 : getDay(entryDate);
         const storeDateKey = `${dateKey}|${product.storeId}`;
@@ -183,7 +184,7 @@ export default function ABCAnalysisPage() {
           finalProduction = recordedCount;
         } else {
           const plan = weather === 'rainy' ? product.dailyProductionRainy : product.dailyProductionSunny;
-          finalProduction = (isHoliday && plan?.holiday !== undefined)
+          finalProduction = (plan && isHoliday && plan.holiday !== undefined)
               ? plan.holiday
               : (plan as any)?.[dowKey] || 0;
         }
@@ -634,7 +635,7 @@ export default function ABCAnalysisPage() {
 
           <Dialog open={isFullScreenDaily} onOpenChange={setIsFullScreenDaily}>
             <DialogContent className="max-w-[98vw] h-[95vh] flex flex-col p-4 bg-muted/5 overflow-hidden">
-              {isFullScreenDaily && (
+              {isFullScreenDaily && analysisData && (
                 <>
                   <DialogHeader className="mb-2 shrink-0">
                     <DialogTitle className="text-2xl font-black">全曜日実績比較（4×2グリッド俯瞰）</DialogTitle>
@@ -652,7 +653,7 @@ export default function ABCAnalysisPage() {
 
           <Dialog open={selectedDayIdx !== null} onOpenChange={(open) => !open && setSelectedDayIdx(null)}>
             <DialogContent className="max-w-[550px] max-h-[90vh] flex flex-col p-4">
-              {selectedDayIdx !== null && (
+              {selectedDayIdx !== null && analysisData && (
                 <>
                   <DialogHeader>
                     <DialogTitle className="text-2xl font-black flex items-center">
@@ -736,7 +737,7 @@ export default function ABCAnalysisPage() {
 
           <Dialog open={!!selectedCategoryForDetail} onOpenChange={(open) => !open && setSelectedCategoryForDetail(null)}>
             <DialogContent className="max-w-[550px] max-h-[85vh] flex flex-col p-4">
-              {selectedCategoryForDetail && (
+              {selectedCategoryForDetail && analysisData && (
                 <>
                   <DialogHeader>
                     <DialogTitle className="text-2xl font-black">{selectedCategoryForDetail} カテゴリー詳細</DialogTitle>
