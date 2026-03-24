@@ -1,6 +1,7 @@
+
 'use client';
 
-import type { Product, DailyProduction, DisplayTimeSlot } from '@/lib/types';
+import type { Product, DailyProduction } from '@/lib/types';
 import React, { createContext, useContext, useCallback, useMemo, useState, useEffect } from 'react';
 import { useFirestore, errorEmitter, FirestorePermissionError, useUser } from '@/firebase';
 import { collection, doc, addDoc, setDoc, writeBatch, query, where, getDocs, onSnapshot, Unsubscribe } from 'firebase/firestore';
@@ -17,7 +18,7 @@ interface ProductContextType {
   deleteProducts: (storeId: string, productIds: string[]) => void;
   importProductsFromCSV: (products: Omit<Product, 'id' | 'storeId'>[]) => void;
   syncAllProducts: (sourceStoreId: string) => Promise<void>;
-  updateSchedules: (storeId: string, schedules: Record<string, Partial<DailyProduction>>, weatherPattern: 'sunny' | 'rainy', timeSlots?: Record<string, DisplayTimeSlot[]>) => Promise<void>;
+  updateSchedules: (storeId: string, schedules: Record<string, Partial<DailyProduction>>, weatherPattern: 'sunny' | 'rainy') => Promise<void>;
   bulkUpdateProducts: (storeId: string, productsToUpdate: Pick<Product, 'id' | 'category' | 'pricePattern'>[]) => Promise<void>;
   refetchProducts: () => void;
 }
@@ -172,16 +173,13 @@ export function ProductProvider({ children }: { children: React.ReactNode }) {
       });
   }, [firestore, toast]);
 
-  const updateSchedules = useCallback(async (storeId: string, schedules: Record<string, Partial<DailyProduction>>, weatherPattern: 'sunny' | 'rainy', timeSlots?: Record<string, DisplayTimeSlot[]>) => {
+  const updateSchedules = useCallback(async (storeId: string, schedules: Record<string, Partial<DailyProduction>>, weatherPattern: 'sunny' | 'rainy') => {
     if (!firestore) return;
     const batch = writeBatch(firestore);
     const key = weatherPattern === 'rainy' ? 'dailyProductionRainy' : 'dailyProductionSunny';
     Object.entries(schedules).forEach(([productId, dailyProduction]) => {
       const productRef = doc(firestore, 'stores', storeId, 'products', productId);
       const updateData: any = { [key]: dailyProduction };
-      if (timeSlots && timeSlots[productId]) {
-        updateData.displayTimeSlots = timeSlots[productId];
-      }
       batch.update(productRef, updateData);
     });
     batch.commit()

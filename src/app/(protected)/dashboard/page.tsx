@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -251,7 +252,6 @@ export default function DashboardPage() {
         products: products.map(p => ({
           name: p.name,
           category: p.category,
-          displaySlots: p.displayTimeSlots,
           waste: targetEntries.reduce((sum, entry) => {
             const item = entry.items.find(i => i.productId === p.id);
             return sum + (item?.quantity || 0);
@@ -539,7 +539,6 @@ export default function DashboardPage() {
                     waste_reduction: "bg-red-100 text-red-700 border-red-200",
                     opportunity_loss: "bg-blue-100 text-blue-700 border-blue-200",
                     weather_pattern: "bg-orange-100 text-orange-700 border-orange-200",
-                    time_slot_optimization: "bg-purple-100 text-purple-700 border-purple-200",
                   };
                   return (
                     <Card key={idx} className="bg-background shadow-sm overflow-hidden flex flex-col">

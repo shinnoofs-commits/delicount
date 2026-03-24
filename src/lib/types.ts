@@ -44,8 +44,6 @@ export type DailyProduction = {
   holiday: number;
 };
 
-export type DisplayTimeSlot = '10:00' | '12:00' | '15:00';
-
 export type Product = {
   id: string;
   storeId: string;
@@ -55,7 +53,6 @@ export type Product = {
   productCode: string;
   category: string;
   pricePattern?: string;
-  displayTimeSlots?: DisplayTimeSlot[];
   materials?: Material[];
   containers?: Container[];
   dailyProductionSunny?: DailyProduction;

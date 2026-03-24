@@ -5,12 +5,11 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 
-import type { Product, DisplayTimeSlot } from '@/lib/types'
+import type { Product } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Checkbox } from '@/components/ui/checkbox'
 
 const productCategories = [
   '温惣菜',
@@ -23,7 +22,6 @@ const productCategories = [
 ];
 
 const pricePatterns = ['専門店', '量販店'];
-const timeSlotOptions: DisplayTimeSlot[] = ['10:00', '12:00', '15:00'];
 
 const formSchema = z.object({
   id: z.string().optional(),
@@ -33,7 +31,6 @@ const formSchema = z.object({
   costPrice: z.coerce.number().min(0, { message: '原価は正の数でなければなりません。' }),
   category: z.string().min(1, { message: 'カテゴリーは必須です。' }),
   pricePattern: z.string().optional(),
-  displayTimeSlots: z.array(z.enum(timeSlotOptions)).optional().default([]),
 })
 
 type FormValues = z.infer<typeof formSchema>;
@@ -51,7 +48,6 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
       ? { 
           ...product, 
           pricePattern: product.pricePattern || '', 
-          displayTimeSlots: product.displayTimeSlots || [] 
         }
       : {
         name: '',
@@ -60,7 +56,6 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
         costPrice: 0,
         category: '',
         pricePattern: '',
-        displayTimeSlots: [],
     },
   })
 
@@ -172,43 +167,6 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
                 </FormItem>
               )}
             />
-        </div>
-
-        <div className="space-y-2 border p-3 rounded-md bg-muted/20">
-            <FormLabel className="text-xs font-bold uppercase opacity-70">陳列時間帯 (複数選択可)</FormLabel>
-            <div className="flex flex-wrap gap-4 pt-1">
-                {timeSlotOptions.map((slot) => (
-                    <FormField
-                        key={slot}
-                        control={form.control}
-                        name="displayTimeSlots"
-                        render={({ field }) => {
-                            return (
-                                <FormItem key={slot} className="flex flex-row items-start space-x-3 space-y-0">
-                                    <FormControl>
-                                        <Checkbox
-                                            checked={field.value?.includes(slot)}
-                                            onCheckedChange={(checked) => {
-                                                return checked
-                                                    ? field.onChange([...(field.value || []), slot])
-                                                    : field.onChange(
-                                                        field.value?.filter(
-                                                            (value) => value !== slot
-                                                        )
-                                                    )
-                                            }}
-                                        />
-                                    </FormControl>
-                                    <FormLabel className="font-bold cursor-pointer">{slot}</FormLabel>
-                                </FormItem>
-                            )
-                        }}
-                    />
-                ))}
-            </div>
-            <FormDescription className="text-[10px]">
-                設定した時間帯は「製造計画」の一覧画面にも反映されます。
-            </FormDescription>
         </div>
 
         <div className="p-4 bg-muted rounded-md mt-4">

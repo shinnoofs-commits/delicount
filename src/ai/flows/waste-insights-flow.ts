@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview AI Waste Insights Agent
@@ -18,7 +19,7 @@ export type WasteInsightsInput = z.infer<typeof WasteInsightsInputSchema>;
 
 const WasteInsightsOutputSchema = z.object({
   insights: z.array(z.object({
-    type: z.enum(['waste_reduction', 'opportunity_loss', 'weather_pattern', 'time_slot_optimization']),
+    type: z.enum(['waste_reduction', 'opportunity_loss', 'weather_pattern']),
     title: z.string().describe('A concise title for the insight'),
     description: z.string().describe('Detailed explanation of the findings'),
     impact: z.string().describe('Estimated financial or operational impact (e.g., "¥5,000 / week")'),
@@ -34,12 +35,11 @@ const wasteInsightsPrompt = ai.definePrompt({
   input: { schema: WasteInsightsInputSchema },
   output: { schema: WasteInsightsOutputSchema },
   prompt: `あなたは小売店の運営コンサルタントです。
-提供された廃棄データ、天気、商品の陳列時間帯を分析し、利益を最大化するための具体的な改善提案を行ってください。
+提供された廃棄データと天気を分析し、利益を最大化するための具体的な改善提案を行ってください。
 
 特に以下の点に注目してください：
 1. 特定の天気（例：雨の日）における過剰製造の傾向
-2. 陳列時間帯（10:00/12:00/15:00）と廃棄の関係
-3. 機会損失（売れ残り）を減らすための具体的な製造数の増減率（例：〇〇を20%減らす）
+2. 機会損失（売れ残り）を減らすための具体的な製造数の増減率（例：〇〇を20%減らす）
 
 分析対象データ:
 {{{summaryData}}}

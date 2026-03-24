@@ -34,14 +34,6 @@
         "pricePattern": {
           "type": "string"
         },
-        "displayTimeSlots": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "enum": ["10:00", "12:00", "15:00"]
-          },
-          "description": "Time slots when the product is displayed."
-        },
         "dailyProductionSunny": {
           "$ref": "#/backend/entities/DailyProduction"
         },
