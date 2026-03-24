@@ -8,6 +8,12 @@ service cloud.firestore {
       return request.auth != null && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
 
+    function isStoreOwner(storeId) {
+      // Check for existence before accessing data to make the rule more robust.
+      return exists(/databases/$(database)/documents/stores/$(storeId)) &&
+             get(/databases/$(database)/documents/stores/$(storeId)).data.userId == request.auth.uid;
+    }
+
     match /roles_admin/{uid} {
       allow get: if request.auth.uid == uid || isAdmin();
       allow list: if isAdmin();
@@ -17,32 +23,35 @@ service cloud.firestore {
     }
 
     match /stores/{storeId} {
+      // `read` on the store document itself uses `resource.data`
       allow read: if isAdmin() || resource.data.userId == request.auth.uid;
       allow create: if isAdmin() || request.auth.uid == request.resource.data.userId;
-      allow update: if isAdmin() || get(/databases/$(database)/documents/stores/$(storeId)).data.userId == request.auth.uid;
+      // `update` can use the helper function
+      allow update: if isAdmin() || isStoreOwner(storeId);
       allow delete: if isAdmin();
 
+      // Apply consistent rules to all subcollections
       match /products/{productId} {
-        allow read, write: if isAdmin() || get(/databases/$(database)/documents/stores/$(storeId)).data.userId == request.auth.uid;
+        allow read, write: if isAdmin() || isStoreOwner(storeId);
       }
       
       match /waste/{wasteId} {
-         allow read: if isAdmin() || get(/databases/$(database)/documents/stores/$(storeId)).data.userId == request.auth.uid;
+         allow read: if isAdmin() || isStoreOwner(storeId);
          allow create: if request.auth.uid == request.resource.data.userId;
-         allow update, delete: if isAdmin() || get(/databases/$(database)/documents/stores/$(storeId)).data.userId == request.auth.uid;
+         allow update, delete: if isAdmin() || isStoreOwner(storeId);
       }
 
       match /production/{productionId} {
-         allow read: if isAdmin() || get(/databases/$(database)/documents/stores/$(storeId)).data.userId == request.auth.uid;
+         allow read: if isAdmin() || isStoreOwner(storeId);
          allow create: if request.auth.uid == request.resource.data.userId;
-         allow update, delete: if isAdmin() || get(/databases/$(database)/documents/stores/$(storeId)).data.userId == request.auth.uid;
+         allow update, delete: if isAdmin() || isStoreOwner(storeId);
       }
 
       match /transactions/{transactionId} {
-        allow read, write: if isAdmin() || get(/databases/$(database)/documents/stores/$(storeId)).data.userId == request.auth.uid;
+        allow read, write: if isAdmin() || isStoreOwner(storeId);
 
         match /soldItems/{soldItemId} {
-           allow read, write: if isAdmin() || get(/databases/$(database)/documents/stores/$(storeId)).data.userId == request.auth.uid;
+           allow read, write: if isAdmin() || isStoreOwner(storeId);
         }
       }
     }
