@@ -12,17 +12,6 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 
-const formSchema = z.object({
-  id: z.string().optional(),
-  name: z.string().min(2, { message: '名前は2文字以上である必要があります。' }),
-  productCode: z.string().min(1, { message: '商品コードは必須です。' }),
-  price: z.coerce.number().min(0, { message: '価格は正の数でなければなりません。' }),
-  costPrice: z.coerce.number().min(0, { message: '原価は正の数でなければなりません。' }),
-  category: z.string().min(1, { message: 'カテゴリーは必須です。' }),
-  pricePattern: z.string().optional(),
-  displayTimeSlots: z.array(z.string()).optional().default([]),
-})
-
 const productCategories = [
   '温惣菜',
   '冷惣菜',
@@ -35,6 +24,17 @@ const productCategories = [
 
 const pricePatterns = ['専門店', '量販店'];
 const timeSlotOptions: DisplayTimeSlot[] = ['10:00', '12:00', '15:00'];
+
+const formSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(2, { message: '名前は2文字以上である必要があります。' }),
+  productCode: z.string().min(1, { message: '商品コードは必須です。' }),
+  price: z.coerce.number().min(0, { message: '価格は正の数でなければなりません。' }),
+  costPrice: z.coerce.number().min(0, { message: '原価は正の数でなければなりません。' }),
+  category: z.string().min(1, { message: 'カテゴリーは必須です。' }),
+  pricePattern: z.string().optional(),
+  displayTimeSlots: z.array(z.enum(timeSlotOptions)).optional().default([]),
+})
 
 type FormValues = z.infer<typeof formSchema>;
 
