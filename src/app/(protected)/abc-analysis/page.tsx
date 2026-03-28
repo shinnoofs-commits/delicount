@@ -157,18 +157,7 @@ export default function ABCAnalysisPage() {
     for (let i = 0; i < 8; i++) dayStats[i] = { waste: 0, production: 0 };
     Object.keys(weatherLabels).forEach(w => weatherStats[w] = { waste: 0, production: 0 });
 
-    const productMap = new Map();
-    for (const p of products) {
-      if (p.productCode) {
-        const key = `${p.storeId}|${p.productCode}`;
-        if (!productMap.has(key)) {
-          productMap.set(key, p);
-        }
-      }
-    }
-    const uniqueProducts = Array.from(productMap.values());
-
-    uniqueProducts.forEach(product => {
+    products.forEach(product => {
       if (selectedCategory !== 'all' && product.category !== selectedCategory) return;
 
       const stats = {
