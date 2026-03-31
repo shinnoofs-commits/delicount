@@ -148,7 +148,7 @@ export default function ABCAnalysisPage() {
       });
     });
 
-    const productStats = new Map<string, any>();
+    const productStatsAll = new Map<string, any>();
     const dayStats: Record<number, { waste: number; production: number }> = {};
     const weatherStats: Record<string, { waste: number; production: number }> = {};
     const matrixStats: Record<string, { waste: number; production: number }> = {};
@@ -158,8 +158,6 @@ export default function ABCAnalysisPage() {
     Object.keys(weatherLabels).forEach(w => weatherStats[w] = { waste: 0, production: 0 });
 
     products.forEach(product => {
-      if (selectedCategory !== 'all' && product.category !== selectedCategory) return;
-
       const stats = {
         id: product.id,
         storeId: product.storeId,
@@ -213,15 +211,17 @@ export default function ABCAnalysisPage() {
         }
       });
 
-      productStats.set(`${product.storeId}|${product.id}`, stats);
+      productStatsAll.set(`${product.storeId}|${product.id}`, stats);
     });
+    
+    const productsForDisplay = Array.from(productStatsAll.values())
+        .filter(p => selectedCategory === 'all' || p.category === selectedCategory);
 
-    const productsArray = Array.from(productStats.values());
     const totalProduction = Object.values(dayStats).reduce((sum, s) => sum + s.production, 0);
     const totalWaste = Object.values(dayStats).reduce((sum, s) => sum + s.waste, 0);
 
     return {
-      products: productsArray,
+      products: productsForDisplay,
       dayStats,
       weatherStats,
       matrixStats,
