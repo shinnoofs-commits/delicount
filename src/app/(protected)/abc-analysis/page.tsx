@@ -175,14 +175,16 @@ export default function ABCAnalysisPage() {
         const isHoliday = holiday_jp.isHoliday(entryDate);
         const dow = isHoliday ? 7 : getDay(entryDate);
         const storeDateKey = `${dateKey}|${product.storeId}`;
-        const weather = dateStoreToWeather.get(storeDateKey) || 'sunny';
-        const dowKey = isHoliday ? 'holiday' : dayMap[dow];
-        const matrixKey = `${dow}-${weather}`;
-
-        const plan = weather === 'rainy' ? product.dailyProductionRainy : product.dailyProductionSunny;
-        const plannedProduction = (plan && isHoliday && plan.holiday !== undefined)
-            ? plan.holiday
-            : (plan as any)?.[dowKey] || 0;
+        const weather = dateStoreToWeather.get(storeDateKey); // No '|| sunny'
+        
+        let plannedProduction = 0;
+        if (weather) { // Only calculate planned production if weather is known
+            const dowKey = isHoliday ? 'holiday' : dayMap[dow];
+            const plan = weather === 'rainy' ? product.dailyProductionRainy : product.dailyProductionSunny;
+            plannedProduction = (plan && isHoliday && plan.holiday !== undefined)
+                ? plan.holiday
+                : (plan as any)?.[dowKey] || 0;
+        }
             
         const additionalProduction = dailyAdditionalProductionMap.get(storeDateKey)?.get(product.id) || 0;
         const finalProduction = plannedProduction + additionalProduction;
@@ -198,12 +200,15 @@ export default function ABCAnalysisPage() {
           dayStats[dow].production += finalProduction;
           dayStats[dow].waste += finalWaste;
 
-          weatherStats[weather].production += finalProduction;
-          weatherStats[weather].waste += finalWaste;
+          if (weather) {
+            weatherStats[weather].production += finalProduction;
+            weatherStats[weather].waste += finalWaste;
 
-          if (!matrixStats[matrixKey]) matrixStats[matrixKey] = { waste: 0, production: 0 };
-          matrixStats[matrixKey].production += finalProduction;
-          matrixStats[matrixKey].waste += finalWaste;
+            const matrixKey = `${dow}-${weather}`;
+            if (!matrixStats[matrixKey]) matrixStats[matrixKey] = { waste: 0, production: 0 };
+            matrixStats[matrixKey].production += finalProduction;
+            matrixStats[matrixKey].waste += finalWaste;
+          }
 
           if (!categoryStats[product.category]) categoryStats[product.category] = { waste: 0, production: 0 };
           categoryStats[product.category].production += finalProduction;
