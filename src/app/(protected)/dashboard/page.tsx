@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -10,9 +11,9 @@ import {
 import { useTransactions } from "@/contexts/transaction-context";
 import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid, getDay, addDays, isSameDay, subMonths } from "date-fns";
 import { ja } from "date-fns/locale";
-import { Calendar as CalendarIcon, Trash2, TrendingDown, Loader2, Sun, Cloud, CloudRain, Snowflake, Package } from 'lucide-react';
+import { Calendar as CalendarIcon, Trash2, TrendingDown, Loader2, Sun, Cloud, CloudRain, Snowflake, Package, Edit, Plus, Minus } from 'lucide-react';
 import { useMemo, useState, useCallback, useEffect } from "react";
-import type { WasteEntry, WeatherType } from "@/lib/types";
+import type { WasteEntry, WeatherType, WasteItem, Product } from "@/lib/types";
 import { useProducts } from "@/contexts/product-context";
 import type { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { useAdmin } from "@/hooks/use-admin";
 
 const weatherIcons: Record<WeatherType, any> = {
@@ -51,16 +62,13 @@ const weatherLabels: Record<WeatherType, string> = {
   snowy: '雪',
 };
 
-const filterOptions = [
-  { id: 1, label: '月' },
-  { id: 2, label: '火' },
-  { id: 3, label: '水' },
-  { id: 4, label: '木' },
-  { id: 5, label: '金' },
-  { id: 6, label: '土' },
-  { id: 0, label: '日' },
-  { id: 7, label: '祝' },
+const weatherOptions: { value: WeatherType; label: string; icon: any }[] = [
+  { value: 'sunny', label: '晴れ', icon: Sun },
+  { value: 'cloudy', label: '曇り', icon: Cloud },
+  { value: 'rainy', label: '雨', icon: CloudRain },
+  { value: 'snowy', label: '雪', icon: Snowflake },
 ];
+
 
 const WeatherIcon = ({ type }: { type?: WeatherType }) => {
     if (!type) return null;
@@ -107,7 +115,7 @@ const DashboardCalendar = ({ data, onDayClick }: { data: any[], onDayClick: (dat
             table: 'w-full',
             head_row: 'ml-2',
             row: 'w-full mt-2',
-            day: 'h-28 lg:h-32 align-top p-0',
+            day: 'h-32 lg:h-36 align-top p-0',
             day_selected: 'bg-transparent text-current',
             day_range_start: 'bg-transparent text-current',
             day_range_end: 'bg-transparent text-current',
@@ -119,14 +127,96 @@ const DashboardCalendar = ({ data, onDayClick }: { data: any[], onDayClick: (dat
   );
 };
 
+const WasteEditForm = ({
+  entry,
+  onSave,
+  onCancel,
+}: {
+  entry: WasteEntry;
+  onSave: (items: WasteItem[], totalWasteCost: number, weather: WeatherType) => void;
+  onCancel: () => void;
+}) => {
+  const [items, setItems] = useState<WasteItem[]>(entry.items);
+  const [weather, setWeather] = useState<WeatherType>(entry.weather || 'sunny');
+
+  const handleQuantityChange = (productId: string, delta: number) => {
+    setItems(currentItems => {
+      const itemIndex = currentItems.findIndex(i => i.productId === productId);
+      if (itemIndex > -1) {
+        const newItems = [...currentItems];
+        const newQuantity = newItems[itemIndex].quantity + delta;
+        if (newQuantity > 0) {
+          newItems[itemIndex] = { ...newItems[itemIndex], quantity: newQuantity };
+          return newItems;
+        } else {
+          return newItems.filter((_, i) => i !== itemIndex);
+        }
+      }
+      return currentItems; // Do not add new items in edit mode for simplicity
+    });
+  };
+
+  const handleSave = () => {
+    const totalWasteCost = items.reduce((acc, item) => acc + item.costPrice * item.quantity, 0);
+    onSave(items, totalWasteCost, weather);
+  };
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>廃棄記録の編集</DialogTitle>
+        <DialogDescription>
+          {format(entry.date, 'M月d日 HH:mm')} の記録を編集します。
+        </DialogDescription>
+      </DialogHeader>
+      <div className="py-4 space-y-4">
+        <div>
+          <Label className="text-xs font-medium">代表天気</Label>
+          <div className="grid grid-cols-4 gap-2 mt-1">
+            {weatherOptions.map((option) => (
+              <Button
+                key={option.value}
+                variant={weather === option.value ? "default" : "outline"}
+                className="flex flex-col h-14 p-1"
+                onClick={() => setWeather(option.value)}
+              >
+                <option.icon className="h-4 w-4" />
+                <span className="text-[10px]">{option.label}</span>
+              </Button>
+            ))}
+          </div>
+        </div>
+        <div className="max-h-[40vh] overflow-y-auto pr-2 space-y-2">
+          {items.map(item => (
+            <div key={item.productId} className="flex items-center justify-between p-2 rounded-md border">
+              <span className="text-sm font-medium truncate flex-1">{item.name}</span>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(item.productId, -1)}><Minus className="h-4 w-4" /></Button>
+                <span className="w-6 text-center font-bold">{item.quantity}</span>
+                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(item.productId, 1)}><Plus className="h-4 w-4" /></Button>
+              </div>
+            </div>
+          ))}
+           {items.length === 0 && <p className="text-sm text-center text-muted-foreground py-4">商品がありません。</p>}
+        </div>
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onCancel}>キャンセル</Button>
+        <Button onClick={handleSave}>変更を保存</Button>
+      </DialogFooter>
+    </>
+  );
+};
+
 
 export default function DashboardPage() {
-  const { wasteEntries, loading: wasteLoading } = useTransactions();
+  const { wasteEntries, loading: wasteLoading, updateWasteEntry, deleteWasteEntries } = useTransactions();
   const { products } = useProducts();
   const { isAdmin } = useAdmin();
   
-  const [selectedFilters, setSelectedFilters] = useState<number[]>([0, 1, 2, 3, 4, 5, 6, 7]);
   const [selectedDayWaste, setSelectedDayWaste] = useState<{ date: Date, entries: WasteEntry[] } | null>(null);
+  const [entryToEdit, setEntryToEdit] = useState<WasteEntry | null>(null);
+  const [entryToDelete, setEntryToDelete] = useState<WasteEntry | null>(null);
 
   const [date, setDate] = useState<DateRange | undefined>(undefined);
 
@@ -138,11 +228,12 @@ export default function DashboardPage() {
     });
   }, []);
 
-  const handleFilterToggle = (filterId: number) => {
-    setSelectedFilters(prev => 
-      prev.includes(filterId) ? prev.filter(d => d !== filterId) : [...prev, filterId]
-    );
-  };
+  const confirmDelete = useCallback(() => {
+    if (entryToDelete) {
+      deleteWasteEntries(entryToDelete.storeId, [entryToDelete.id]);
+    }
+    setEntryToDelete(null);
+  }, [entryToDelete, deleteWasteEntries]);
   
   const filteredWasteEntries = useMemo(() => {
     if (!date || !date.from) return [];
@@ -152,18 +243,9 @@ export default function DashboardPage() {
 
     return wasteEntries.filter((entry) => {
         const entryDate = new Date(entry.date);
-        if (!isValid(entryDate) || entryDate < fromDate || entryDate > toDate) {
-          return false;
-        }
-
-        const dayOfWeek = getDay(entryDate);
-        const isHoliday = holiday_jp.isHoliday(entryDate);
-        const isDaySelected = selectedFilters.includes(dayOfWeek);
-        const isHolidaySelected = selectedFilters.includes(7);
-
-        return isHoliday ? isHolidaySelected : isDaySelected;
+        return isValid(entryDate) && entryDate >= fromDate && entryDate <= toDate;
     });
-  }, [date, wasteEntries, selectedFilters]);
+  }, [date, wasteEntries]);
 
 
   const wasteAnalysisData: { productId: string; productName: string; wasteCount: number; costPrice: number; price: number; totalWasteCost: number; opportunityLoss: number; }[] = useMemo(() => {
@@ -317,21 +399,6 @@ export default function DashboardPage() {
               </div>
             </div>
         </div>
-        <div className="border-t pt-4">
-            <Label className="text-sm font-medium mb-2 block">曜日・祝日を選択</Label>
-            <div className="flex flex-wrap items-center gap-4">
-              {filterOptions.map(day => (
-                <div key={day.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`day-${day.id}`}
-                    checked={selectedFilters.includes(day.id)}
-                    onCheckedChange={() => handleFilterToggle(day.id)}
-                  />
-                  <Label htmlFor={`day-${day.id}`} className="text-sm font-normal cursor-pointer">{day.label}</Label>
-                </div>
-              ))}
-            </div>
-        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -388,15 +455,23 @@ export default function DashboardPage() {
 
                                   return (
                                     <div key={idx} className="border-b pb-4 last:border-0">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className="text-xs font-bold text-muted-foreground flex items-center gap-1">
-                                                <WeatherIcon type={entry.weather} />
-                                                {format(entry.date, 'HH:mm')} 登録分
-                                            </span>
-                                            <div className="text-right">
-                                                <div className="text-[10px] text-muted-foreground">原価合計: ¥{entry.totalWasteCost.toLocaleString()}</div>
-                                                <div className="text-xs font-black text-destructive">機会損失 (売価計): ¥{entryTotalSellPrice.toLocaleString()}</div>
-                                            </div>
+                                      <div className="flex items-center justify-between mb-2">
+                                          <span className="text-xs font-bold text-muted-foreground flex items-center gap-1">
+                                              <WeatherIcon type={entry.weather} />
+                                              {format(entry.date, 'HH:mm')} 登録分
+                                          </span>
+                                          <div className="flex items-center">
+                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEntryToEdit(entry)}>
+                                                <Edit className="h-3 w-3" />
+                                            </Button>
+                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEntryToDelete(entry)}>
+                                                <Trash2 className="h-3 w-3 text-destructive" />
+                                            </Button>
+                                          </div>
+                                      </div>
+                                        <div className="text-right mb-2">
+                                            <div className="text-[10px] text-muted-foreground">原価合計: ¥{entry.totalWasteCost.toLocaleString()}</div>
+                                            <div className="text-xs font-black text-destructive">機会損失 (売価計): ¥{entryTotalSellPrice.toLocaleString()}</div>
                                         </div>
                                         <div className="grid gap-1 bg-muted/30 p-2 rounded-md">
                                             {entry.items.map((item, i) => {
@@ -426,6 +501,39 @@ export default function DashboardPage() {
               )}
           </DialogContent>
       </Dialog>
+
+      <Dialog open={!!entryToEdit} onOpenChange={(open) => !open && setEntryToEdit(null)}>
+        <DialogContent className="max-w-md">
+          {entryToEdit && (
+            <WasteEditForm
+              entry={entryToEdit}
+              onSave={(items, totalWasteCost, weather) => {
+                if (entryToEdit) {
+                  updateWasteEntry(entryToEdit.storeId, entryToEdit.id, entryToEdit.date, items, totalWasteCost, weather);
+                }
+                setEntryToEdit(null);
+              }}
+              onCancel={() => setEntryToEdit(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+      
+      <AlertDialog open={!!entryToDelete} onOpenChange={(open) => !open && setEntryToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>削除確認</AlertDialogTitle>
+            <AlertDialogDescription>この廃棄記録を完全に削除しますか？この操作は元に戻せません。</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">削除</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }
+
+    
