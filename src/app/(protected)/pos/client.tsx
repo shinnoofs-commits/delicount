@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
@@ -38,7 +39,7 @@ export default function PosClient() {
   
   const [selectedCategory, setSelectedCategory] = useState('すべて');
   const [wasteList, setWasteList] = useState<WasteListItem[]>([]);
-  const [date, setDate] = useState<Date | undefined>(undefined);
+  const [date, setDate] = useState<Date | null>(null);
   const [weather, setWeather] = useState<WeatherType>('sunny');
   const [isWeatherFixed, setIsWeatherFixed] = useState(false);
   const [isFetchingWeather, setIsFetchingWeather] = useState(false);
@@ -154,7 +155,8 @@ export default function PosClient() {
     )
   }
 
-  if (productsLoading || storesLoading || !date) return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  if (productsLoading || storesLoading) return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  if (!date) return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   if (!userStore) return <div className="flex items-center justify-center h-full"><Card className="w-full max-w-md text-center"><CardHeader><CardTitle>店舗が設定されていません</CardTitle></CardHeader></Card></div>;
 
   return (

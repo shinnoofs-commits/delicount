@@ -73,7 +73,7 @@ export default function ABCAnalysisPage() {
   const { products, loading: productsLoading } = useProducts();
   const { isAdmin } = useAdmin();
 
-  const [date, setDate] = useState<DateRange | undefined>(undefined);
+  const [date, setDate] = useState<DateRange | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedDayIdx, setSelectedDayIdx] = useState<number | null>(null);
   const [selectedCategoryForDetail, setSelectedCategoryForDetail] = useState<string | null>(null);
@@ -379,6 +379,14 @@ export default function ABCAnalysisPage() {
   };
 
   if (wasteLoading || productsLoading || productionLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!date) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />

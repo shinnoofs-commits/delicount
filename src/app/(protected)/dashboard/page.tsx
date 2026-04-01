@@ -19,7 +19,7 @@ import {
 import { useTransactions } from "@/contexts/transaction-context";
 import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid, getDay, addDays, isSameDay, subMonths } from "date-fns";
 import { ja } from "date-fns/locale";
-import { Calendar as CalendarIcon, Trash2, TrendingDown, Loader2, Sun, Cloud, CloudRain, Snowflake, Package, Edit, Plus, Minus, PlusCircle, Search } from 'lucide-react';
+import { Calendar as CalendarIcon, Trash2, TrendingDown, Loader2, Sun, Cloud, CloudRain, Snowflake, Package, Edit, Plus } from 'lucide-react';
 import { useMemo, useState, useCallback, useEffect } from "react";
 import type { WasteEntry, WeatherType, WasteItem, Product } from "@/lib/types";
 import { useProducts } from "@/contexts/product-context";
@@ -245,7 +245,7 @@ const WasteEditForm = ({
          <Popover open={productSearchOpen} onOpenChange={setProductSearchOpen}>
             <PopoverTrigger asChild>
                 <Button variant="outline" className="w-full">
-                    <PlusCircle className="mr-2 h-4 w-4" />
+                    <Plus className="mr-2 h-4 w-4" />
                     商品を追加
                 </Button>
             </PopoverTrigger>
@@ -288,8 +288,8 @@ export default function DashboardPage() {
   const [entryToEdit, setEntryToEdit] = useState<WasteEntry | null>(null);
   const [entryToDelete, setEntryToDelete] = useState<WasteEntry | null>(null);
 
-  const [date, setDate] = useState<DateRange | undefined>(undefined);
-  const [calendarMonth, setCalendarMonth] = useState<Date>();
+  const [date, setDate] = useState<DateRange | null>(null);
+  const [calendarMonth, setCalendarMonth] = useState<Date | null>(null);
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
@@ -323,29 +323,22 @@ export default function DashboardPage() {
   }, [date, wasteEntries]);
 
   const { totalWasteCost, totalOpportunityLoss, totalWaste } = useMemo(() => {
-    let cost = 0;
-    let loss = 0;
-    let count = 0;
-
     if (productsLoading || wasteLoading) return { totalWasteCost: 0, totalOpportunityLoss: 0, totalWaste: 0 };
-
-    for (const entry of filteredWasteEntries) {
-      cost += entry.totalWasteCost;
-      for (const item of entry.items) {
-        count += item.quantity;
-        const product = products.find(p => p.id === item.productId);
-        if (product) {
-          loss += product.price * item.quantity;
-        }
-      }
-    }
-    
-    return { totalWasteCost: cost, totalOpportunityLoss: loss, totalWaste: count };
+    return filteredWasteEntries.reduce((acc, entry) => {
+        const entryLoss = entry.items.reduce((sum, item) => {
+            const product = products.find(p => p.id === item.productId);
+            return sum + (product ? product.price * item.quantity : 0);
+        }, 0);
+        acc.totalWasteCost += entry.totalWasteCost;
+        acc.totalOpportunityLoss += entryLoss;
+        acc.totalWaste += entry.items.reduce((sum, item) => sum + item.quantity, 0);
+        return acc;
+    }, { totalWasteCost: 0, totalOpportunityLoss: 0, totalWaste: 0 });
   }, [filteredWasteEntries, products, productsLoading, wasteLoading]);
 
   
   const dailyWasteData = useMemo(() => {
-    if (!date?.from || !date?.to) return [];
+    if (!date?.from) return [];
 
     const dailyTotals = new Map<string, { cost: number, price: number, weather?: WeatherType, originalDate: Date }>();
 
@@ -406,13 +399,19 @@ export default function DashboardPage() {
   };
   
   const handleDateRangeSelect = (newDate: DateRange | undefined) => {
-    setDate(newDate);
-    if(newDate?.from) {
-      setCalendarMonth(newDate.from);
+    if (newDate) {
+      setDate(newDate);
+      if(newDate.from) {
+        setCalendarMonth(newDate.from);
+      }
     }
   }
 
   if (wasteLoading || productsLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+
+  if (!isClient) {
+    return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -473,7 +472,7 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
-          {isClient ? (
+          {isClient && calendarMonth ? (
             <DashboardCalendar data={dailyWasteData} onDayClick={handleDayClick} month={calendarMonth} onMonthChange={setCalendarMonth} />
           ) : (
             <Card className="h-full"><CardContent className="p-2"><Skeleton className="w-full h-[600px]" /></CardContent></Card>
@@ -700,5 +699,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
@@ -32,7 +33,7 @@ export default function ProductionClient() {
   
   const [selectedCategory, setSelectedCategory] = useState('すべて');
   const [resultQuantities, setResultQuantities] = useState<Record<string, string>>({});
-  const [date, setDate] = useState<Date | undefined>(undefined);
+  const [date, setDate] = useState<Date | null>(null);
   const [weather, setWeather] = useState<WeatherType>('sunny');
   const [isWeatherRepresentative, setIsWeatherRepresentative] = useState(false);
   const [isFetchingWeather, setIsFetchingWeather] = useState(false);
@@ -160,7 +161,9 @@ export default function ProductionClient() {
     )
   }
 
-  if (productsLoading || storesLoading || !date) return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  if (productsLoading || storesLoading) return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  if (!date) return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+
 
   return (
     <div className="flex flex-col gap-4">
