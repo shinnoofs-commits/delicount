@@ -288,6 +288,11 @@ export default function DashboardPage() {
 
   const [date, setDate] = useState<DateRange | undefined>(undefined);
   const [calendarMonth, setCalendarMonth] = useState<Date>();
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
     const today = new Date();
@@ -323,6 +328,8 @@ export default function DashboardPage() {
     let loss = 0;
     let count = 0;
 
+    if (productsLoading || wasteLoading) return { totalWasteCost: 0, totalOpportunityLoss: 0, totalWaste: 0 };
+
     for (const entry of filteredWasteEntries) {
       cost += entry.totalWasteCost;
       for (const item of entry.items) {
@@ -335,7 +342,7 @@ export default function DashboardPage() {
     }
     
     return { totalWasteCost: cost, totalOpportunityLoss: loss, totalWaste: count };
-  }, [filteredWasteEntries, products]);
+  }, [filteredWasteEntries, products, productsLoading, wasteLoading]);
 
   
   const dailyWasteData = useMemo(() => {
@@ -499,17 +506,23 @@ export default function DashboardPage() {
             <CardTitle>日別廃棄ロス推移</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={dailyWasteData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--background))' }} />
-                <Legend />
-                <Bar dataKey="totalWaste" fill="hsl(var(--accent))" name="廃棄ロス(原価)" />
-                <Bar dataKey="totalOpportunityLoss" fill="hsl(var(--chart-4))" name="機会損失(売価)" />
-              </BarChart>
-            </ResponsiveContainer>
+            {isClient ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={dailyWasteData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--background))' }} />
+                  <Legend />
+                  <Bar dataKey="totalWaste" fill="hsl(var(--accent))" name="廃棄ロス(原価)" />
+                  <Bar dataKey="totalOpportunityLoss" fill="hsl(var(--chart-4))" name="機会損失(売価)" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+               <div className="flex h-[300px] w-full items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            )}
           </CardContent>
         </Card>
         <Card>
