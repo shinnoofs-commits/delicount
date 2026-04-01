@@ -32,7 +32,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar as CalendarIcon, Loader2, CalendarDays, Sun, Filter, PieChart, Package, Cloud, CloudRain, Snowflake, Maximize2, ClipboardList, Info } from 'lucide-react';
-import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, getDay, addDays, subDays, isSameDay } from "date-fns";
+import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, getDay, addDays, subDays, isSameDay, subMonths } from "date-fns";
 import { ja } from "date-fns/locale";
 import holiday_jp from '@holiday-jp/holiday_jp';
 import { useTransactions } from "@/contexts/transaction-context";
@@ -89,6 +89,16 @@ export default function ABCAnalysisPage() {
     setYesterdayStr(format(subDays(today, 1), 'yyyy-MM-dd'));
   }, []);
 
+  const setDatePreset = (preset: 'this_month' | 'last_month') => {
+    const today = new Date();
+    if (preset === 'this_month') {
+      setDate({ from: startOfMonth(today), to: endOfMonth(today) });
+    } else if (preset === 'last_month') {
+      const lastMonth = subMonths(today, 1);
+      setDate({ from: startOfMonth(lastMonth), to: endOfMonth(lastMonth) });
+    }
+  };
+
   const categories = useMemo(() => {
     return ['all', ...Array.from(new Set(products.map(p => p.category)))];
   }, [products]);
@@ -111,42 +121,81 @@ export default function ABCAnalysisPage() {
 
   const analysisData = useMemo(() => {
     if (wasteLoading || productsLoading || productionLoading || !date || !date.from || validDates.length === 0) return null;
-    
+
+    // Step 1: Create a definitive weather map for each day and store.
+    const dailyWeatherMap = new Map<string, WeatherType>();
+    wasteEntries.forEach(entry => {
+        const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
+        if (!validDates.includes(dateKey)) return;
+        const storeDateKey = `${dateKey}|${entry.storeId}`;
+        if (entry.weather && !dailyWeatherMap.has(storeDateKey)) {
+            dailyWeatherMap.set(storeDateKey, entry.weather);
+        }
+    });
+
+    // Step 2: Collate all production and waste data by product, by day.
+    const dailyProductData = new Map<string, { production: number, waste: number }>();
+
+    // Process production
     const additionalProductionEntries = productionEntries.filter(
       (entry) => entry.entryType === 'ADDITIONAL'
     );
-
-    const dailyAdditionalProductionMap = new Map<string, Map<string, number>>();
+    const additionalProductionMap = new Map<string, Map<string, number>>();
     additionalProductionEntries.forEach(entry => {
-      const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
-      if (!validDates.includes(dateKey)) return;
-      const storeDateKey = `${dateKey}|${entry.storeId}`;
-      if (!dailyAdditionalProductionMap.has(storeDateKey)) {
-        dailyAdditionalProductionMap.set(storeDateKey, new Map<string, number>());
-      }
-      const prodMap = dailyAdditionalProductionMap.get(storeDateKey)!;
-      entry.items.forEach(item => prodMap.set(item.productId, (prodMap.get(item.productId) || 0) + item.quantity));
+        const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
+        if (!validDates.includes(dateKey)) return;
+        const storeDateKey = `${dateKey}|${entry.storeId}`;
+        if (!additionalProductionMap.has(storeDateKey)) {
+            additionalProductionMap.set(storeDateKey, new Map<string, number>());
+        }
+        const prodMap = additionalProductionMap.get(storeDateKey)!;
+        entry.items.forEach(item => prodMap.set(item.productId, (prodMap.get(item.productId) || 0) + item.quantity));
     });
 
-    const wasteMap = new Map<string, Map<string, number>>();
-    const dailyWeatherMap = new Map<string, WeatherType>();
+    products.forEach(product => {
+        validDates.forEach(dateKey => {
+            const entryDate = new Date(`${dateKey}T00:00:00`);
+            const storeDateKey = `${dateKey}|${product.storeId}`;
+            const weather = dailyWeatherMap.get(storeDateKey);
 
+            if (weather) { // Only calculate production for days with known weather
+                const isHoliday = holiday_jp.isHoliday(entryDate);
+                const dow = isHoliday ? 7 : getDay(entryDate);
+                const dowKey = isHoliday ? 'holiday' : dayMap[dow];
+
+                const plan = weather === 'rainy' ? product.dailyProductionRainy : product.dailyProductionSunny;
+                const plannedProduction = (plan && isHoliday && plan.holiday !== undefined)
+                    ? plan.holiday
+                    : (plan as any)?.[dowKey] || 0;
+                
+                const additionalProduction = additionalProductionMap.get(storeDateKey)?.get(product.id) || 0;
+                const totalProduction = plannedProduction + additionalProduction;
+
+                if (totalProduction > 0) {
+                    const productDateKey = `${storeDateKey}|${product.id}`;
+                    const current = dailyProductData.get(productDateKey) || { production: 0, waste: 0 };
+                    current.production += totalProduction;
+                    dailyProductData.set(productDateKey, current);
+                }
+            }
+        });
+    });
+
+    // Process waste
     wasteEntries.forEach(entry => {
-      const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
-      if (!validDates.includes(dateKey)) return;
-      const storeDateKey = `${dateKey}|${entry.storeId}`;
-      
-      if (!wasteMap.has(storeDateKey)) wasteMap.set(storeDateKey, new Map());
-      const pWasteMap = wasteMap.get(storeDateKey)!;
-      entry.items.forEach(item => {
-        pWasteMap.set(item.productId, (pWasteMap.get(item.productId) || 0) + item.quantity);
-      });
-
-      if (entry.weather && !dailyWeatherMap.has(storeDateKey)) {
-          dailyWeatherMap.set(storeDateKey, entry.weather);
-      }
+        const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
+        if (!validDates.includes(dateKey)) return;
+        const storeDateKey = `${dateKey}|${entry.storeId}`;
+        
+        entry.items.forEach(item => {
+            const productDateKey = `${storeDateKey}|${item.productId}`;
+            const current = dailyProductData.get(productDateKey) || { production: 0, waste: 0 };
+            current.waste += item.quantity;
+            dailyProductData.set(productDateKey, current);
+        });
     });
 
+    // Step 3: Aggregate into final stats from the collated daily data.
     const productStatsAll = new Map<string, any>();
     const dayStats: Record<number, { waste: number; production: number }> = {};
     const weatherStats: Record<string, { waste: number; production: number }> = {};
@@ -156,69 +205,50 @@ export default function ABCAnalysisPage() {
     for (let i = 0; i < 8; i++) dayStats[i] = { waste: 0, production: 0 };
     Object.keys(weatherLabels).forEach(w => weatherStats[w] = { waste: 0, production: 0 });
 
-    products.forEach(product => {
-      const stats = {
-        id: product.id,
-        storeId: product.storeId,
-        name: product.name,
-        category: product.category,
-        price: product.price,
-        waste: 0,
-        production: 0,
-        wasteDow: { 0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 } as Record<number, number>,
-        prodDow: { 0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 } as Record<number, number>
-      };
+    dailyProductData.forEach(({ production, waste }, key) => {
+        const [dateKey, storeId, productId] = key.split('|');
+        const product = products.find(p => p.id === productId && p.storeId === storeId);
+        if (!product || (production === 0 && waste === 0)) return;
 
-      validDates.forEach(dateKey => {
+        let stats = productStatsAll.get(`${storeId}|${productId}`);
+        if (!stats) {
+            stats = {
+                id: product.id, storeId: product.storeId, name: product.name, category: product.category, price: product.price,
+                waste: 0, production: 0,
+                wasteDow: { 0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 },
+                prodDow: { 0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0 }
+            };
+            productStatsAll.set(`${storeId}|${productId}`, stats);
+        }
+        
         const entryDate = new Date(`${dateKey}T00:00:00`);
         const isHoliday = holiday_jp.isHoliday(entryDate);
         const dow = isHoliday ? 7 : getDay(entryDate);
-        const storeDateKey = `${dateKey}|${product.storeId}`;
+        const weather = dailyWeatherMap.get(`${dateKey}|${storeId}`);
+
+        stats.production += production;
+        stats.prodDow[dow] += production;
+        stats.waste += waste;
+        stats.wasteDow[dow] += waste;
+
+        dayStats[dow].production += production;
+        dayStats[dow].waste += waste;
         
-        const weather = dailyWeatherMap.get(storeDateKey);
-        
-        let plannedProduction = 0;
+        if (!categoryStats[product.category]) categoryStats[product.category] = { waste: 0, production: 0 };
+        categoryStats[product.category].production += production;
+        categoryStats[product.category].waste += waste;
+
         if (weather) {
-            const dowKey = isHoliday ? 'holiday' : dayMap[dow];
-            const plan = weather === 'rainy' ? product.dailyProductionRainy : product.dailyProductionSunny;
-            plannedProduction = (plan && isHoliday && plan.holiday !== undefined)
-                ? plan.holiday
-                : (plan as any)?.[dowKey] || 0;
-        }
-            
-        const additionalProduction = dailyAdditionalProductionMap.get(storeDateKey)?.get(product.id) || 0;
-        const finalProduction = plannedProduction + additionalProduction;
-        
-        const finalWaste = wasteMap.get(storeDateKey)?.get(product.id) || 0;
-
-        if (finalProduction > 0 || finalWaste > 0) {
-          stats.production += finalProduction;
-          stats.prodDow[dow] += finalProduction;
-          stats.waste += finalWaste;
-          stats.wasteDow[dow] += finalWaste;
-
-          dayStats[dow].production += finalProduction;
-          dayStats[dow].waste += finalWaste;
-
-          if (weather) {
-            weatherStats[weather].production += finalProduction;
-            weatherStats[weather].waste += finalWaste;
+            weatherStats[weather].production += production;
+            weatherStats[weather].waste += waste;
 
             const matrixKey = `${dow}-${weather}`;
             if (!matrixStats[matrixKey]) matrixStats[matrixKey] = { waste: 0, production: 0 };
-            matrixStats[matrixKey].production += finalProduction;
-            matrixStats[matrixKey].waste += finalWaste;
-          }
-
-          if (!categoryStats[product.category]) categoryStats[product.category] = { waste: 0, production: 0 };
-          categoryStats[product.category].production += finalProduction;
-          categoryStats[product.category].waste += finalWaste;
+            matrixStats[matrixKey].production += production;
+            matrixStats[matrixKey].waste += waste;
         }
-      });
-
-      productStatsAll.set(`${product.storeId}|${product.id}`, stats);
     });
-    
+
     const productsForDisplay = Array.from(productStatsAll.values())
         .filter(p => selectedCategory === 'all' || p.category === selectedCategory);
 
@@ -374,6 +404,8 @@ export default function ABCAnalysisPage() {
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0"><Calendar mode="range" selected={date} onSelect={setDate} locale={ja} /></PopoverContent>
             </Popover>
+             <Button variant="outline" size="sm" className="h-6 text-[10px] font-medium bg-background" onClick={() => setDatePreset('last_month')}>先月</Button>
+             <Button variant="outline" size="sm" className="h-6 text-[10px] font-medium bg-background" onClick={() => setDatePreset('this_month')}>今月</Button>
           </div>
           <div className="flex items-center gap-1">
             <Label className="text-[10px] font-black uppercase opacity-70">カテゴリー</Label>
