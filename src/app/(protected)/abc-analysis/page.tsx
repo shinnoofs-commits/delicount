@@ -122,80 +122,83 @@ export default function ABCAnalysisPage() {
   const analysisData = useMemo(() => {
     if (wasteLoading || productsLoading || productionLoading || !date || !date.from || validDates.length === 0) return null;
 
-    // Step 1: Create a definitive weather map for each day and store.
+    // Step 1: Create a definitive weather map from all waste entries.
     const dailyWeatherMap = new Map<string, WeatherType>();
     wasteEntries.forEach(entry => {
         const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
         if (!validDates.includes(dateKey)) return;
         const storeDateKey = `${dateKey}|${entry.storeId}`;
-        if (entry.weather && !dailyWeatherMap.has(storeDateKey)) {
+        if (entry.weather) {
             dailyWeatherMap.set(storeDateKey, entry.weather);
         }
     });
 
-    // Step 2: Collate all production and waste data by product, by day.
+    // Step 2: Pre-process additional production for efficient lookup.
+    const additionalProductionMap = new Map<string, Map<string, number>>();
+    productionEntries
+        .filter(entry => entry.entryType === 'ADDITIONAL')
+        .forEach(entry => {
+            const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
+            if (!validDates.includes(dateKey)) return;
+            const storeDateKey = `${dateKey}|${entry.storeId}`;
+            if (!additionalProductionMap.has(storeDateKey)) {
+                additionalProductionMap.set(storeDateKey, new Map<string, number>());
+            }
+            const prodMap = additionalProductionMap.get(storeDateKey)!;
+            entry.items.forEach(item => prodMap.set(item.productId, (prodMap.get(item.productId) || 0) + item.quantity));
+        });
+
+    // Step 3: Collate all production and waste data by product, by day.
     const dailyProductData = new Map<string, { production: number, waste: number }>();
 
-    // Process production
-    const additionalProductionEntries = productionEntries.filter(
-      (entry) => entry.entryType === 'ADDITIONAL'
-    );
-    const additionalProductionMap = new Map<string, Map<string, number>>();
-    additionalProductionEntries.forEach(entry => {
-        const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
-        if (!validDates.includes(dateKey)) return;
-        const storeDateKey = `${dateKey}|${entry.storeId}`;
-        if (!additionalProductionMap.has(storeDateKey)) {
-            additionalProductionMap.set(storeDateKey, new Map<string, number>());
-        }
-        const prodMap = additionalProductionMap.get(storeDateKey)!;
-        entry.items.forEach(item => prodMap.set(item.productId, (prodMap.get(item.productId) || 0) + item.quantity));
-    });
-
+    // Process production for all products across all valid dates.
     products.forEach(product => {
         validDates.forEach(dateKey => {
             const entryDate = new Date(`${dateKey}T00:00:00`);
             const storeDateKey = `${dateKey}|${product.storeId}`;
-            const weather = dailyWeatherMap.get(storeDateKey);
+            
+            // Use the definitive weather map, defaulting to 'sunny' if not found.
+            const weather = dailyWeatherMap.get(storeDateKey) || 'sunny'; 
 
-            if (weather) { // Only calculate production for days with known weather
-                const isHoliday = holiday_jp.isHoliday(entryDate);
-                const dow = isHoliday ? 7 : getDay(entryDate);
-                const dowKey = isHoliday ? 'holiday' : dayMap[dow];
+            const isHoliday = holiday_jp.isHoliday(entryDate);
+            const dowKey = isHoliday ? 'holiday' : dayMap[getDay(entryDate)];
+            
+            const plan = (weather === 'rainy' && product.dailyProductionRainy)
+                ? product.dailyProductionRainy
+                : product.dailyProductionSunny;
+            
+            const plannedProduction = (plan && isHoliday && plan.holiday !== undefined)
+                ? plan.holiday
+                : (plan as any)?.[dowKey] || 0;
+            
+            const additionalProduction = additionalProductionMap.get(storeDateKey)?.get(product.id) || 0;
+            const totalProduction = plannedProduction + additionalProduction;
 
-                const plan = weather === 'rainy' ? product.dailyProductionRainy : product.dailyProductionSunny;
-                const plannedProduction = (plan && isHoliday && plan.holiday !== undefined)
-                    ? plan.holiday
-                    : (plan as any)?.[dowKey] || 0;
-                
-                const additionalProduction = additionalProductionMap.get(storeDateKey)?.get(product.id) || 0;
-                const totalProduction = plannedProduction + additionalProduction;
-
-                if (totalProduction > 0) {
-                    const productDateKey = `${storeDateKey}|${product.id}`;
-                    const current = dailyProductData.get(productDateKey) || { production: 0, waste: 0 };
-                    current.production += totalProduction;
-                    dailyProductData.set(productDateKey, current);
-                }
+            if (totalProduction > 0) {
+                const productDateKey = `${storeDateKey}|${product.id}`;
+                const current = dailyProductData.get(productDateKey) || { production: 0, waste: 0 };
+                current.production += totalProduction;
+                dailyProductData.set(productDateKey, current);
             }
         });
     });
 
-    // Process waste
+    // Process waste data.
     wasteEntries.forEach(entry => {
         const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
         if (!validDates.includes(dateKey)) return;
-        const storeDateKey = `${dateKey}|${entry.storeId}`;
         
         entry.items.forEach(item => {
-            const productDateKey = `${storeDateKey}|${item.productId}`;
+            const product = products.find(p => p.id === item.productId && p.storeId === entry.storeId);
+            if (!product) return;
+            const productDateKey = `${dateKey}|${entry.storeId}|${item.productId}`;
             const current = dailyProductData.get(productDateKey) || { production: 0, waste: 0 };
             current.waste += item.quantity;
             dailyProductData.set(productDateKey, current);
         });
     });
 
-    // Step 3: Aggregate into final stats from the collated daily data.
+    // Step 4: Aggregate into final stats for display.
     const productStatsAll = new Map<string, any>();
     const dayStats: Record<number, { waste: number; production: number }> = {};
     const weatherStats: Record<string, { waste: number; production: number }> = {};
@@ -208,7 +211,7 @@ export default function ABCAnalysisPage() {
     dailyProductData.forEach(({ production, waste }, key) => {
         const [dateKey, storeId, productId] = key.split('|');
         const product = products.find(p => p.id === productId && p.storeId === storeId);
-        if (!product || (production === 0 && waste === 0)) return;
+        if (!product) return;
 
         let stats = productStatsAll.get(`${storeId}|${productId}`);
         if (!stats) {
@@ -224,7 +227,7 @@ export default function ABCAnalysisPage() {
         const entryDate = new Date(`${dateKey}T00:00:00`);
         const isHoliday = holiday_jp.isHoliday(entryDate);
         const dow = isHoliday ? 7 : getDay(entryDate);
-        const weather = dailyWeatherMap.get(`${dateKey}|${storeId}`);
+        const weather = dailyWeatherMap.get(`${dateKey}|${storeId}`) || 'sunny';
 
         stats.production += production;
         stats.prodDow[dow] += production;
@@ -238,15 +241,13 @@ export default function ABCAnalysisPage() {
         categoryStats[product.category].production += production;
         categoryStats[product.category].waste += waste;
 
-        if (weather) {
-            weatherStats[weather].production += production;
-            weatherStats[weather].waste += waste;
+        weatherStats[weather].production += production;
+        weatherStats[weather].waste += waste;
 
-            const matrixKey = `${dow}-${weather}`;
-            if (!matrixStats[matrixKey]) matrixStats[matrixKey] = { waste: 0, production: 0 };
-            matrixStats[matrixKey].production += production;
-            matrixStats[matrixKey].waste += waste;
-        }
+        const matrixKey = `${dow}-${weather}`;
+        if (!matrixStats[matrixKey]) matrixStats[matrixKey] = { waste: 0, production: 0 };
+        matrixStats[matrixKey].production += production;
+        matrixStats[matrixKey].waste += waste;
     });
 
     const productsForDisplay = Array.from(productStatsAll.values())
@@ -633,7 +634,7 @@ export default function ABCAnalysisPage() {
                     <Table>
                       <TableHeader className="bg-muted/60">
                         <TableRow className="h-12">
-                          <TableHead className="h-12 p-2 text-[18px] font-black border-r text-center w-24">曜\天</TableHead>
+                          <TableHead className="h-12 p-2 text-[18px] font-black border-r text-center w-24">曜\\天</TableHead>
                           {Object.entries(weatherLabels).map(([_, label]) => <TableHead key={label} className="h-12 text-[18px] text-center font-black p-2">{label}</TableHead>)}
                         </TableRow>
                       </TableHeader>
