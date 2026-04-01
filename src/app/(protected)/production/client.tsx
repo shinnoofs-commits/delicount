@@ -33,15 +33,22 @@ export default function ProductionClient() {
   
   const [selectedCategory, setSelectedCategory] = useState('すべて');
   const [resultQuantities, setResultQuantities] = useState<Record<string, string>>({});
-  const [date, setDate] = useState<Date | null>(null);
+  const [date, setDate] = useState<Date | undefined>(undefined);
   const [weather, setWeather] = useState<WeatherType>('sunny');
   const [isWeatherRepresentative, setIsWeatherRepresentative] = useState(false);
   const [isFetchingWeather, setIsFetchingWeather] = useState(false);
   const { toast } = useToast();
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    setDate(new Date());
+    setIsClient(true);
   }, []);
+
+  useEffect(() => {
+    if (isClient) {
+      setDate(new Date());
+    }
+  }, [isClient]);
 
   const categories = useMemo(() => ['すべて', ...Array.from(new Set(allProducts.map(p => p.category)))], [allProducts]);
 
@@ -161,7 +168,7 @@ export default function ProductionClient() {
     )
   }
 
-  if (productsLoading || storesLoading) return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  if (productsLoading || storesLoading || !isClient) return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   if (!date) return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
 
 

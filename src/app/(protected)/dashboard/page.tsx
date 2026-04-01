@@ -19,7 +19,7 @@ import {
 import { useTransactions } from "@/contexts/transaction-context";
 import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid, getDay, addDays, isSameDay, subMonths } from "date-fns";
 import { ja } from "date-fns/locale";
-import { Calendar as CalendarIcon, Trash2, TrendingDown, Loader2, Sun, Cloud, CloudRain, Snowflake, Package, Edit, Plus } from 'lucide-react';
+import { Calendar as CalendarIcon, Trash2, TrendingDown, Loader2, Sun, Cloud, CloudRain, Snowflake, Package, Edit, Plus, Minus } from 'lucide-react';
 import { useMemo, useState, useCallback, useEffect } from "react";
 import type { WasteEntry, WeatherType, WasteItem, Product } from "@/lib/types";
 import { useProducts } from "@/contexts/product-context";
@@ -288,20 +288,25 @@ export default function DashboardPage() {
   const [entryToEdit, setEntryToEdit] = useState<WasteEntry | null>(null);
   const [entryToDelete, setEntryToDelete] = useState<WasteEntry | null>(null);
 
-  const [date, setDate] = useState<DateRange | null>(null);
-  const [calendarMonth, setCalendarMonth] = useState<Date | null>(null);
+  const [date, setDate] = useState<DateRange | undefined>(undefined);
+  const [calendarMonth, setCalendarMonth] = useState<Date | undefined>(undefined);
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
-    const today = new Date();
-    const start = startOfMonth(today);
-    setDate({
-      from: start,
-      to: endOfMonth(today),
-    });
-    setCalendarMonth(start);
   }, []);
+
+  useEffect(() => {
+    if (isClient) {
+      const today = new Date();
+      const start = startOfMonth(today);
+      setDate({
+        from: start,
+        to: endOfMonth(today),
+      });
+      setCalendarMonth(start);
+    }
+  }, [isClient]);
 
   const confirmDelete = useCallback(() => {
     if (entryToDelete) {
@@ -323,7 +328,7 @@ export default function DashboardPage() {
   }, [date, wasteEntries]);
 
   const { totalWasteCost, totalOpportunityLoss, totalWaste } = useMemo(() => {
-    if (productsLoading || wasteLoading) return { totalWasteCost: 0, totalOpportunityLoss: 0, totalWaste: 0 };
+    if (!filteredWasteEntries || productsLoading || wasteLoading) return { totalWasteCost: 0, totalOpportunityLoss: 0, totalWaste: 0 };
     return filteredWasteEntries.reduce((acc, entry) => {
         const entryLoss = entry.items.reduce((sum, item) => {
             const product = products.find(p => p.id === item.productId);
@@ -399,11 +404,9 @@ export default function DashboardPage() {
   };
   
   const handleDateRangeSelect = (newDate: DateRange | undefined) => {
-    if (newDate) {
-      setDate(newDate);
-      if(newDate.from) {
-        setCalendarMonth(newDate.from);
-      }
+    setDate(newDate);
+    if (newDate?.from) {
+      setCalendarMonth(newDate.from);
     }
   }
 

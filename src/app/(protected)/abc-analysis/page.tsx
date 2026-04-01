@@ -73,21 +73,28 @@ export default function ABCAnalysisPage() {
   const { products, loading: productsLoading } = useProducts();
   const { isAdmin } = useAdmin();
 
-  const [date, setDate] = useState<DateRange | null>(null);
+  const [date, setDate] = useState<DateRange | undefined>(undefined);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedDayIdx, setSelectedDayIdx] = useState<number | null>(null);
   const [selectedCategoryForDetail, setSelectedCategoryForDetail] = useState<string | null>(null);
   const [isFullScreenDaily, setIsFullScreenDaily] = useState(false);
   const [yesterdayStr, setYesterdayStr] = useState<string>('');
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    const today = new Date();
-    setDate({
-      from: startOfMonth(today),
-      to: endOfMonth(today),
-    });
-    setYesterdayStr(format(subDays(today, 1), 'yyyy-MM-dd'));
+    setIsClient(true);
   }, []);
+
+  useEffect(() => {
+    if (isClient) {
+      const today = new Date();
+      setDate({
+        from: startOfMonth(today),
+        to: endOfMonth(today),
+      });
+      setYesterdayStr(format(subDays(today, 1), 'yyyy-MM-dd'));
+    }
+  }, [isClient]);
 
   const setDatePreset = (preset: 'this_month' | 'last_month') => {
     const today = new Date();
@@ -378,15 +385,7 @@ export default function ABCAnalysisPage() {
     );
   };
 
-  if (wasteLoading || productsLoading || productionLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
-
-  if (!date) {
+  if (!isClient || wasteLoading || productsLoading || productionLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
