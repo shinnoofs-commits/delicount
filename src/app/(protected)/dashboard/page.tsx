@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -76,6 +75,17 @@ const weatherLabels: Record<WeatherType, string> = {
   rainy: '雨',
   snowy: '雪',
 };
+
+const filterOptions = [
+  { id: 1, label: '月' },
+  { id: 2, label: '火' },
+  { id: 3, label: '水' },
+  { id: 4, label: '木' },
+  { id: 5, label: '金' },
+  { id: 6, label: '土' },
+  { id: 0, label: '日' },
+  { id: 7, label: '祝' },
+];
 
 const WeatherIcon = ({ type }: { type?: WeatherType }) => {
     if (!type) return null;
@@ -180,8 +190,8 @@ export default function DashboardPage() {
   }, [date, wasteEntries, selectedFilters]);
 
 
-  const wasteAnalysisData: WasteData[] = useMemo(() => {
-    const wasteDataMap = new Map<string, WasteData>();
+  const wasteAnalysisData: { productId: string; productName: string; wasteCount: number; costPrice: number; price: number; totalWasteCost: number; opportunityLoss: number; }[] = useMemo(() => {
+    const wasteDataMap = new Map<string, { productId: string; productName: string; wasteCount: number; costPrice: number; price: number; totalWasteCost: number; opportunityLoss: number; }>();
 
     filteredWasteEntries.forEach(entry => {
         entry.items.forEach(item => {
