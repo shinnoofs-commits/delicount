@@ -9,9 +9,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useTransactions } from "@/contexts/transaction-context";
-import { format, subDays, startOfMonth, endOfMonth, subMonths } from "date-fns";
+import { format, subDays, startOfMonth, endOfMonth, subMonths, startOfDay, endOfDay } from "date-fns";
 import { Loader2, Sparkles, AlertCircle, ArrowRight, PlayCircle } from 'lucide-react';
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import type { WasteEntry, WeatherType } from "@/lib/types";
 import { useProducts } from "@/contexts/product-context";
 import type { DateRange } from "react-day-picker";
@@ -34,6 +34,11 @@ export default function AiAnalysisPage() {
   const [analyzedLabel, setAnalyzedLabel] = useState<string>('');
 
   const [date, setDate] = useState<DateRange | undefined>(undefined);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const filteredWasteEntries = useMemo(() => {
     if (!date || !date.from) return [];
@@ -117,7 +122,7 @@ export default function AiAnalysisPage() {
   }, [wasteEntries, products, userStore, toast]);
 
 
-  if (wasteLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  if (wasteLoading || !isClient) return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
 
   return (
     <div className="flex flex-col gap-4">
