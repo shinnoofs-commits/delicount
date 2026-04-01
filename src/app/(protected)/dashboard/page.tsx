@@ -279,7 +279,7 @@ const WasteEditForm = ({
 
 export default function DashboardPage() {
   const { wasteEntries, loading: wasteLoading, updateWasteEntry, deleteWasteEntries } = useTransactions();
-  const { products } = useProducts();
+  const { products, loading: productsLoading } = useProducts();
   const { isAdmin } = useAdmin();
   
   const [selectedDayWaste, setSelectedDayWaste] = useState<{ date: Date, entries: WasteEntry[] } | null>(null);
@@ -318,44 +318,26 @@ export default function DashboardPage() {
     });
   }, [date, wasteEntries]);
 
+  const { totalWasteCost, totalOpportunityLoss, totalWaste } = useMemo(() => {
+    let cost = 0;
+    let loss = 0;
+    let count = 0;
 
-  const wasteAnalysisData: { productId: string; productName: string; wasteCount: number; costPrice: number; price: number; totalWasteCost: number; opportunityLoss: number; }[] = useMemo(() => {
-    const wasteDataMap = new Map<string, { productId: string; productName: string; wasteCount: number; costPrice: number; price: number; totalWasteCost: number; opportunityLoss: number; }>();
-
-    filteredWasteEntries.forEach(entry => {
-        entry.items.forEach(item => {
-            const product = products.find(p => p.id === item.productId);
-            if (!product) return;
-
-            const data = wasteDataMap.get(item.productId);
-            if (data) {
-                data.wasteCount += item.quantity;
-            } else {
-                wasteDataMap.set(item.productId, {
-                    productId: product.id,
-                    productName: product.name,
-                    wasteCount: item.quantity,
-                    costPrice: product.costPrice,
-                    price: product.price,
-                    totalWasteCost: 0,
-                    opportunityLoss: 0,
-                });
-            }
-        });
-    });
+    for (const entry of filteredWasteEntries) {
+      cost += entry.totalWasteCost;
+      for (const item of entry.items) {
+        count += item.quantity;
+        const product = products.find(p => p.id === item.productId);
+        if (product) {
+          loss += product.price * item.quantity;
+        }
+      }
+    }
     
-    return Array.from(wasteDataMap.values()).map(data => ({
-        ...data,
-        totalWasteCost: data.wasteCount * data.costPrice,
-        opportunityLoss: data.wasteCount * data.price,
-    })).filter(d => d.wasteCount > 0);
+    return { totalWasteCost: cost, totalOpportunityLoss: loss, totalWaste: count };
+  }, [filteredWasteEntries, products]);
 
-  }, [products, filteredWasteEntries]);
   
-  const totalWasteCost = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.totalWasteCost, 0), [wasteAnalysisData]);
-  const totalOpportunityLoss = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.opportunityLoss, 0), [wasteAnalysisData]);
-  const totalWaste = useMemo(() => wasteAnalysisData.reduce((acc, p) => acc + p.wasteCount, 0), [wasteAnalysisData]);
-
   const dailyWasteData = useMemo(() => {
     if (!date?.from || !date?.to) return [];
 
@@ -424,7 +406,7 @@ export default function DashboardPage() {
     }
   }
 
-  if (wasteLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  if (wasteLoading || productsLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
 
   return (
     <div className="flex flex-col gap-4">
