@@ -17,7 +17,7 @@ interface TransactionContextType {
   loading: boolean;
   addWasteEntry: (wasteEntry: Omit<WasteEntry, 'id' | 'userId'>) => void;
   deleteWasteEntries: (storeId: string, entryIds: string[]) => Promise<void>;
-  updateWasteEntry: (storeId: string, entryId: string, date: Date, items: WasteItem[], totalWasteCost: number, weather?: WeatherType) => Promise<void>;
+  updateWasteEntry: (storeId: string, entryId: string, date: Date, items: WasteItem[], totalWasteCost: number, weather: WeatherType) => Promise<void>;
   updateDailyWeather: (storeId: string, date: Date, weather: WeatherType) => Promise<void>;
 }
 
@@ -161,22 +161,19 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     }
   }, [firestore, user]);
 
-  const updateWasteEntry = useCallback(async (storeId: string, entryId: string, date: Date, items: WasteItem[], totalWasteCost: number, weather?: WeatherType) => {
+  const updateWasteEntry = useCallback(async (storeId: string, entryId: string, date: Date, items: WasteItem[], totalWasteCost: number, weather: WeatherType) => {
     if (!firestore || !user) return;
     
-    if (weather) {
-      await updateDailyWeather(storeId, date, weather);
-    }
+    // First, ensure all entries for that day have the same weather.
+    await updateDailyWeather(storeId, date, weather);
 
+    // Then, update the specific entry being edited.
     const entryRef = doc(firestore, 'stores', storeId, 'waste', entryId);
-    const updateData: any = {
+    const updateData = {
       items,
-      totalWasteCost
+      totalWasteCost,
+      weather // Also explicitly set it here
     };
-    
-    if (weather) {
-      updateData.weather = weather;
-    }
     
     updateDoc(entryRef, updateData).then(() => {
       toast({ title: 'データを更新しました' });
@@ -215,3 +212,5 @@ export function useTransactions() {
   }
   return context;
 }
+
+    

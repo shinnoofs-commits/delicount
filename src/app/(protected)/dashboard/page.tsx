@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -61,6 +62,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useAdmin } from "@/hooks/use-admin";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Skeleton } from "@/components/ui/skeleton";
 
 
 const weatherIcons: Record<WeatherType, any> = {
@@ -117,7 +119,7 @@ const DashboardCalendar = ({ data, onDayClick, month, onMonthChange }: { data: a
                   </div>
                   <div className="flex-1 flex flex-col justify-end mt-2 text-right">
                     <p className="text-destructive font-black leading-tight text-sm">¥{dayData.totalWaste.toLocaleString()}</p>
-                    <p className="text-blue-600 font-bold leading-tight text-xs">¥{dayData.totalOpportunityLoss.toLocaleString()}</p>
+                    <p className="text-orange-600 font-bold leading-tight text-xs">¥{dayData.totalOpportunityLoss.toLocaleString()}</p>
                   </div>
                 </div>
               );
@@ -292,9 +294,6 @@ export default function DashboardPage() {
 
   useEffect(() => {
     setIsClient(true);
-  }, []);
-
-  useEffect(() => {
     const today = new Date();
     const start = startOfMonth(today);
     setDate({
@@ -474,7 +473,11 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
-          {dailyWasteData.length > 0 && <DashboardCalendar data={dailyWasteData} onDayClick={handleDayClick} month={calendarMonth} onMonthChange={setCalendarMonth} />}
+          {isClient ? (
+            <DashboardCalendar data={dailyWasteData} onDayClick={handleDayClick} month={calendarMonth} onMonthChange={setCalendarMonth} />
+          ) : (
+            <Card className="h-full"><CardContent className="p-2"><Skeleton className="w-full h-[600px]" /></CardContent></Card>
+          )}
         </div>
         <div className="lg:col-span-1 flex flex-col gap-4">
           <Card>
@@ -572,7 +575,7 @@ export default function DashboardPage() {
                                     <TableCell className="text-right font-semibold tabular-nums">
                                         ¥{entry.totalWasteCost.toLocaleString()}
                                     </TableCell>
-                                    <TableCell className="text-right text-destructive font-semibold tabular-nums">
+                                    <TableCell className="text-right text-orange-600 font-semibold tabular-nums">
                                         ¥{entryTotalSellPrice.toLocaleString()}
                                     </TableCell>
                                 </TableRow>
@@ -632,7 +635,7 @@ export default function DashboardPage() {
                                       </div>
                                         <div className="text-right mb-2">
                                             <div className="text-[10px] text-muted-foreground">原価合計: ¥{entry.totalWasteCost.toLocaleString()}</div>
-                                            <div className="text-xs font-black text-destructive">機会損失 (売価計): ¥{entryTotalSellPrice.toLocaleString()}</div>
+                                            <div className="text-xs font-black text-orange-600">機会損失 (売価計): ¥{entryTotalSellPrice.toLocaleString()}</div>
                                         </div>
                                         <div className="grid gap-1 bg-muted/30 p-2 rounded-md">
                                             {entry.items.map((item, i) => {
@@ -642,7 +645,7 @@ export default function DashboardPage() {
                                                     <div key={i} className="flex justify-between items-center text-sm border-b border-white last:border-0 py-1">
                                                         <div className="flex flex-col">
                                                             <span className="font-bold">{item.name}</span>
-                                                            <span className="text-[10px] text-destructive font-bold">損失額: ¥{itemLoss.toLocaleString()}</span>
+                                                            <span className="text-[10px] text-orange-600 font-bold">損失額: ¥{itemLoss.toLocaleString()}</span>
                                                         </div>
                                                         <span className="font-black text-lg">x{item.quantity}</span>
                                                     </div>
@@ -697,3 +700,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
