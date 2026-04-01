@@ -7,10 +7,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useTransactions } from "@/contexts/transaction-context";
 import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid, getDay, addDays, isSameDay, subMonths } from "date-fns";
 import { ja } from "date-fns/locale";
-import { Calendar as CalendarIcon, Trash2, TrendingDown, Loader2, Sun, Cloud, CloudRain, Snowflake, Package, Edit, Plus, Minus } from 'lucide-react';
+import { Calendar as CalendarIcon, Trash2, TrendingDown, Loader2, Sun, Cloud, CloudRain, Snowflake, Package, Edit, Plus, Minus, PlusCircle, Search } from 'lucide-react';
 import { useMemo, useState, useCallback, useEffect } from "react";
 import type { WasteEntry, WeatherType, WasteItem, Product } from "@/lib/types";
 import { useProducts } from "@/contexts/product-context";
@@ -22,6 +30,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { StoreSelector } from "@/components/ui/store-selector";
@@ -44,6 +60,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useAdmin } from "@/hooks/use-admin";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+
 
 const weatherIcons: Record<WeatherType, any> = {
   sunny: Sun,
@@ -112,7 +130,7 @@ const DashboardCalendar = ({ data, onDayClick, month, onMonthChange }: { data: a
             table: 'w-full',
             head_row: 'ml-2',
             row: 'w-full mt-2',
-            day: 'h-32 lg:h-36 align-top p-0',
+            day: 'h-28 lg:h-32 align-top p-0',
             day_selected: 'bg-transparent text-current',
             day_range_start: 'bg-transparent text-current',
             day_range_end: 'bg-transparent text-current',
@@ -126,15 +144,41 @@ const DashboardCalendar = ({ data, onDayClick, month, onMonthChange }: { data: a
 
 const WasteEditForm = ({
   entry,
+  products,
   onSave,
   onCancel,
 }: {
   entry: WasteEntry;
+  products: Product[];
   onSave: (items: WasteItem[], totalWasteCost: number, weather: WeatherType) => void;
   onCancel: () => void;
 }) => {
   const [items, setItems] = useState<WasteItem[]>(entry.items);
   const [weather, setWeather] = useState<WeatherType>(entry.weather || 'sunny');
+  const [productSearchOpen, setProductSearchOpen] = useState(false);
+
+  const handleAddOrIncrementProduct = (product: Product) => {
+    setItems(currentItems => {
+      const existingItem = currentItems.find(i => i.productId === product.id);
+      if (existingItem) {
+        return currentItems.map(i => 
+          i.productId === product.id ? { ...i, quantity: i.quantity + 1 } : i
+        );
+      } else {
+        return [
+          ...currentItems,
+          {
+            productId: product.id,
+            productCode: product.productCode,
+            name: product.name,
+            costPrice: product.costPrice,
+            quantity: 1,
+          }
+        ];
+      }
+    });
+    setProductSearchOpen(false);
+  };
 
   const handleQuantityChange = (productId: string, delta: number) => {
     setItems(currentItems => {
@@ -149,7 +193,7 @@ const WasteEditForm = ({
           return newItems.filter((_, i) => i !== itemIndex);
         }
       }
-      return currentItems; // Do not add new items in edit mode for simplicity
+      return currentItems;
     });
   };
 
@@ -183,7 +227,7 @@ const WasteEditForm = ({
             ))}
           </div>
         </div>
-        <div className="max-h-[40vh] overflow-y-auto pr-2 space-y-2">
+        <div className="max-h-[30vh] overflow-y-auto pr-2 space-y-2">
           {items.map(item => (
             <div key={item.productId} className="flex items-center justify-between p-2 rounded-md border">
               <span className="text-sm font-medium truncate flex-1">{item.name}</span>
@@ -194,8 +238,35 @@ const WasteEditForm = ({
               </div>
             </div>
           ))}
-           {items.length === 0 && <p className="text-sm text-center text-muted-foreground py-4">商品がありません。</p>}
+           {items.length === 0 && <p className="text-sm text-center text-muted-foreground py-4">廃棄商品がありません。</p>}
         </div>
+         <Popover open={productSearchOpen} onOpenChange={setProductSearchOpen}>
+            <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full">
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    商品を追加
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[300px] p-0">
+                <Command>
+                <CommandInput placeholder="商品を検索..." />
+                <CommandList>
+                    <CommandEmpty>商品が見つかりません。</CommandEmpty>
+                    <CommandGroup>
+                    {products.map((product) => (
+                        <CommandItem
+                        key={product.id}
+                        value={product.name}
+                        onSelect={() => handleAddOrIncrementProduct(product)}
+                        >
+                        {product.name}
+                        </CommandItem>
+                    ))}
+                    </CommandGroup>
+                </CommandList>
+                </Command>
+            </PopoverContent>
+        </Popover>
       </div>
       <DialogFooter>
         <Button variant="outline" onClick={onCancel}>キャンセル</Button>
@@ -440,6 +511,57 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>日別廃棄ロス推移</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={dailyWasteData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis />
+                <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--background))' }} />
+                <Legend />
+                <Bar dataKey="totalWaste" fill="hsl(var(--destructive))" name="廃棄ロス(原価)" />
+                <Bar dataKey="totalOpportunityLoss" fill="hsl(var(--primary))" name="機会損失(売価)" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>廃棄商品分析</CardTitle>
+            <CardDescription>期間内に廃棄された商品の合計です。</CardDescription>
+          </CardHeader>
+          <CardContent>
+             <div className="max-h-[300px] overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>商品</TableHead>
+                    <TableHead className="text-right">廃棄数</TableHead>
+                    <TableHead className="text-right">廃棄ロス</TableHead>
+                    <TableHead className="text-right">機会損失</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {wasteAnalysisData.sort((a,b) => b.totalWasteCost - a.totalWasteCost).map((item) => (
+                    <TableRow key={item.productId}>
+                      <TableCell className="font-medium">{item.productName}</TableCell>
+                      <TableCell className="text-right">{item.wasteCount}</TableCell>
+                      <TableCell className="text-right text-destructive font-semibold">¥{item.totalWasteCost.toLocaleString()}</TableCell>
+                      <TableCell className="text-right">¥{item.opportunityLoss.toLocaleString()}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+             </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <Dialog open={!!selectedDayWaste} onOpenChange={(open) => !open && setSelectedDayWaste(null)}>
           <DialogContent className="max-w-md max-h-[80vh] flex flex-col">
               {!!selectedDayWaste && (
@@ -518,6 +640,7 @@ export default function DashboardPage() {
           {entryToEdit && (
             <WasteEditForm
               entry={entryToEdit}
+              products={products}
               onSave={(items, totalWasteCost, weather) => {
                 if (entryToEdit) {
                   updateWasteEntry(entryToEdit.storeId, entryToEdit.id, entryToEdit.date, items, totalWasteCost, weather);
