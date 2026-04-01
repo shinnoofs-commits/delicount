@@ -130,7 +130,7 @@ const DashboardCalendar = ({ data, onDayClick, month, onMonthChange }: { data: a
             table: 'w-full',
             head_row: 'ml-2',
             row: 'w-full mt-2',
-            day: 'h-28 lg:h-32 align-top p-0',
+            day: 'h-28 lg:h-28 align-top p-0',
             day_selected: 'bg-transparent text-current',
             day_range_start: 'bg-transparent text-current',
             day_range_end: 'bg-transparent text-current',
@@ -524,41 +524,74 @@ export default function DashboardPage() {
                 <YAxis />
                 <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--background))' }} />
                 <Legend />
-                <Bar dataKey="totalWaste" fill="hsl(var(--destructive))" name="廃棄ロス(原価)" />
-                <Bar dataKey="totalOpportunityLoss" fill="hsl(var(--primary))" name="機会損失(売価)" />
+                <Bar dataKey="totalWaste" fill="hsl(var(--accent))" name="廃棄ロス(原価)" />
+                <Bar dataKey="totalOpportunityLoss" fill="hsl(var(--chart-4))" name="機会損失(売価)" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader>
-            <CardTitle>廃棄商品分析</CardTitle>
-            <CardDescription>期間内に廃棄された商品の合計です。</CardDescription>
-          </CardHeader>
-          <CardContent>
-             <div className="max-h-[300px] overflow-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>商品</TableHead>
-                    <TableHead className="text-right">廃棄数</TableHead>
-                    <TableHead className="text-right">廃棄ロス</TableHead>
-                    <TableHead className="text-right">機会損失</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {wasteAnalysisData.sort((a,b) => b.totalWasteCost - a.totalWasteCost).map((item) => (
-                    <TableRow key={item.productId}>
-                      <TableCell className="font-medium">{item.productName}</TableCell>
-                      <TableCell className="text-right">{item.wasteCount}</TableCell>
-                      <TableCell className="text-right text-destructive font-semibold">¥{item.totalWasteCost.toLocaleString()}</TableCell>
-                      <TableCell className="text-right">¥{item.opportunityLoss.toLocaleString()}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-             </div>
-          </CardContent>
+            <CardHeader>
+            <CardTitle>廃棄商品履歴</CardTitle>
+            <CardDescription>期間内の日ごとの廃棄記録です。</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="max-h-[300px] overflow-auto">
+                {filteredWasteEntries.length > 0 ? (
+                    <Table>
+                    <TableHeader>
+                        <TableRow>
+                        <TableHead className="w-[120px]">日付</TableHead>
+                        <TableHead>品目</TableHead>
+                        <TableHead className="text-right">廃棄ロス(原価)</TableHead>
+                        <TableHead className="text-right">機会損失(売価)</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {filteredWasteEntries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(entry => {
+                            const entryTotalSellPrice = entry.items.reduce((sum, item) => {
+                                const product = products.find(p => p.id === item.productId);
+                                return sum + (product?.price || 0) * item.quantity;
+                            }, 0);
+                            return (
+                                <TableRow key={entry.id}>
+                                    <TableCell>
+                                        <div className="flex flex-col">
+                                            <span className="font-medium">{format(new Date(entry.date), 'M月d日')}</span>
+                                            <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                              <WeatherIcon type={entry.weather} />
+                                              <span>{format(new Date(entry.date), 'HH:mm')}</span>
+                                            </div>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex flex-col gap-1">
+                                            {entry.items.map((item, i) => (
+                                                <div key={i} className="text-xs">
+                                                    <span className="font-medium">{item.name}</span>
+                                                    <span className="text-muted-foreground"> x {item.quantity}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-right font-semibold tabular-nums">
+                                        ¥{entry.totalWasteCost.toLocaleString()}
+                                    </TableCell>
+                                    <TableCell className="text-right text-destructive font-semibold tabular-nums">
+                                        ¥{entryTotalSellPrice.toLocaleString()}
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
+                    </TableBody>
+                    </Table>
+                ) : (
+                    <div className="text-center text-muted-foreground py-10">
+                        この期間に廃棄記録はありません。
+                    </div>
+                )}
+                </div>
+            </CardContent>
         </Card>
       </div>
 
