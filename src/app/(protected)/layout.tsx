@@ -16,6 +16,7 @@ import {
   Calculator,
   Factory,
   CalendarDays,
+  Sparkles,
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -45,6 +46,7 @@ const navItems = [
   { href: '/production-planning', icon: CalendarDays, label: '製造計画', adminOnly: false },
   { href: '/dashboard', icon: LineChart, label: 'ダッシュボード', adminOnly: false },
   { href: '/abc-analysis', icon: Calculator, label: '廃棄クロス分析', adminOnly: false },
+  { href: '/ai-analysis', icon: Sparkles, label: 'AI 分析', adminOnly: false },
   { href: '/products', icon: Package, label: '商品', adminOnly: false },
   { href: '/stores', icon: Building, label: '店舗一覧', adminOnly: true },
   { href: '/manual', icon: BookText, label: '操作説明', adminOnly: false },

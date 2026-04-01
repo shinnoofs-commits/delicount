@@ -32,7 +32,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar as CalendarIcon, Loader2, CalendarDays, Sun, Filter, PieChart, Package, Cloud, CloudRain, Snowflake, Maximize2, ClipboardList, Info } from 'lucide-react';
-import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, getDay, addDays, subDays } from "date-fns";
+import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, getDay, addDays, subDays, isSameDay } from "date-fns";
 import { ja } from "date-fns/locale";
 import holiday_jp from '@holiday-jp/holiday_jp';
 import { useTransactions } from "@/contexts/transaction-context";
@@ -110,15 +110,6 @@ export default function ABCAnalysisPage() {
 
   const analysisData = useMemo(() => {
     if (wasteLoading || productsLoading || productionLoading || !date || !date.from || validDates.length === 0) return null;
-
-    const dateSet = new Set(validDates);
-    const dateStoreToWeather = new Map<string, string>();
-    wasteEntries.forEach(entry => {
-      const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
-      if (entry.weather && dateSet.has(dateKey)) {
-        dateStoreToWeather.set(`${dateKey}|${entry.storeId}`, entry.weather);
-      }
-    });
     
     const additionalProductionEntries = productionEntries.filter(
       (entry) => entry.entryType === 'ADDITIONAL'
@@ -127,7 +118,7 @@ export default function ABCAnalysisPage() {
     const dailyAdditionalProductionMap = new Map<string, Map<string, number>>();
     additionalProductionEntries.forEach(entry => {
       const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
-      if (!dateSet.has(dateKey)) return;
+      if (!validDates.includes(dateKey)) return;
       const storeDateKey = `${dateKey}|${entry.storeId}`;
       if (!dailyAdditionalProductionMap.has(storeDateKey)) {
         dailyAdditionalProductionMap.set(storeDateKey, new Map<string, number>());
@@ -139,7 +130,7 @@ export default function ABCAnalysisPage() {
     const wasteMap = new Map<string, Map<string, number>>();
     wasteEntries.forEach(entry => {
       const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
-      if (!dateSet.has(dateKey)) return;
+      if (!validDates.includes(dateKey)) return;
       const storeDateKey = `${dateKey}|${entry.storeId}`;
       if (!wasteMap.has(storeDateKey)) wasteMap.set(storeDateKey, new Map());
       const pWasteMap = wasteMap.get(storeDateKey)!;
@@ -175,10 +166,16 @@ export default function ABCAnalysisPage() {
         const isHoliday = holiday_jp.isHoliday(entryDate);
         const dow = isHoliday ? 7 : getDay(entryDate);
         const storeDateKey = `${dateKey}|${product.storeId}`;
-        const weather = dateStoreToWeather.get(storeDateKey); // No '|| sunny'
+        
+        const weatherEntry = wasteEntries.find(e => 
+          e.storeId === product.storeId && 
+          isSameDay(e.date, entryDate) && 
+          e.weather
+        );
+        const weather = weatherEntry?.weather;
         
         let plannedProduction = 0;
-        if (weather) { // Only calculate planned production if weather is known
+        if (weather) {
             const dowKey = isHoliday ? 'holiday' : dayMap[dow];
             const plan = weather === 'rainy' ? product.dailyProductionRainy : product.dailyProductionSunny;
             plannedProduction = (plan && isHoliday && plan.holiday !== undefined)
