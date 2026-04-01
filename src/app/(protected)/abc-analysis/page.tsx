@@ -42,6 +42,7 @@ import { useAdmin } from "@/hooks/use-admin";
 import { StoreSelector } from "@/components/ui/store-selector";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
+import type { WeatherType } from "@/lib/types";
 
 const dayLabels = ['月', '火', '水', '木', '金', '土', '日', '祝'];
 const dayOrder = [1, 2, 3, 4, 5, 6, 0, 7];
@@ -128,15 +129,22 @@ export default function ABCAnalysisPage() {
     });
 
     const wasteMap = new Map<string, Map<string, number>>();
+    const dailyWeatherMap = new Map<string, WeatherType>();
+
     wasteEntries.forEach(entry => {
       const dateKey = format(startOfDay(entry.date), 'yyyy-MM-dd');
       if (!validDates.includes(dateKey)) return;
       const storeDateKey = `${dateKey}|${entry.storeId}`;
+      
       if (!wasteMap.has(storeDateKey)) wasteMap.set(storeDateKey, new Map());
       const pWasteMap = wasteMap.get(storeDateKey)!;
       entry.items.forEach(item => {
         pWasteMap.set(item.productId, (pWasteMap.get(item.productId) || 0) + item.quantity);
       });
+
+      if (entry.weather && !dailyWeatherMap.has(storeDateKey)) {
+          dailyWeatherMap.set(storeDateKey, entry.weather);
+      }
     });
 
     const productStatsAll = new Map<string, any>();
@@ -167,12 +175,7 @@ export default function ABCAnalysisPage() {
         const dow = isHoliday ? 7 : getDay(entryDate);
         const storeDateKey = `${dateKey}|${product.storeId}`;
         
-        const weatherEntry = wasteEntries.find(e => 
-          e.storeId === product.storeId && 
-          isSameDay(e.date, entryDate) && 
-          e.weather
-        );
-        const weather = weatherEntry?.weather;
+        const weather = dailyWeatherMap.get(storeDateKey);
         
         let plannedProduction = 0;
         if (weather) {

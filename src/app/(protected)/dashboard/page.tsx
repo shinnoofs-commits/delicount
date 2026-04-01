@@ -17,7 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useTransactions } from "@/contexts/transaction-context";
-import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid, getDay, addDays, isSameDay } from "date-fns";
+import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth, isValid, getDay, addDays, isSameDay, subMonths } from "date-fns";
 import { ja } from "date-fns/locale";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { Calendar as CalendarIcon, Trash2, TrendingDown, Edit, MoreHorizontal, Plus, Minus, Loader2, Sun, Cloud, CloudRain, Snowflake, Package, Sparkles } from 'lucide-react';
@@ -55,69 +55,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { useAdmin } from "@/hooks/use-admin";
-
-const DateRangePicker = ({ date, setDate }: { date: DateRange | undefined, setDate: (date: DateRange | undefined) => void }) => {
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          id="date"
-          variant={"outline"}
-          className={cn(
-            "w-[300px] justify-start text-left font-normal",
-            !date && "text-muted-foreground"
-          )}
-        >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {date?.from ? (
-            date.to ? (
-              <>
-                {format(date.from, "yyyy年M月d日")} -{" "}
-                {format(date.to, "yyyy年M月d日")}
-              </>
-            ) : (
-              format(date.from, "yyyy年M月d日")
-            )
-          ) : (
-            <span>日付を選択</span>
-          )}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <Calendar
-          initialFocus
-          mode="range"
-          defaultMonth={date?.from}
-          selected={date}
-          onSelect={setDate}
-          numberOfMonths={2}
-          locale={ja}
-        />
-      </PopoverContent>
-    </Popover>
-  );
-};
-
-const filterOptions = [
-  { id: 1, label: '月' },
-  { id: 2, label: '火' },
-  { id: 3, label: '水' },
-  { id: 4, label: '木' },
-  { id: 5, label: '金' },
-  { id: 6, label: '土' },
-  { id: 0, label: '日' },
-  { id: 7, label: '祝' }
-];
-
-type WasteData = {
-    productId: string;
-    productName: string;
-    wasteCount: number;
-    costPrice: number;
-    price: number;
-    totalWasteCost: number;
-    opportunityLoss: number;
-};
 
 const weatherOptions: { value: WeatherType; label: string; icon: any }[] = [
   { value: 'sunny', label: '晴れ', icon: Sun },
@@ -163,14 +100,14 @@ const DashboardCalendar = ({ data, onDayClick }: { data: any[], onDayClick: (dat
               const WeatherI = dayData.weatherLabel ? weatherIcons[Object.keys(weatherLabels).find(key => weatherLabels[key as WeatherType] === dayData.weatherLabel) as WeatherType] : null;
 
               return (
-                <div onClick={() => onDayClick(date)} className="flex flex-col h-full w-full p-1.5 text-left text-[10px] cursor-pointer hover:bg-muted/50 rounded-md">
+                <div onClick={() => onDayClick(date)} className="flex flex-col h-full w-full p-1 text-left text-[10px] cursor-pointer hover:bg-muted/50 rounded-md">
                   <div className="flex justify-between items-center">
-                    <span className="font-bold">{date.getDate()}</span>
+                    <span className="font-semibold">{date.getDate()}</span>
                     {WeatherI && <WeatherI className="h-3 w-3 text-muted-foreground" />}
                   </div>
                   <div className="flex-1 flex flex-col justify-end mt-1">
-                    <p className="text-destructive font-bold leading-tight">¥{dayData.totalWaste.toLocaleString()}</p>
-                    <p className="text-blue-600 font-bold leading-tight">¥{dayData.totalOpportunityLoss.toLocaleString()}</p>
+                    <p className="text-destructive font-semibold leading-tight">¥{dayData.totalWaste.toLocaleString()}</p>
+                    <p className="text-blue-600 font-semibold leading-tight">¥{dayData.totalOpportunityLoss.toLocaleString()}</p>
                   </div>
                 </div>
               );
@@ -178,7 +115,7 @@ const DashboardCalendar = ({ data, onDayClick }: { data: any[], onDayClick: (dat
           }}
           className="w-full"
           classNames={{
-            day: 'h-24 align-top',
+            day: 'h-22 align-top',
             day_selected: 'bg-transparent',
             day_range_start: 'bg-transparent',
             day_range_end: 'bg-transparent',
@@ -208,9 +145,10 @@ export default function DashboardPage() {
   const [date, setDate] = useState<DateRange | undefined>(undefined);
 
   useEffect(() => {
+    const today = new Date();
     setDate({
-      from: subDays(new Date(), 6),
-      to: new Date(),
+      from: startOfMonth(today),
+      to: endOfMonth(today),
     });
   }, []);
 
@@ -333,14 +271,13 @@ export default function DashboardPage() {
     setSelectedDayWaste({ date, entries });
   }
 
-  const setDatePreset = (preset: 'today' | 'this_month' | 'last_7_days') => {
+  const setDatePreset = (preset: 'this_month' | 'last_month') => {
     const today = new Date();
-    if (preset === 'today') {
-      setDate({ from: today, to: today });
-    } else if (preset === 'this_month') {
+    if (preset === 'this_month') {
       setDate({ from: startOfMonth(today), to: endOfMonth(today) });
-    } else if (preset === 'last_7_days') {
-      setDate({ from: subDays(today, 6), to: today });
+    } else if (preset === 'last_month') {
+      const lastMonth = subMonths(today, 1);
+      setDate({ from: startOfMonth(lastMonth), to: endOfMonth(lastMonth) });
     }
   };
 
@@ -430,13 +367,48 @@ export default function DashboardPage() {
             </div>
             <div>
               <Label className="text-sm font-medium mb-2 block">期間を選択</Label>
-              <div className="flex flex-wrap items-center gap-2">
-                <DateRangePicker date={date} setDate={setDate} />
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setDatePreset('today')}>今日</Button>
-                  <Button variant="outline" size="sm" onClick={() => setDatePreset('last_7_days')}>過去7日間</Button>
-                  <Button variant="outline" size="sm" onClick={() => setDatePreset('this_month')}>今月</Button>
-                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                            id="date"
+                            variant={"outline"}
+                            className={cn(
+                                "w-[240px] justify-start text-left font-normal",
+                                !date && "text-muted-foreground"
+                            )}
+                            >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {date?.from ? (
+                                date.to ? (
+                                <>
+                                    {format(date.from, "yyyy年M月d日")} -{" "}
+                                    {format(date.to, "yyyy年M月d日")}
+                                </>
+                                ) : (
+                                format(date.from, "yyyy年M月d日")
+                                )
+                            ) : (
+                                <span>日付を選択</span>
+                            )}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                            initialFocus
+                            mode="range"
+                            defaultMonth={date?.from}
+                            selected={date}
+                            onSelect={setDate}
+                            numberOfMonths={2}
+                            locale={ja}
+                            />
+                        </PopoverContent>
+                    </Popover>
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setDatePreset('last_month')}>先月</Button>
+                        <Button variant="outline" size="sm" onClick={() => setDatePreset('this_month')}>今月</Button>
+                    </div>
               </div>
             </div>
         </div>
