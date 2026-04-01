@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Transaction, WasteEntry, WasteItem, WeatherType } from '@/lib/types';
@@ -8,7 +9,7 @@ import { useStores } from './store-context';
 import { useStoreSelection } from './store-selection-context';
 import { collection, addDoc, doc, deleteDoc, writeBatch, updateDoc, onSnapshot, query, Unsubscribe, where, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { isSameDay } from 'date-fns';
+import { isSameDay, startOfDay, endOfDay } from 'date-fns';
 
 interface TransactionContextType {
   transactions: Transaction[];
@@ -16,7 +17,7 @@ interface TransactionContextType {
   loading: boolean;
   addWasteEntry: (wasteEntry: Omit<WasteEntry, 'id' | 'userId'>) => void;
   deleteWasteEntries: (storeId: string, entryIds: string[]) => Promise<void>;
-  updateWasteEntry: (storeId: string, entryId: string, items: WasteItem[], totalWasteCost: number, weather?: WeatherType) => Promise<void>;
+  updateWasteEntry: (storeId: string, entryId: string, date: Date, items: WasteItem[], totalWasteCost: number, weather?: WeatherType) => Promise<void>;
   updateDailyWeather: (storeId: string, date: Date, weather: WeatherType) => Promise<void>;
 }
 
@@ -131,37 +132,40 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   const updateDailyWeather = useCallback(async (storeId: string, date: Date, weather: WeatherType) => {
     if (!firestore || !user) return;
 
-    const dayEntries = wasteEntries.filter(e => e.storeId === storeId && isSameDay(e.date, date));
-    if (dayEntries.length === 0) return;
-
-    const batch = writeBatch(firestore);
-    dayEntries.forEach(entry => {
-      const entryRef = doc(firestore, 'stores', storeId, 'waste', entry.id);
-      batch.update(entryRef, { weather });
-    });
+    const wasteCollectionRef = collection(firestore, 'stores', storeId, 'waste');
+    const q = query(
+      wasteCollectionRef, 
+      where('date', '>=', startOfDay(date)),
+      where('date', '<=', endOfDay(date))
+    );
 
     try {
-      await batch.commit();
+        const querySnapshot = await getDocs(q);
+        if (querySnapshot.empty) return;
+
+        const batch = writeBatch(firestore);
+        querySnapshot.forEach(docSnapshot => {
+            batch.update(docSnapshot.ref, { weather });
+        });
+        await batch.commit();
+
     } catch (e) {
-      console.error('Failed to sync daily weather', e);
-      if (user) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
+        console.error('Failed to sync daily weather by querying', e);
+        if (user) {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({
             path: `stores/${storeId}/waste`,
             operation: 'update',
             requestResourceData: { weather }
-        }));
+          }));
       }
     }
-  }, [firestore, wasteEntries, user]);
+  }, [firestore, user]);
 
-  const updateWasteEntry = useCallback(async (storeId: string, entryId: string, items: WasteItem[], totalWasteCost: number, weather?: WeatherType) => {
+  const updateWasteEntry = useCallback(async (storeId: string, entryId: string, date: Date, items: WasteItem[], totalWasteCost: number, weather?: WeatherType) => {
     if (!firestore || !user) return;
     
     if (weather) {
-      const entry = wasteEntries.find(e => e.id === entryId);
-      if (entry) {
-        await updateDailyWeather(storeId, entry.date, weather);
-      }
+      await updateDailyWeather(storeId, date, weather);
     }
 
     const entryRef = doc(firestore, 'stores', storeId, 'waste', entryId);
@@ -185,7 +189,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
           }));
       }
     });
-  }, [firestore, toast, wasteEntries, user, updateDailyWeather]);
+  }, [firestore, toast, user, updateDailyWeather]);
 
   const value = useMemo(() => ({ 
     transactions: [],

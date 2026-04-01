@@ -431,7 +431,7 @@ export default function DashboardPage() {
         if (validItems.length === 0) {
             await deleteWasteEntries(editEntry.storeId, [editEntry.id]);
         } else {
-            await updateWasteEntry(editEntry.storeId, editEntry.id, validItems, newTotalCost, editWeather);
+            await updateWasteEntry(editEntry.storeId, editEntry.id, editEntry.date, validItems, newTotalCost, editWeather);
         }
         setEditEntry(null);
     } catch (e: any) {
