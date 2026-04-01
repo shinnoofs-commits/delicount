@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -24,9 +23,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import holiday_jp from '@holiday-jp/holiday_jp';
 import { StoreSelector } from "@/components/ui/store-selector";
 import {
   Dialog,
@@ -76,14 +73,14 @@ const WeatherIcon = ({ type }: { type?: WeatherType }) => {
     return <Icon className="h-4 w-4 inline-block mr-1 text-muted-foreground" />;
 };
 
-const DashboardCalendar = ({ data, onDayClick }: { data: any[], onDayClick: (date: Date) => void }) => {
+const DashboardCalendar = ({ data, onDayClick, month, onMonthChange }: { data: any[], onDayClick: (date: Date) => void, month: Date | undefined, onMonthChange: (date: Date) => void }) => {
   return (
     <Card className="h-full">
       <CardContent className="p-2">
         <Calendar
-          defaultMonth={data[0]?.fullDate}
+          month={month}
+          onMonthChange={onMonthChange}
           locale={ja}
-          selected={{ from: data[0]?.fullDate, to: data[data.length - 1]?.fullDate }}
           components={{
             DayContent: ({ date }) => {
               const dayData = data.find(d => isSameDay(d.fullDate, date));
@@ -219,13 +216,16 @@ export default function DashboardPage() {
   const [entryToDelete, setEntryToDelete] = useState<WasteEntry | null>(null);
 
   const [date, setDate] = useState<DateRange | undefined>(undefined);
+  const [calendarMonth, setCalendarMonth] = useState<Date>();
 
   useEffect(() => {
     const today = new Date();
+    const start = startOfMonth(today);
     setDate({
-      from: startOfMonth(today),
+      from: start,
       to: endOfMonth(today),
     });
+    setCalendarMonth(start);
   }, []);
 
   const confirmDelete = useCallback(() => {
@@ -335,12 +335,23 @@ export default function DashboardPage() {
   const setDatePreset = (preset: 'this_month' | 'last_month') => {
     const today = new Date();
     if (preset === 'this_month') {
-      setDate({ from: startOfMonth(today), to: endOfMonth(today) });
+      const newFrom = startOfMonth(today);
+      setDate({ from: newFrom, to: endOfMonth(today) });
+      setCalendarMonth(newFrom);
     } else if (preset === 'last_month') {
       const lastMonth = subMonths(today, 1);
-      setDate({ from: startOfMonth(lastMonth), to: endOfMonth(lastMonth) });
+      const newFrom = startOfMonth(lastMonth);
+      setDate({ from: newFrom, to: endOfMonth(lastMonth) });
+      setCalendarMonth(newFrom);
     }
   };
+  
+  const handleDateRangeSelect = (newDate: DateRange | undefined) => {
+    setDate(newDate);
+    if(newDate?.from) {
+      setCalendarMonth(newDate.from);
+    }
+  }
 
   if (wasteLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
 
@@ -386,7 +397,7 @@ export default function DashboardPage() {
                             mode="range"
                             defaultMonth={date?.from}
                             selected={date}
-                            onSelect={setDate}
+                            onSelect={handleDateRangeSelect}
                             numberOfMonths={2}
                             locale={ja}
                             />
@@ -403,7 +414,7 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
-          {dailyWasteData.length > 0 && <DashboardCalendar data={dailyWasteData} onDayClick={handleDayClick} />}
+          {dailyWasteData.length > 0 && <DashboardCalendar data={dailyWasteData} onDayClick={handleDayClick} month={calendarMonth} onMonthChange={setCalendarMonth} />}
         </div>
         <div className="lg:col-span-1 flex flex-col gap-4">
           <Card>
@@ -535,5 +546,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
