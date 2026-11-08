@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { useStores } from './store-context';
-import { useAdmin } from '@/hooks/use-admin';
+import { useAdmin } from '@/hooks/useAdmin';
 
 interface StoreSelectionContextType {
   selectedStoreIds: string[];
@@ -16,13 +16,10 @@ export function StoreSelectionProvider({ children }: { children: React.ReactNode
   const { isAdmin } = useAdmin();
   const [selectedStoreIds, setSelectedStoreIds] = useState<string[]>([]);
 
+  // Selected stores default to empty, letting users select them explicitly.
   useEffect(() => {
-    if (isAdmin && !storesLoading && stores.length > 0) {
-      // Default to all non-admin stores selected for admins to avoid including HQ/admin accounts in analysis
-      const actualStores = stores.filter(store => !store.isAdmin);
-      setSelectedStoreIds(actualStores.map(s => s.id));
-    }
-  }, [isAdmin, stores, storesLoading]);
+    // Keep empty by default
+  }, []);
 
   const value = useMemo(() => ({
     selectedStoreIds,

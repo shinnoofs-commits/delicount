@@ -1,7 +1,7 @@
 import PosClient from './client';
 
 export const metadata = {
-  title: '廃棄入力 - 商品構成・廃棄管理パートナー',
+  title: '廃棄登録 - Deli・COUNT',
 };
 
 export default function POSPage() {

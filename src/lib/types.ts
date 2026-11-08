@@ -12,6 +12,8 @@ export type Store = {
   email: string;
   userId: string;
   isAdmin?: boolean;
+  isMaster?: boolean;
+  categories?: string[];
 }
 
 export type AdminRole = {
@@ -22,6 +24,17 @@ export type AdminRole = {
 }
 
 export type Category = string;
+
+export const defaultCategories = [
+  '温惣菜',
+  '冷惣菜',
+  '弁当',
+  'どんぶり',
+  '揚げ物',
+  'おこわ',
+  '唐揚げ',
+  'サラダ',
+];
 
 export type Material = {
   name: string;
@@ -53,10 +66,20 @@ export type Product = {
   productCode: string;
   category: string;
   pricePattern?: string;
+  isFixedPrice?: boolean;
   materials?: Material[];
   containers?: Container[];
   dailyProductionSunny?: DailyProduction;
   dailyProductionRainy?: DailyProduction;
+  isActive?: boolean;
+};
+
+export type ProductBox = {
+  id: string; // The category string (e.g. "米飯")
+  storeId: string;
+  category: string;
+  products: Product[];
+  updatedAt: Date;
 };
 
 export type CartItem = {
@@ -66,12 +89,19 @@ export type CartItem = {
 
 export type TransactionItem = {
   productId: string;
+  productCode?: string;
   name: string;
   quantity: number;
   unitPrice: number;
   wasDiscounted: boolean;
+  discountRate?: number;
+  category?: string;
 };
 
+/** 
+ * Transaction represents either a legacy sale or a "Stock Check" at a discount milestone.
+ * For the new workflow, it stores the quantity of stock REMAINING when a discount starts.
+ */
 export type Transaction = {
   id: string;
   storeId: string;
@@ -84,6 +114,14 @@ export type Transaction = {
   } | null;
   finalAmount: number;
   paymentMethod: 'Cash' | 'Credit Card' | 'E-Money' | 'QR Code' | 'Points';
+  entryType?: 'SALE' | 'STOCK_CHECK';
+};
+
+export type DailyTransactionBox = {
+  id: string; // YYYY-MM-DD
+  storeId: string;
+  date: Date;
+  transactions: Transaction[];
 };
 
 export type WasteItem = {
@@ -92,6 +130,7 @@ export type WasteItem = {
   name: string;
   quantity: number;
   costPrice: number;
+  unitPrice?: number;
 };
 
 export type WeatherType = 'sunny' | 'cloudy' | 'rainy' | 'snowy';
@@ -106,11 +145,19 @@ export type WasteEntry = {
   weather?: WeatherType;
 };
 
+export type DailyWasteBox = {
+  id: string; // YYYY-MM-DD
+  storeId: string;
+  date: Date;
+  entries: WasteEntry[];
+};
+
 export type ProductionItem = {
   productId: string;
   productCode?: string;
   name: string;
   quantity: number;
+  unitPrice?: number;
 };
 
 export type ProductionEntry = {

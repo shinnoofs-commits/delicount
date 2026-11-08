@@ -26,7 +26,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!isUserLoading && user) {
-      router.replace('/pos');
+      router.replace('/');
     }
   }, [user, isUserLoading, router]);
 
@@ -35,7 +35,7 @@ export default function LoginPage() {
     try {
       await signInWithEmailAndPassword(auth, email, password);
       toast({ title: 'ログインしました' });
-      router.replace('/pos');
+      router.replace('/');
     } catch (error: any) {
       let description = 'メールアドレスまたはパスワードが正しくありません。';
       if (error.code === 'auth/invalid-email') {
@@ -68,7 +68,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4">
-            <Icons.logo className="h-12 w-12 text-primary" />
+            <img src="/logo-deli-count.jpg" alt="Deli・COUNT" className="h-20 w-20 rounded-2xl mx-auto object-contain shadow-sm border border-slate-100" />
           </div>
           <CardTitle className="text-2xl font-headline">ログイン</CardTitle>
           <CardDescription>メールアドレスとパスワードを入力してください</CardDescription>

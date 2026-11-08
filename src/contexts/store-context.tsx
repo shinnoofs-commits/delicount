@@ -6,7 +6,7 @@ import React, { createContext, useContext, useCallback, useMemo, useState, useEf
 import { useFirestore, useUser, errorEmitter, FirestorePermissionError, useAuth } from '@/firebase';
 import { collection, doc, addDoc, setDoc, deleteDoc, serverTimestamp, query, where, writeBatch, getDoc, onSnapshot } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { useAdmin } from '@/hooks/use-admin';
+import { useAdmin } from '@/hooks/useAdmin';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { firebaseConfig } from '@/firebase/config';
@@ -142,7 +142,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       .then(() => {
         toast({ 
           title: "店舗を削除しました",
-          description: "店舗データのみ削除されました。"
+          description: "店舗データのみ削除されました。",
         });
       })
       .catch(() => {

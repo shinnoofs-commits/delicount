@@ -50,7 +50,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useStores } from "@/contexts/store-context"
 import { useToast } from "@/hooks/use-toast"
-import { useAdmin } from "@/hooks/use-admin"
+import { useAdmin } from "@/hooks/useAdmin"
 import { useUser } from "@/firebase"
 
 export default function StoresClient() {
@@ -132,7 +132,7 @@ export default function StoresClient() {
       <Card>
         <CardHeader>
           <CardTitle>店舗・アカウント一覧</CardTitle>
-          <CardDescription>アカウントの管理・役割の変更ができます。</CardDescription>
+          <CardDescription>アカウントの管理や役割の変更ができます。</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -147,14 +147,14 @@ export default function StoresClient() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {stores.length === 0 ? (
+              {stores.filter(s => !s.isMaster && s.id !== 'master').length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} className="h-24 text-center">
                     まだ店舗アカウントが登録されていません。
                   </TableCell>
                 </TableRow>
               ) : (
-                stores.map((store) => (
+                stores.filter(s => !s.isMaster && s.id !== 'master').map((store) => (
                   <TableRow key={store.id}>
                     <TableCell className="font-medium">{store.name}</TableCell>
                     <TableCell>{store.email}</TableCell>
@@ -210,7 +210,7 @@ export default function StoresClient() {
             <DialogDescription>
               {storeToEdit
                 ? "店舗の名称を更新します。"
-                : "新しい店舗アカウントを作成します。作成されたアカウントは初期状態では「管理者」です。"}
+                : "新しい店舗アカウントを作成します。作成されたアカウントの初期状態では「管理者」です。"}
             </DialogDescription>
           </DialogHeader>
           <StoreForm
@@ -229,8 +229,7 @@ export default function StoresClient() {
           <AlertDialogHeader>
             <AlertDialogTitle>よろしいですか？</AlertDialogTitle>
             <AlertDialogDescription>
-              この操作は元に戻せません。「{storeToDelete?.name}
-              」を完全に削除します。関連するログインアカウントは自動では削除されません。
+              この操作は元に戻せません。「{storeToDelete?.name}」を完全に削除します。関連するログインアカウントは自動では削除されません。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

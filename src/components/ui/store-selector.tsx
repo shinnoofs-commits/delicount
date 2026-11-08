@@ -27,7 +27,7 @@ export function StoreSelector() {
   const { selectedStoreIds, setSelectedStoreIds } = useStoreSelection();
   const [open, setOpen] = React.useState(false);
 
-  const selectableStores = React.useMemo(() => stores.filter(s => !s.isAdmin), [stores]);
+  const selectableStores = React.useMemo(() => stores.filter(s => !s.isAdmin && !s.isMaster && s.id !== 'master'), [stores]);
 
   const toggleStore = (storeId: string) => {
     setSelectedStoreIds((prev) =>

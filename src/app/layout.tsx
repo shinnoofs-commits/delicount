@@ -4,8 +4,8 @@ import './globals.css';
 import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
-  title: '商品構成・廃棄管理パートナー',
-  description: '商品構成の最適化と廃棄分析に特化したパートナーツールです。',
+  title: 'Deli・COUNT',
+  description: '商品構成の最適化と廃棄の分析に特化したパートナーツールです。',
 };
 
 export default function RootLayout({

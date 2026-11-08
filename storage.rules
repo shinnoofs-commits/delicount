@@ -1,0 +1,29 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // 管理者かどうかの判定をより直接的に
+    function isAdmin() {
+      return request.auth != null && 
+        firestore.exists(/databases/(default)/documents/roles_admin/$(request.auth.uid));
+    }
+
+    // 店舗のオーナーかどうかの判定
+    function isStoreOwner(storeId) {
+      return request.auth != null &&
+        firestore.exists(/databases/(default)/documents/stores/$(storeId)) &&
+        firestore.get(/databases/(default)/documents/stores/$(storeId)).data.userId == request.auth.uid;
+    }
+
+    // 全ての店舗フォルダ以下へのアクセスを管理者およびオーナーに許可
+    match /stores/{storeId}/{allPaths=**} {
+      allow read, write: if isAdmin() || isStoreOwner(storeId);
+    }
+    
+    // 開発初期のトラブルを避けるため、認証済みユーザーに一時的に全許可（バックアップ用）
+    match /stores/{storeId}/backups/{allPaths=**} {
+       allow read, write: if request.auth != null;
+    }
+  }
+}

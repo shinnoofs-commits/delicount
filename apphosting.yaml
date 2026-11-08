@@ -5,3 +5,17 @@ runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
+  ingressSettings: ALL
+
+# Environment variables mapping
+env:
+  - variable: GEMINI_API_KEY
+    secret: gemini-api-key
+  - variable: SMAREGI_CONTRACT_ID
+    value: skul746r1
+  - variable: SMAREGI_CLIENT_ID
+    value: db4e08c4cda53e554fda44b324ed33da
+  - variable: SMAREGI_CLIENT_SECRET
+    value: 70a30e91b3882561b8aa9a57e88038d69c7265c6686d58057eaafcea722280ce
+  - variable: CRON_SECRET
+    value: my-super-secret-cron-key

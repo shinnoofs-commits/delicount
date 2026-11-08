@@ -43,3 +43,8 @@ next-env.d.ts
 # firebase
 firebase-debug.log
 firestore-debug.log
+# playwright mcp
+.playwright-mcp/
+
+# claude code local settings
+.claude/settings.local.json

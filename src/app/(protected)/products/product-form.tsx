@@ -1,25 +1,17 @@
 
 'use client'
 
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 
-import type { Product } from '@/lib/types'
+import type { Product, Store } from '@/lib/types'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-
-const productCategories = [
-  '温惣菜',
-  '冷惣菜',
-  '弁当',
-  '丼ぶり',
-  '揚げ物',
-  '唐揚げ',
-  'おこわ',
-];
 
 const pricePatterns = ['専門店', '量販店'];
 
@@ -31,23 +23,31 @@ const formSchema = z.object({
   costPrice: z.coerce.number().min(0, { message: '原価は正の数でなければなりません。' }),
   category: z.string().min(1, { message: 'カテゴリーは必須です。' }),
   pricePattern: z.string().optional(),
+  isFixedPrice: z.boolean().optional(),
+  targetStoreIds: z.array(z.string()).optional(),
 })
 
 type FormValues = z.infer<typeof formSchema>;
 
 interface ProductFormProps {
   product: Omit<Product, 'storeId' | 'dailyProductionSunny' | 'dailyProductionRainy'> | null;
+  categories: string[];
+  stores?: Store[];
+  managedStoreId?: string;
+  initialTargetStoreIds?: string[];
   onSubmit: (data: FormValues) => void;
   onCancel: () => void;
 }
 
-export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
+export function ProductForm({ product, categories, stores, managedStoreId, initialTargetStoreIds, onSubmit, onCancel }: ProductFormProps) {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: product 
       ? { 
           ...product, 
           pricePattern: product.pricePattern || '', 
+          isFixedPrice: product.isFixedPrice ?? false,
+          targetStoreIds: initialTargetStoreIds ?? (managedStoreId ? [managedStoreId] : []),
         }
       : {
         name: '',
@@ -56,8 +56,30 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
         costPrice: 0,
         category: '',
         pricePattern: '',
+        isFixedPrice: false,
+        targetStoreIds: initialTargetStoreIds ?? (managedStoreId ? [managedStoreId] : []),
     },
   })
+
+  useEffect(() => {
+    form.reset(product 
+      ? { 
+          ...product, 
+          pricePattern: product.pricePattern || '', 
+          isFixedPrice: product.isFixedPrice ?? false,
+          targetStoreIds: initialTargetStoreIds ?? (managedStoreId ? [managedStoreId] : []),
+        }
+      : {
+        name: '',
+        productCode: '',
+        price: 0,
+        costPrice: 0,
+        category: '',
+        pricePattern: '',
+        isFixedPrice: false,
+        targetStoreIds: initialTargetStoreIds ?? (managedStoreId ? [managedStoreId] : []),
+      });
+  }, [product, initialTargetStoreIds, managedStoreId, form]);
 
   return (
     <Form {...form}>
@@ -130,7 +152,7 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {productCategories.map(category => (
+                    {categories.map(category => (
                       <SelectItem key={category} value={category}>
                         {category}
                       </SelectItem>
@@ -167,11 +189,84 @@ export function ProductForm({ product, onSubmit, onCancel }: ProductFormProps) {
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="isFixedPrice"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-3">
+                  <FormControl>
+                    <input
+                      type="checkbox"
+                      checked={field.value}
+                      onChange={(e) => field.onChange(e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel className="cursor-pointer">
+                      価格を固定する
+                    </FormLabel>
+                  </div>
+                </FormItem>
+              )}
+            />
         </div>
+
+        {stores && stores.length > 0 && (
+          <FormField
+            control={form.control}
+            name="targetStoreIds"
+            render={() => (
+              <FormItem>
+                <div className="mb-4">
+                  <FormLabel className="text-base">登録店舗</FormLabel>
+                  <FormDescription>
+                    {product ? '商品を更新・追加・削除する店舗を選択してください' : '商品を追加する店舗を選択してください（複数選択可）'}
+                  </FormDescription>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-4 bg-muted/50 rounded-md border">
+                  {stores.map((store) => (
+                    <FormField
+                      key={store.id}
+                      control={form.control}
+                      name="targetStoreIds"
+                      render={({ field }) => {
+                        return (
+                          <FormItem
+                            key={store.id}
+                            className="flex flex-row items-start space-x-3 space-y-0"
+                          >
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value?.includes(store.id)}
+                                onCheckedChange={(checked) => {
+                                  const current = field.value || [];
+                                  return checked
+                                    ? field.onChange([...current, store.id])
+                                    : field.onChange(
+                                        current.filter((value) => value !== store.id)
+                                      )
+                                }}
+                              />
+                            </FormControl>
+                            <FormLabel className="font-normal text-sm cursor-pointer leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                              {store.name}
+                            </FormLabel>
+                          </FormItem>
+                        )
+                      }}
+                    />
+                  ))}
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
 
         <div className="p-4 bg-muted rounded-md mt-4">
             <p className="text-sm text-muted-foreground">
-                曜日ごとの製造予定数は、サイドバーの「<span className="font-semibold">製造計画</span>」から設定します。
+                曜日ごとの製造予定数は、サイドバーの「製造計画」から設定します。
             </p>
         </div>
 
